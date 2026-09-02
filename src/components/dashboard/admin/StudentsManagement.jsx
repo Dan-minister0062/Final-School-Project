@@ -217,7 +217,6 @@ const StudentsManagement = () => {
     try {
       console.log("💾 Saving student user to storage:", userData);
       
-      // Ensure user has all required fields
       const userToSave = {
         id: userData.id || `USR${String(Date.now()).slice(-6)}`,
         name: userData.name || `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
@@ -233,7 +232,6 @@ const StudentsManagement = () => {
         role: 'student',
         status: userData.status || 'active',
         password: userData.password || 'student123',
-        // Student specific fields
         classId: userData.classId || '',
         class: userData.classId || '',
         className: userData.className || '',
@@ -242,13 +240,11 @@ const StudentsManagement = () => {
         parentName: userData.parentName || '',
         parentPhone: userData.parentPhone || '',
         parentEmail: userData.parentEmail || '',
-        // Metadata
         lastLogin: null,
         createdAt: userData.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
 
-      // Save to school_users (primary storage for login)
       const users = JSON.parse(localStorage.getItem("school_users") || "[]");
       const existingUserIndex = users.findIndex((u) => u.id === userToSave.id);
       
@@ -257,15 +253,11 @@ const StudentsManagement = () => {
         localStorage.setItem("school_users", JSON.stringify(users));
         console.log("✅ Student saved to school_users for login");
       } else {
-        users[existingUserIndex] = {
-          ...users[existingUserIndex],
-          ...userToSave,
-        };
+        users[existingUserIndex] = { ...users[existingUserIndex], ...userToSave };
         localStorage.setItem("school_users", JSON.stringify(users));
         console.log("✅ Student updated in school_users");
       }
 
-      // Also save to school_students for management
       const students = JSON.parse(localStorage.getItem("school_students") || "[]");
       const existingStudentIndex = students.findIndex((s) => s.id === userToSave.id);
       
@@ -300,15 +292,11 @@ const StudentsManagement = () => {
         localStorage.setItem("school_students", JSON.stringify(students));
         console.log("✅ Student saved to school_students");
       } else {
-        students[existingStudentIndex] = {
-          ...students[existingStudentIndex],
-          ...studentData,
-        };
+        students[existingStudentIndex] = { ...students[existingStudentIndex], ...studentData };
         localStorage.setItem("school_students", JSON.stringify(students));
         console.log("✅ Student updated in school_students");
       }
 
-      // Dispatch events
       window.dispatchEvent(new CustomEvent('usersUpdated', { 
         detail: { user: userToSave, action: 'save' }
       }));
@@ -324,7 +312,7 @@ const StudentsManagement = () => {
   };
 
   // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
-  // ===== SEND NOTIFICATION TO TEACHER WHEN STUDENT IS ASSIGNED =====
+  // ===== SEND NOTIFICATION TO TEACHER =====
   // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
   const notifyTeacherAboutStudent = (studentName, className, teacherId, studentId) => {
     try {
@@ -357,7 +345,6 @@ const StudentsManagement = () => {
       localStorage.setItem('school_notifications', JSON.stringify(notifications));
       console.log(`🔔 Notification sent to teacher ${teacherId} about student ${studentName}`);
       
-      // Dispatch events
       window.dispatchEvent(new CustomEvent('notificationAdded', { detail: notification }));
       window.dispatchEvent(new CustomEvent('studentAdded', { 
         detail: { student: { name: studentName, id: studentId, class: className }, teacherId: teacherId }
@@ -427,14 +414,33 @@ const StudentsManagement = () => {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
+  // ===== LOAD CLASSES FROM STORAGE (with debug logging) =====
+  const loadClassesFromStorage = () => {
+    try {
+      const classesData = JSON.parse(localStorage.getItem("school_classes") || "[]");
+      console.log("📚 Classes from localStorage:", classesData);
+      console.log("📚 Number of classes found:", classesData.length);
+      
+      if (classesData.length > 0) {
+        setClasses(classesData);
+        return true;
+      } else {
+        console.warn("⚠️ No classes found in localStorage under key 'school_classes'");
+        console.warn("⚠️ Please make sure you have created classes in the system.");
+        return false;
+      }
+    } catch (err) {
+      console.error("❌ Could not load classes from localStorage:", err);
+      return false;
+    }
+  };
+
   // ===== LOAD STUDENTS =====
   const loadStudents = () => {
     setLoading(true);
     try {
-      // Load from school_students
       let studentsData = JSON.parse(localStorage.getItem("school_students") || "[]");
       
-      // If no students in school_students, try school_users
       if (studentsData.length === 0) {
         const users = JSON.parse(localStorage.getItem("school_users") || "[]");
         studentsData = users.filter(u => u.role === 'student');
@@ -468,6 +474,14 @@ const StudentsManagement = () => {
     setTotalStudents(data.length);
     setTotalPages(Math.ceil(data.length / 10));
   };
+
+  // ===== REFRESH CLASSES WHEN ADD MODAL OPENS =====
+  useEffect(() => {
+    if (showAddModal) {
+      console.log("🔓 Add modal opened, loading classes...");
+      loadClassesFromStorage();
+    }
+  }, [showAddModal]);
 
   // ===== APPLY FILTERS =====
   useEffect(() => {
@@ -586,17 +600,14 @@ const StudentsManagement = () => {
         updatedAt: new Date().toISOString(),
       };
 
-      // Save to both school_students and school_users
       const saved = saveUserToStorage(studentData);
       
       if (saved) {
-        // Find teacher and notify
         const teacher = findTeacherByClassId(formData.classId);
         if (teacher) {
           notifyTeacherAboutStudent(fullName, className, teacher.id, userId);
         }
 
-        // Update class student count
         try {
           const classes = JSON.parse(localStorage.getItem("school_classes") || "[]");
           const classIndex = classes.findIndex(c => c.id === formData.classId);
@@ -722,12 +733,10 @@ const StudentsManagement = () => {
         updatedAt: new Date().toISOString(),
       };
 
-      // If password is provided, update it
       if (editFormData.password && editFormData.password.length > 0) {
         updatedStudent.password = editFormData.password;
       }
 
-      // Save to both school_students and school_users
       const saved = saveUserToStorage(updatedStudent);
       
       if (saved) {
@@ -763,17 +772,14 @@ const StudentsManagement = () => {
   const handleDeleteStudent = async () => {
     setProcessingAction(true);
     try {
-      // Remove from school_students
       let studentsList = JSON.parse(localStorage.getItem("school_students") || "[]");
       studentsList = studentsList.filter(s => s.id !== selectedStudent.id);
       localStorage.setItem("school_students", JSON.stringify(studentsList));
 
-      // Remove from school_users
       let users = JSON.parse(localStorage.getItem("school_users") || "[]");
       users = users.filter(u => u.id !== selectedStudent.id);
       localStorage.setItem("school_users", JSON.stringify(users));
 
-      // Update class student count
       if (selectedStudent.classId) {
         try {
           const classes = JSON.parse(localStorage.getItem("school_classes") || "[]");
@@ -813,7 +819,6 @@ const StudentsManagement = () => {
   const handleToggleStatus = (studentId, currentStatus) => {
     const newStatus = currentStatus === "active" ? "inactive" : "active";
     try {
-      // Update school_students
       let studentsList = JSON.parse(localStorage.getItem("school_students") || "[]");
       const index = studentsList.findIndex(s => s.id === studentId);
       if (index !== -1) {
@@ -821,7 +826,6 @@ const StudentsManagement = () => {
         localStorage.setItem("school_students", JSON.stringify(studentsList));
       }
 
-      // Update school_users
       let users = JSON.parse(localStorage.getItem("school_users") || "[]");
       const userIndex = users.findIndex(u => u.id === studentId);
       if (userIndex !== -1) {
@@ -1383,7 +1387,7 @@ const StudentsManagement = () => {
         </Card.Body>
       </Card>
 
-      {/* ===== ADD STUDENT MODAL ===== */}
+      {/* ===== ADD STUDENT MODAL (WITH STRONGER CLASS LOADING) ===== */}
       <Modal show={showAddModal} onHide={() => setShowAddModal(false)} centered size="lg" className="modern-modal">
         <Modal.Header closeButton className="border-0" style={{ background: darkMode ? "#1a1a2e" : "white" }}>
           <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529" }}>
@@ -1494,12 +1498,54 @@ const StudentsManagement = () => {
                     }}
                   >
                     <option value="">{isArabic ? "اختر الفصل" : "Select Class"}</option>
-                    {classes.map((cls) => (
-                      <option key={cls.id} value={cls.id}>
-                        {cls.name} {cls.level ? `(${getLevelDisplay(cls.level)})` : ""}
-                      </option>
-                    ))}
+                    {(() => {
+                      // Try state first, then localStorage, then try other possible keys
+                      let classList = classes.length > 0 ? classes : [];
+                      
+                      if (classList.length === 0) {
+                        try {
+                          // Try "school_classes"
+                          const fromStorage = JSON.parse(localStorage.getItem("school_classes") || "[]");
+                          if (fromStorage.length > 0) {
+                            classList = fromStorage;
+                            console.log("✅ Loaded classes from localStorage for dropdown:", classList.length);
+                          } else {
+                            // Try "classes" (alternative key)
+                            const altStorage = JSON.parse(localStorage.getItem("classes") || "[]");
+                            if (altStorage.length > 0) {
+                              classList = altStorage;
+                              console.log("✅ Loaded classes from 'classes' key:", classList.length);
+                            }
+                          }
+                        } catch (e) {
+                          console.warn("Error reading classes from localStorage:", e);
+                        }
+                      }
+                      
+                      return classList.map((cls) => (
+                        <option key={cls.id} value={cls.id}>
+                          {cls.name} {cls.level ? `(${getLevelDisplay(cls.level)})` : ""}
+                        </option>
+                      ));
+                    })()}
                   </Form.Select>
+                  {(() => {
+                    // Show a helpful message if no classes exist
+                    const hasClasses = (() => {
+                      try {
+                        const fromStorage = JSON.parse(localStorage.getItem("school_classes") || "[]");
+                        return fromStorage.length > 0;
+                      } catch { return false; }
+                    })();
+                    if (!hasClasses && classes.length === 0) {
+                      return (
+                        <Form.Text className="text-warning" style={arabicFontStyle}>
+                          ⚠️ {isArabic ? "لا توجد فصول. يرجى إنشاء فصل أولاً." : "No classes found. Please create a class first."}
+                        </Form.Text>
+                      );
+                    }
+                    return null;
+                  })()}
                 </Form.Group>
               </Col>
               <Col md={6}>
@@ -1727,7 +1773,7 @@ const StudentsManagement = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* ===== VIEW STUDENT MODAL (FIXED: now shows all fields) ===== */}
+      {/* ===== VIEW STUDENT MODAL ===== */}
       <Modal show={showViewModal} onHide={() => setShowViewModal(false)} centered size="lg" className="modern-modal">
         <Modal.Header closeButton className="border-0" style={{ background: darkMode ? "#1a1a2e" : "white" }}>
           <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529" }}>
@@ -1779,7 +1825,6 @@ const StudentsManagement = () => {
               </div>
 
               <Row className="g-3">
-                {/* Full Name */}
                 <Col md={6}>
                   <div className="detail-item">
                     <label className="text-muted small" style={arabicFontStyle}>
@@ -1790,8 +1835,6 @@ const StudentsManagement = () => {
                     </p>
                   </div>
                 </Col>
-
-                {/* Class */}
                 <Col md={6}>
                   <div className="detail-item">
                     <label className="text-muted small" style={arabicFontStyle}>
@@ -1802,8 +1845,6 @@ const StudentsManagement = () => {
                     </p>
                   </div>
                 </Col>
-
-                {/* Level */}
                 <Col md={6}>
                   <div className="detail-item">
                     <label className="text-muted small" style={arabicFontStyle}>
@@ -1814,8 +1855,6 @@ const StudentsManagement = () => {
                     </p>
                   </div>
                 </Col>
-
-                {/* Date of Birth */}
                 <Col md={6}>
                   <div className="detail-item">
                     <label className="text-muted small" style={arabicFontStyle}>
@@ -1826,8 +1865,6 @@ const StudentsManagement = () => {
                     </p>
                   </div>
                 </Col>
-
-                {/* Gender */}
                 <Col md={6}>
                   <div className="detail-item">
                     <label className="text-muted small" style={arabicFontStyle}>
@@ -1842,8 +1879,6 @@ const StudentsManagement = () => {
                     </p>
                   </div>
                 </Col>
-
-                {/* Nationality */}
                 <Col md={6}>
                   <div className="detail-item">
                     <label className="text-muted small" style={arabicFontStyle}>
@@ -1854,8 +1889,6 @@ const StudentsManagement = () => {
                     </p>
                   </div>
                 </Col>
-
-                {/* City */}
                 <Col md={6}>
                   <div className="detail-item">
                     <label className="text-muted small" style={arabicFontStyle}>
@@ -1866,8 +1899,6 @@ const StudentsManagement = () => {
                     </p>
                   </div>
                 </Col>
-
-                {/* Email (repeated for clarity) */}
                 <Col md={6}>
                   <div className="detail-item">
                     <label className="text-muted small" style={arabicFontStyle}>
@@ -1878,8 +1909,6 @@ const StudentsManagement = () => {
                     </p>
                   </div>
                 </Col>
-
-                {/* Phone (repeated) */}
                 <Col md={6}>
                   <div className="detail-item">
                     <label className="text-muted small" style={arabicFontStyle}>
@@ -1890,8 +1919,6 @@ const StudentsManagement = () => {
                     </p>
                   </div>
                 </Col>
-
-                {/* Address */}
                 {selectedStudent.address && (
                   <Col md={12}>
                     <div className="detail-item">
@@ -1904,8 +1931,6 @@ const StudentsManagement = () => {
                     </div>
                   </Col>
                 )}
-
-                {/* Parent/Guardian */}
                 {selectedStudent.parentName && (
                   <Col md={12}>
                     <div className="detail-item">
@@ -1987,8 +2012,6 @@ const StudentsManagement = () => {
                 </Form.Group>
               </Col>
             </Row>
-
-            {/* ===== FIX: ADDED DOB & GENDER ROW IN EDIT MODAL ===== */}
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -2033,7 +2056,6 @@ const StudentsManagement = () => {
                 </Form.Group>
               </Col>
             </Row>
-
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -2051,11 +2073,16 @@ const StudentsManagement = () => {
                     }}
                   >
                     <option value="">{isArabic ? "اختر الفصل" : "Select Class"}</option>
-                    {classes.map((cls) => (
-                      <option key={cls.id} value={cls.id}>
-                        {cls.name}
-                      </option>
-                    ))}
+                    {(() => {
+                      const classList = classes.length > 0 
+                        ? classes 
+                        : JSON.parse(localStorage.getItem("school_classes") || "[]");
+                      return classList.map((cls) => (
+                        <option key={cls.id} value={cls.id}>
+                          {cls.name}
+                        </option>
+                      ));
+                    })()}
                   </Form.Select>
                 </Form.Group>
               </Col>
@@ -2122,7 +2149,6 @@ const StudentsManagement = () => {
                 </Form.Group>
               </Col>
             </Row>
-            {/* ===== PASSWORD FIELDS IN EDIT ===== */}
             <div className="section-divider mt-2">
               <span className="section-divider-label">
                 <FaLock className="me-2" /> {isArabic ? "تغيير كلمة المرور" : "Change Password"}

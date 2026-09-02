@@ -1,5 +1,6 @@
 // src/components/dashboard/admin/PaymentsManagement.jsx
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Container, Row, Col, Card, Table, Badge, Button, Form, Modal,
   Alert, Pagination, InputGroup, Spinner, ProgressBar,
@@ -51,6 +52,7 @@ const generateStudentId = () => {
 const PaymentsManagement = () => {
   const { isArabic } = useLanguage();
   const { notify } = useNotification();
+  const location = useLocation();
 
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -452,6 +454,44 @@ const PaymentsManagement = () => {
       window.removeEventListener('paymentQueueUpdated', handleQueueUpdate);
     };
   }, [fetchData]);
+
+  // ===== HANDLE APPROVED PAYMENT FROM DASHBOARD NAVIGATION =====
+  useEffect(() => {
+    const approvedPayment = location.state?.approvedPayment;
+    if (approvedPayment && payments.length > 0) {
+      const matchedPayment = payments.find(p => p.id === approvedPayment.id) || {
+        id: approvedPayment.id,
+        studentName: approvedPayment.studentName || '',
+        parentEmail: approvedPayment.parentEmail || '',
+        parentName: approvedPayment.parentName || '',
+        parentPhone: approvedPayment.parentPhone || '',
+        level: '',
+        className: approvedPayment.className || '',
+        month: approvedPayment.month || new Date().getMonth() + 1,
+        year: approvedPayment.year || new Date().getFullYear(),
+        amount: approvedPayment.amount || 0,
+        type: 'full',
+        status: 'approved',
+        method: null,
+        hasReceipt: false,
+        receiptData: null,
+        receiptName: null,
+        notes: '',
+        paidAt: new Date().toISOString(),
+        approvedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        dateOfBirth: approvedPayment.studentDateOfBirth || '',
+        gender: approvedPayment.studentGender || '',
+        address: approvedPayment.parentAddress || '',
+        city: '',
+        phone: approvedPayment.parentPhone || '',
+        parentName: approvedPayment.parentName || '',
+        parentPhone: approvedPayment.parentPhone || '',
+      };
+      openPayModal(matchedPayment);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state, payments]);
 
   // ===== HANDLE SORT =====
   const handleSort = (field) => {

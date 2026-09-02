@@ -259,17 +259,19 @@ const AdminDashboard = () => {
     }));
   };
 
-  // ===== Get pending payments from localStorage =====
+  // ===== Get pending payments from localStorage (ENHANCED with student/parent info) =====
   const getPendingPayments = () => {
     try {
       const allPayments = JSON.parse(localStorage.getItem('school_payments') || '[]');
       const pending = allPayments.filter(p => p.status === 'submitted' || p.status === 'pending');
       
-      // Get student names
+      // Get all students from localStorage
       const allStudents = JSON.parse(localStorage.getItem('school_students') || '[]');
       
       return pending.map(p => {
-        const student = allStudents.find(s => s.id === p.studentId);
+        // Find the student by studentId (or fallback by name)
+        const student = allStudents.find(s => s.id === p.studentId) ||
+                        allStudents.find(s => s.name === p.studentName || s.firstName === p.studentName);
         return {
           id: p.id || `pay-${Date.now()}`,
           studentId: p.studentId,
@@ -285,9 +287,18 @@ const AdminDashboard = () => {
           hasReceipt: !!p.receiptData || !!p.receipt,
           note: p.note || '',
           createdAt: p.createdAt || p.updatedAt || new Date().toISOString(),
+          // Parent info (from student)
           parentName: student?.parentName || 'Unknown Parent',
           parentEmail: student?.parentEmail || '',
           parentPhone: student?.parentPhone || '',
+          parentAddress: student?.address || student?.parentAddress || '',
+          // Student additional info
+          studentDateOfBirth: student?.dateOfBirth || student?.dob || '',
+          studentGender: student?.gender || '',
+          studentPreviousSchool: student?.previousSchool || student?.lastSchool || '',
+          studentAddress: student?.address || '',
+          // Also keep original student object if needed
+          _student: student,
         };
       });
     } catch (error) {
@@ -1010,6 +1021,26 @@ const AdminDashboard = () => {
         setShowPaymentApproveConfirm(null);
         setShowPaymentModal(null);
         fetchDashboardData();
+
+        navigate('/dashboard/admin/payments', {
+          state: {
+            approvedPayment: {
+              id: payment.id,
+              studentId: payment.studentId,
+              studentName: payment.studentName,
+              parentName: payment.parentName,
+              parentEmail: payment.parentEmail,
+              parentPhone: payment.parentPhone,
+              parentAddress: payment.parentAddress,
+              amount: payment.amount,
+              month: payment.month,
+              year: payment.year,
+              className: payment.className,
+              studentDateOfBirth: payment.studentDateOfBirth,
+              studentGender: payment.studentGender,
+            }
+          }
+        });
       }
     } catch (error) {
       console.error("Payment approval error:", error);
@@ -2040,7 +2071,7 @@ const AdminDashboard = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* ===== VIEW PAYMENT MODAL ===== */}
+      {/* ===== ENHANCED VIEW PAYMENT MODAL with Student & Parent Info ===== */}
       <Modal show={showPaymentModal !== null} onHide={() => { setShowPaymentModal(null); if (paymentReceiptUrl) { URL.revokeObjectURL(paymentReceiptUrl); setPaymentReceiptUrl(null); } }} centered size="lg" className="modern-modal">
         <Modal.Header closeButton className="border-0" style={{ background: darkMode ? "#1a1a2e" : "white" }}>
           <Modal.Title style={{
@@ -2055,10 +2086,16 @@ const AdminDashboard = () => {
         <Modal.Body style={{ background: darkMode ? "#0d1117" : "white" }}>
           {showPaymentModal && (
             <Row className="g-2 g-sm-3">
+              {/* ===== STUDENT INFORMATION ===== */}
+              <Col xs={12}>
+                <h6 className="fw-bold text-primary mb-2" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.9rem, 1.1vw, 1rem)" : "clamp(0.85rem, 1vw, 0.95rem)" }}>
+                  {isArabic ? "معلومات التلميذ" : "Student Information"}
+                </h6>
+              </Col>
               <Col sm={6} xs={12}>
                 <div className="mb-2">
                   <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
-                    {isArabic ? "الطالب" : "Student"}
+                    {isArabic ? "الاسم الكامل" : "Full Name"}
                   </label>
                   <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
                     {showPaymentModal.studentName}
@@ -2072,14 +2109,36 @@ const AdminDashboard = () => {
                     {showPaymentModal.className}
                   </p>
                 </div>
-                <div className="mb-2">
-                  <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
-                    {isArabic ? "الشهر" : "Month"}
-                  </label>
-                  <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
-                    {getMonthName(showPaymentModal.month)} {showPaymentModal.year}
-                  </p>
-                </div>
+                {showPaymentModal.studentDateOfBirth && (
+                  <div className="mb-2">
+                    <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
+                      {isArabic ? "تاريخ الميلاد" : "Date of Birth"}
+                    </label>
+                    <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
+                      {format(new Date(showPaymentModal.studentDateOfBirth), "PPP", { locale })}
+                    </p>
+                  </div>
+                )}
+                {showPaymentModal.studentGender && (
+                  <div className="mb-2">
+                    <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
+                      {isArabic ? "الجنس" : "Gender"}
+                    </label>
+                    <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
+                      {showPaymentModal.studentGender}
+                    </p>
+                  </div>
+                )}
+                {showPaymentModal.studentPreviousSchool && (
+                  <div className="mb-2">
+                    <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
+                      {isArabic ? "المدرسة السابقة" : "Previous School"}
+                    </label>
+                    <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
+                      {showPaymentModal.studentPreviousSchool}
+                    </p>
+                  </div>
+                )}
               </Col>
               <Col sm={6} xs={12}>
                 <div className="mb-2">
@@ -2092,10 +2151,10 @@ const AdminDashboard = () => {
                 </div>
                 <div className="mb-2">
                   <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
-                    {isArabic ? "ولي الأمر" : "Parent"}
+                    {isArabic ? "الشهر" : "Month"}
                   </label>
                   <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
-                    {showPaymentModal.parentName || "N/A"}
+                    {getMonthName(showPaymentModal.month)} {showPaymentModal.year}
                   </p>
                 </div>
                 {showPaymentModal.note && (
@@ -2109,6 +2168,56 @@ const AdminDashboard = () => {
                   </div>
                 )}
               </Col>
+
+              {/* ===== PARENT INFORMATION ===== */}
+              <Col xs={12} className="mt-2">
+                <h6 className="fw-bold text-primary mb-2" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.9rem, 1.1vw, 1rem)" : "clamp(0.85rem, 1vw, 0.95rem)" }}>
+                  {isArabic ? "معلومات ولي الأمر" : "Parent Information"}
+                </h6>
+              </Col>
+              <Col sm={6} xs={12}>
+                <div className="mb-2">
+                  <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
+                    {isArabic ? "الاسم" : "Name"}
+                  </label>
+                  <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
+                    {showPaymentModal.parentName || (isArabic ? "غير متوفر" : "N/A")}
+                  </p>
+                </div>
+                <div className="mb-2">
+                  <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
+                    <FaEnvelope className="me-1" size={isMobile ? 10 : 12} />
+                    {isArabic ? "البريد الإلكتروني" : "Email"}
+                  </label>
+                  <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
+                    {showPaymentModal.parentEmail || (isArabic ? "غير متوفر" : "N/A")}
+                  </p>
+                </div>
+              </Col>
+              <Col sm={6} xs={12}>
+                <div className="mb-2">
+                  <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
+                    <FaPhone className="me-1" size={isMobile ? 10 : 12} />
+                    {isArabic ? "الهاتف" : "Phone"}
+                  </label>
+                  <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
+                    {showPaymentModal.parentPhone || (isArabic ? "غير متوفر" : "N/A")}
+                  </p>
+                </div>
+                {showPaymentModal.parentAddress && (
+                  <div className="mb-2">
+                    <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
+                      <FaMapMarkerAlt className="me-1" size={isMobile ? 10 : 12} />
+                      {isArabic ? "العنوان" : "Address"}
+                    </label>
+                    <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
+                      {showPaymentModal.parentAddress}
+                    </p>
+                  </div>
+                )}
+              </Col>
+
+              {/* ===== RECEIPT ===== */}
               {showPaymentModal.hasReceipt && paymentReceiptUrl && (
                 <Col xs={12}>
                   <div className="mt-2">
@@ -2143,6 +2252,8 @@ const AdminDashboard = () => {
                   </div>
                 </Col>
               )}
+
+              {/* ===== APPROVE / DECLINE BUTTONS ===== */}
               <Col xs={12}>
                 <div className="mt-2 mt-sm-3 d-flex gap-2 flex-wrap">
                   <Button 
@@ -2601,7 +2712,6 @@ const getMonthName = (month) => {
     'يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو',
     'يوليوز', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر'
   ];
-  // This will be replaced by the actual language context
   return monthNames[month - 1] || month;
 };
 
