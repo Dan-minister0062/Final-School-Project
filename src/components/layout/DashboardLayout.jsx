@@ -9,7 +9,8 @@ import {
   FaTachometerAlt,
   FaStar, FaAward,
   FaClock, FaChevronDown,
-  FaLanguage, FaCheckDouble, FaTimes, FaUsers, FaUserCog, FaBook, FaMoneyBillWave
+  FaLanguage, FaCheckDouble, FaTimes, FaUsers, FaUserCog, FaBook, FaMoneyBillWave,
+  FaClipboardList // Added for assessments
 } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { useLanguage } from '../../context/LanguageContext';
@@ -243,6 +244,7 @@ const DashboardLayout = () => {
         { path: '/dashboard/admin/students', icon: <FaUserGraduate />, label: isArabic ? 'الطلاب' : 'Students' },
         { path: '/dashboard/admin/classes', icon: <FaBuilding />, label: isArabic ? 'الفصول' : 'Classes' },
         { path: '/dashboard/admin/announcements', icon: <FaBullhorn />, label: isArabic ? 'الإعلانات' : 'Announcements' },
+        { path: '/dashboard/admin/assessments', icon: <FaClipboardList />, label: isArabic ? 'لوحة التقييمات' : 'Assessments Dashboard' },
         { path: '/dashboard/admin/registrations', icon: <FaUserPlus />, label: isArabic ? 'التسجيلات' : 'Registrations' },
         { path: '/dashboard/admin/settings', icon: <FaCog />, label: isArabic ? 'الإعدادات' : 'Settings' },
         { path: '/dashboard/admin/subjects', icon: <FaBook />, label: isArabic ? 'المواد الدراسية' : 'Subjects' },
@@ -276,6 +278,7 @@ const DashboardLayout = () => {
       return [
         ...baseItems,
         { path: '/dashboard/student/my-results', icon: <FaAward />, label: isArabic ? 'نتائجي' : 'My Results' },
+        { path: '/dashboard/student/announcements', icon: <FaBullhorn />, label: isArabic ? 'الإعلانات' : 'Announcements' },
       ];
     }
 

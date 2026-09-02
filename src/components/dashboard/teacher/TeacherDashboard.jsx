@@ -15,7 +15,7 @@ import {
   FaClipboardList,
   FaSync,
   FaArrowRight,
-  FaExclamationTriangle, // <-- THIS WAS MISSING
+  FaExclamationTriangle,
 } from "react-icons/fa";
 import { useLanguage } from "../../../context/LanguageContext";
 import { useNotification } from "../../../hooks/useNotification";
@@ -338,7 +338,15 @@ const TeacherDashboard = () => {
     );
   }
 
-  // ===== STATS CARDS CONFIGURATION =====
+  // ===== STATS CARDS CONFIGURATION - FIXED =====
+  // Format today's attendance display
+  const getAttendanceDisplay = () => {
+    if (stats.todayAttendance === 'Pending' || stats.todayAttendance === 'Not Marked' || !stats.todayAttendance) {
+      return isArabic ? '—' : '—';
+    }
+    return stats.todayAttendance;
+  };
+
   const statsCards = [
     {
       icon: <FaChalkboardTeacher />,
@@ -365,16 +373,16 @@ const TeacherDashboard = () => {
       onClick: () => window.location.href = '/dashboard/teacher/assessments'
     },
     {
-      icon: <FaClock />,
+      icon: <FaEdit />,
       number: stats.pendingMarking || 0,
-      label: isArabic ? 'بانتظار التصحيح' : 'Pending Marking',
+      label: isArabic ? 'في انتظار التصحيح' : 'Pending Grading',
       gradientClass: 'inactive-card',
       iconClass: 'inactive-icon',
       onClick: () => window.location.href = '/dashboard/teacher/assessments'
     },
     {
       icon: <FaCalendarCheck />,
-      number: stats.todayAttendance || 'Pending',
+      number: getAttendanceDisplay(),
       label: isArabic ? 'حضور اليوم' : "Today's Attendance",
       gradientClass: 'active-card',
       iconClass: 'active-icon',
@@ -447,7 +455,7 @@ const TeacherDashboard = () => {
                 </div>
                 <div className="stat-info">
                   <span className="stat-number">
-                    {formatNumber(stat.number)}
+                    {typeof stat.number === 'string' ? stat.number : formatNumber(stat.number)}
                   </span>
                   <span className="stat-label">{stat.label}</span>
                 </div>
@@ -489,7 +497,7 @@ const TeacherDashboard = () => {
             style={arabicFontStyle}
           >
             <FaEdit className="me-1" size={isMobile ? 12 : 14} />
-            {isArabic ? 'تصحيح التقييمات' : 'Mark Assessments'}
+            {isArabic ? 'تصحيح التقييمات' : 'Grade Assessments'}
           </Button>
           <Button
             variant="outline-info"
@@ -845,6 +853,12 @@ const TeacherDashboard = () => {
           color: ${darkMode ? '#e9ecef' : '#1a1a2e'};
           line-height: 1.2;
           letter-spacing: -0.5px;
+        }
+
+        .stat-number.dash {
+          color: ${darkMode ? '#6c757d' : '#adb5bd'};
+          font-weight: 300;
+          font-size: 1.6rem;
         }
 
         .stat-label {

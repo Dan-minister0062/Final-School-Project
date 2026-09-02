@@ -207,7 +207,6 @@ const StudentsManagement = () => {
   const genderOptions = [
     { value: "male", label: isArabic ? "ذكر" : "Male" },
     { value: "female", label: isArabic ? "أنثى" : "Female" },
-    { value: "other", label: isArabic ? "أخرى" : "Other" },
   ];
 
   // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====

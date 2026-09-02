@@ -192,68 +192,227 @@ const UsersManagement = () => {
       : "clamp(0.8rem, 1vw, 1rem)",
   };
 
-  // ===== COMPLETE CLASSES LIST =====
+  // ===== COMPLETE CLASSES LIST WITH ARABIC NAMES =====
   const completeClassesList = [
-    { id: "kindergarten_intro", name: "Introductory", level: "kindergarten" },
-    {
-      id: "kindergarten_prep1a",
-      name: "Preparatory 1 -A-",
-      level: "kindergarten",
+    // ===== KINDERGARTEN =====
+    { 
+      id: "kindergarten_intro", 
+      name: "Introductory", 
+      nameAr: "استئناس",
+      level: "kindergarten" 
     },
-    {
-      id: "kindergarten_prep1b",
-      name: "Preparatory 1 -B-",
-      level: "kindergarten",
+    { 
+      id: "kindergarten_prep1a", 
+      name: "Preparatory 1 -A-", 
+      nameAr: "التمهيدي الأول  -أ-",
+      level: "kindergarten" 
     },
-    {
-      id: "kindergarten_prep2a",
-      name: "Preparatory 2 -A-",
-      level: "kindergarten",
+    { 
+      id: "kindergarten_prep1b", 
+      name: "Preparatory 1 -B-", 
+      nameAr: "التمهيدي الأول  -ب-",
+      level: "kindergarten" 
     },
-    {
-      id: "kindergarten_prep2b",
-      name: "Preparatory 2 -B-",
-      level: "kindergarten",
+    { 
+      id: "kindergarten_prep2a", 
+      name: "Preparatory 2 -A-", 
+      nameAr: "التمهيدي الثاني  -أ-",
+      level: "kindergarten" 
     },
-    { id: "primary_1a", name: "1 -A-", level: "primary" },
-    { id: "primary_1b", name: "1 -B-", level: "primary" },
-    { id: "primary_2a", name: "2 -A-", level: "primary" },
-    { id: "primary_2b", name: "2 -B-", level: "primary" },
-    { id: "primary_3a", name: "3 -A-", level: "primary" },
-    { id: "primary_3b", name: "3 -B-", level: "primary" },
-    { id: "primary_4a", name: "4 -A-", level: "primary" },
-    { id: "primary_4b", name: "4 -B-", level: "primary" },
-    { id: "primary_5a", name: "5 -A-", level: "primary" },
-    { id: "primary_5b", name: "5 -B-", level: "primary" },
-    { id: "primary_6a", name: "6 -A-", level: "primary" },
-    { id: "primary_6b", name: "6 -B-", level: "primary" },
-    { id: "secondary_1a", name: "Secondary 1 -A-", level: "secondary" },
-    { id: "secondary_1b", name: "Secondary 1 -B-", level: "secondary" },
-    { id: "secondary_2a", name: "Secondary 2 -A-", level: "secondary" },
-    { id: "secondary_2b", name: "Secondary 2 -B-", level: "secondary" },
-    { id: "secondary_3a", name: "Secondary 3 -A-", level: "secondary" },
-    { id: "secondary_3b", name: "Secondary 3 -B-", level: "secondary" },
-    {
-      id: "highschool_common_core",
-      name: "Common Core Science",
-      level: "high_school",
+    { 
+      id: "kindergarten_prep2b", 
+      name: "Preparatory 2 -B-", 
+      nameAr: "التمهيدي الثاني  -ب-",
+      level: "kindergarten" 
     },
-    {
-      id: "highschool_1st_bac_experimental",
-      name: "1st Baccalaureate Experimental Sciences",
-      level: "high_school",
+    
+    // ===== PRIMARY =====
+    { 
+      id: "primary_1a", 
+      name: "1 -A-", 
+      nameAr: "أول ابتدائي  -أ-",
+      level: "primary" 
     },
-    {
-      id: "highschool_2nd_bac_physical",
-      name: "2nd Baccalaureate Physical Sciences",
-      level: "high_school",
+    { 
+      id: "primary_1b", 
+      name: "1 -B-", 
+      nameAr: "أول ابتدائي  -ب-",
+      level: "primary" 
+    },
+    { 
+      id: "primary_2a", 
+      name: "2 -A-", 
+      nameAr: "الثاني ابتدائي  -أ-",
+      level: "primary" 
+    },
+    { 
+      id: "primary_2b", 
+      name: "2 -B-", 
+      nameAr: "الثاني ابتدائي   -ب-",
+      level: "primary" 
+    },
+    { 
+      id: "primary_3a", 
+      name: "3 -A-", 
+      nameAr: "الثالث ابتدائي -أ-",
+      level: "primary" 
+    },
+    { 
+      id: "primary_3b", 
+      name: "3 -B-", 
+      nameAr: "الثالث ابتدائي  -ب-",
+      level: "primary" 
+    },
+    { 
+      id: "primary_4a", 
+      name: "4 -A-", 
+      nameAr: "الرابع ابتدائي  -أ-",
+      level: "primary" 
+    },
+    { 
+      id: "primary_4b", 
+      name: "4 -B-", 
+      nameAr: "الرابع ابتدائي  -ب-",
+      level: "primary" 
+    },
+    { 
+      id: "primary_5a", 
+      name: "5 -A-", 
+      nameAr: "الخامس ابتدائي  -أ-",
+      level: "primary" 
+    },
+    { 
+      id: "primary_5b", 
+      name: "5 -B-", 
+      nameAr: "الخامس ابتدائي  -ب-",
+      level: "primary" 
+    },
+    { 
+      id: "primary_6a", 
+      name: "6 -A-", 
+      nameAr: "السادس ابتدائي  -أ-",
+      level: "primary" 
+    },
+    { 
+      id: "primary_6b", 
+      name: "6 -B-", 
+      nameAr: "السادس ابتدائي  -ب-",
+      level: "primary" 
+    },
+    
+    // ===== SECONDARY =====
+    { 
+      id: "secondary_1a", 
+      name: "Secondary 1 -A-", 
+      nameAr: "أولى إعدادي  -أ-",
+      level: "secondary" 
+    },
+    { 
+      id: "secondary_1b", 
+      name: "Secondary 1 -B-", 
+      nameAr: "أولى إعدادي  -ب-",
+      level: "secondary" 
+    },
+    { 
+      id: "secondary_2a", 
+      name: "Secondary 2 -A-", 
+      nameAr: "الثانية إعدادي  -أ-",
+      level: "secondary" 
+    },
+    { 
+      id: "secondary_2b", 
+      name: "Secondary 2 -B-", 
+      nameAr: "الثانيةعدادي  -ب-",
+      level: "secondary" 
+    },
+    { 
+      id: "secondary_3a", 
+      name: "Secondary 3 -A-", 
+      nameAr: "الثالثة إعدادي  -أ-",
+      level: "secondary" 
+    },
+    { 
+      id: "secondary_3b", 
+      name: "Secondary 3 -B-", 
+      nameAr: "الثالثة إعدادي  -ب-",
+      level: "secondary" 
+    },
+    
+    // ===== HIGH SCHOOL =====
+    { 
+      id: "highschool_common_core", 
+      name: "Common Core Science", 
+      nameAr: "جذع مشترك علوم",
+      level: "high_school" 
+    },
+    { 
+      id: "highschool_1st_bac_experimental", 
+      name: "1st Baccalaureate Experimental Sciences", 
+      nameAr: "الأولى باك علوم تجريبية",
+      level: "high_school" 
+    },
+    { 
+      id: "highschool_2nd_bac_physical", 
+      name: "2nd Baccalaureate Physical Sciences", 
+      nameAr: "الثانية باك علوم فيزيائية",
+      level: "high_school" 
     },
   ];
+
+  // ===== COMPLETE SUBJECTS LIST WITH ARABIC NAMES =====
+  const completeSubjectsList = {
+    kindergarten: [
+      { value: 'quran_k', label: "Qur'an", labelAr: 'القرآن الكريم' },
+      { value: 'english_k', label: 'English', labelAr: 'اللغة الإنجليزية' },
+      { value: 'french_k', label: 'French', labelAr: 'اللغة الفرنسية' },
+      { value: 'arabic_k', label: 'Arabic', labelAr: 'اللغة العربية' },
+      { value: 'math_k', label: 'Mathematics', labelAr: 'الرياضيات' },
+      { value: 'art_k', label: 'Art', labelAr: 'الفنون' }
+    ],
+    primary: [
+      { value: 'quran_p', label: "Qur'an", labelAr: 'التربية الإسلامية والقرآن الكريم' },
+      { value: 'arabic_p', label: 'Arabic', labelAr: 'اللغة العربية' },
+      { value: 'english_p', label: 'English', labelAr: 'اللغة الإنجليزية' },
+      { value: 'french_p', label: 'French', labelAr: 'اللغة الفرنسية' },
+      { value: 'mathematics_p', label: 'Mathematics', labelAr: 'الرياضيات' },
+      { value: 'science_p', label: 'Science', labelAr: 'النشاط العلمي' },
+      { value: 'sports_p', label: 'Sports', labelAr: 'الرياضة' },
+      { value: 'ict_p', label: 'ICT', labelAr: ' الإعلاميات' },
+      { value: 'art_p', label: 'Art', labelAr: 'التربية التشكيلية' },
+      { value: 'geography_p', label: 'Geography', labelAr: 'الاجتماعيات' }
+    ],
+    secondary: [
+      { value: 'quran_s', label: "Qur'an", labelAr: 'التربية الإسلامية والقرآن الكريم' },
+      { value: 'arabic_s', label: 'Arabic', labelAr: 'اللغة العربية' },
+      { value: 'english_s', label: 'English', labelAr: 'اللغة الإنجليزية' },
+      { value: 'french_s', label: 'French', labelAr: 'اللغة الفرنسية' },
+      { value: 'mathematics_s', label: 'Mathematics', labelAr: 'الرياضيات' },
+      { value: 'svt_s', label: 'SVT (Biology)', labelAr: 'علوم الحياة والأرض' },
+      { value: 'physics_s', label: 'Physics', labelAr: 'الفيزياء' },
+      { value: 'sports_s', label: 'Sports', labelAr: 'الرياضة' },
+      { value: 'ict_s', label: 'ICT', labelAr: ' الاعلاميات' },
+      { value: 'geography_s', label: 'Geography', labelAr: 'الاجتماعيات' }
+    ],
+    high_school: [
+      { value: 'quran_h', label: "Qur'an", labelAr: 'التربية الإسلامية والقرآن الكريم' },
+      { value: 'arabic_h', label: 'Arabic', labelAr: 'اللغة العربية' },
+      { value: 'english_h', label: 'English', labelAr: 'اللغة الإنجليزية' },
+      { value: 'french_h', label: 'French', labelAr: 'اللغة الفرنسية' },
+      { value: 'mathematics_h', label: 'Mathematics', labelAr: 'الرياضيات' },
+      { value: 'svt_h', label: 'SVT (Biology)', labelAr: 'علوم الحياة والأرض' },
+      { value: 'physics_h', label: 'Physics', labelAr: 'الفيزياء' },
+      { value: 'sports_h', label: 'Sports', labelAr: 'الرياضة' },
+      { value: 'ict_h', label: 'ICT', labelAr: ' الإعلاميات' },
+      { value: 'geography_h', label: 'Geography', labelAr: 'الاجتماعيات' },
+      { value: 'philosophy_h', label: 'Philosophy', labelAr: 'الفلسفة' }
+    ]
+  };
 
   // ===== QUALIFICATIONS LIST =====
   const qualificationsList = [
     { value: "baccalaureate", label: isArabic ? "بكالوريا" : "Baccalaureate" },
     { value: "bsc", label: isArabic ? "بكالوريوس علوم" : "BSc" },
+    { value: "licence", label: isArabic ? " اجازة" : "Licence" },
     { value: "master", label: isArabic ? "ماجستير" : "Master" },
     { value: "doctorate", label: isArabic ? "دكتوراه" : "Doctorate" },
   ];
@@ -310,24 +469,114 @@ const UsersManagement = () => {
     { value: "sister", label: isArabic ? "أخت" : "Sister" },
     { value: "guardian", label: isArabic ? "ولي أمر" : "Guardian" },
     { value: "other", label: isArabic ? "أخرى" : "Other" },
-
   ];
 
-  // ===== GET SUBJECTS FOR LEVEL =====
+  // ===== GET SUBJECTS FOR LEVEL WITH ARABIC SUPPORT =====
   const getSubjectsForLevel = (level) => {
     try {
-      const allSubjects = userDataService.getAllSubjects();
-      if (allSubjects && allSubjects[level]) {
-        const subjectsList = allSubjects[level];
-        return subjectsList.map((s) => ({
-          value: s.value,
-          label: isArabic ? s.labelAr || s.label : s.label,
-        }));
+      // First try to get from localStorage
+      const storedSubjects = localStorage.getItem('school_subjects');
+      if (storedSubjects) {
+        const parsed = JSON.parse(storedSubjects);
+        if (parsed && parsed[level]) {
+          const subjectsList = parsed[level];
+          return subjectsList.map((s) => ({
+            value: s.value,
+            label: isArabic ? (s.labelAr || s.label) : s.label,
+          }));
+        }
+      }
+      
+      // Fallback to completeSubjectsList
+      const subjectsList = completeSubjectsList[level] || [];
+      return subjectsList.map((s) => ({
+        value: s.value,
+        label: isArabic ? (s.labelAr || s.label) : s.label,
+      }));
+    } catch (e) {
+      console.error("Error getting subjects:", e);
+      // Fallback to completeSubjectsList
+      const subjectsList = completeSubjectsList[level] || [];
+      return subjectsList.map((s) => ({
+        value: s.value,
+        label: isArabic ? (s.labelAr || s.label) : s.label,
+      }));
+    }
+  };
+
+  // ===== GET SUBJECT LABEL WITH ARABIC SUPPORT =====
+  const getSubjectDisplay = (subjectValue) => {
+    // Search in completeSubjectsList
+    for (const [level, subjects] of Object.entries(completeSubjectsList)) {
+      const found = subjects.find((s) => s.value === subjectValue);
+      if (found) {
+        return isArabic ? (found.labelAr || found.label) : found.label;
+      }
+    }
+    
+    // Try localStorage
+    try {
+      const storedSubjects = localStorage.getItem('school_subjects');
+      if (storedSubjects) {
+        const parsed = JSON.parse(storedSubjects);
+        for (const [level, subjects] of Object.entries(parsed)) {
+          const found = subjects.find((s) => s.value === subjectValue);
+          if (found) {
+            return isArabic ? (found.labelAr || found.label) : found.label;
+          }
+        }
       }
     } catch (e) {
-      console.error("Error getting subjects from service:", e);
+      console.error('Error getting subject from localStorage:', e);
     }
-    return [];
+    
+    return subjectValue;
+  };
+
+  // ===== GET CLASS NAME WITH ARABIC SUPPORT =====
+  const getClassName = (classId) => {
+    // First check in completeClassesList
+    const classFromList = completeClassesList.find((c) => c.id === classId);
+    if (classFromList) {
+      return isArabic ? (classFromList.nameAr || classFromList.name) : classFromList.name;
+    }
+    
+    // Try to get from classes state
+    const found = classes.find((c) => c.id === classId);
+    if (found) {
+      return isArabic ? (found.nameAr || found.name) : found.name;
+    }
+    
+    // Try localStorage
+    try {
+      const storedClasses = JSON.parse(localStorage.getItem('school_classes') || '[]');
+      const stored = storedClasses.find(c => c.id === classId);
+      if (stored) {
+        return isArabic ? (stored.nameAr || stored.name) : stored.name;
+      }
+    } catch (e) {
+      console.error('Error getting class from localStorage:', e);
+    }
+    
+    return classId;
+  };
+
+  // ===== GET CLASS NAME FOR DISPLAY IN TABLE =====
+  const getClassDisplayName = (classId) => {
+    const classInfo = completeClassesList.find(c => c.id === classId);
+    if (classInfo) {
+      return isArabic ? (classInfo.nameAr || classInfo.name) : classInfo.name;
+    }
+    return classId;
+  };
+
+  // ===== GET AVAILABLE CLASSES WITH ARABIC NAMES =====
+  const getAvailableClassesWithNames = (level) => {
+    const filtered = completeClassesList.filter((c) => c.level === level);
+    return filtered.map((c) => ({
+      ...c,
+      displayName: isArabic ? (c.nameAr || c.name) : c.name,
+    }));
   };
 
   // ===== FORM DATA =====
@@ -587,60 +836,33 @@ const UsersManagement = () => {
     fetchSubjects();
   }, []);
 
-  // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
-  // ===== MAP ASSIGNED CLASS IDs TO ACTUAL CLASS IDs =====
-  // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
+  // ===== MAP ASSIGNED CLASS IDs =====
   const mapAssignedClassIds = (assignedIds) => {
     try {
       const allClasses = JSON.parse(localStorage.getItem('school_classes') || '[]');
-      console.log('📚 All classes for mapping:', allClasses.map(c => ({ id: c.id, name: c.name })));
       
       if (!allClasses || allClasses.length === 0) {
-        console.warn('⚠️ No classes found in localStorage');
         return assignedIds;
       }
       
       const mappedIds = assignedIds.map(assignedId => {
+        // First try exact match
         let found = allClasses.find(c => c.id === assignedId);
-        if (found) {
-          console.log(`✅ Found class by exact ID: ${assignedId} -> ${found.id} (${found.name})`);
-          return found.id;
-        }
+        if (found) return found.id;
         
+        // Try matching by name or Arabic name
         const classMapping = completeClassesList.find(c => c.id === assignedId);
         if (classMapping) {
           const nameMatch = allClasses.find(c => 
             c.name === classMapping.name || 
-            c.name === classMapping.name.replace(/ -/g, '') ||
-            classMapping.name === c.name.replace(/ -/g, '')
+            c.nameAr === classMapping.nameAr
           );
-          if (nameMatch) {
-            console.log(`✅ Found class by name match: ${assignedId} -> ${nameMatch.id} (${nameMatch.name})`);
-            return nameMatch.id;
-          }
+          if (nameMatch) return nameMatch.id;
         }
         
-        const cleanAssigned = assignedId.toLowerCase().replace(/[^a-z0-9]/g, '');
-        for (const cls of allClasses) {
-          const cleanName = cls.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-          const cleanId = cls.id.toLowerCase().replace(/[^a-z0-9]/g, '');
-          
-          if (cleanName === cleanAssigned || 
-              cleanId === cleanAssigned ||
-              cleanName.includes(cleanAssigned) || 
-              cleanAssigned.includes(cleanName) ||
-              cleanId.includes(cleanAssigned) ||
-              cleanAssigned.includes(cleanId)) {
-            console.log(`✅ Found class by name/ID match: ${assignedId} -> ${cls.id} (${cls.name})`);
-            return cls.id;
-          }
-        }
-        
-        console.warn(`⚠️ No match found for: ${assignedId}, keeping original`);
         return assignedId;
       });
       
-      console.log('📚 Mapped class IDs:', mappedIds);
       return mappedIds;
     } catch (error) {
       console.error('Error mapping class IDs:', error);
@@ -648,14 +870,11 @@ const UsersManagement = () => {
     }
   };
 
-  // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
-  // ===== SAVE USER TO STORAGE - FIXED =====
-  // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
+  // ===== SAVE USER TO STORAGE =====
   const saveUserToStorage = (userData) => {
     try {
       console.log("💾 Saving user to storage:", userData);
       
-      // Ensure user has all required fields
       const userToSave = {
         ...userData,
         id: userData.id || `USR${String(Date.now()).slice(-6)}`,
@@ -672,17 +891,15 @@ const UsersManagement = () => {
       if (existingUserIndex === -1) {
         users.push(userToSave);
         localStorage.setItem("school_users", JSON.stringify(users));
-        console.log("✅ User saved to school_users");
       } else {
         users[existingUserIndex] = {
           ...users[existingUserIndex],
           ...userToSave,
         };
         localStorage.setItem("school_users", JSON.stringify(users));
-        console.log("✅ User updated in school_users");
       }
 
-      // If user is a teacher, save to school_teachers with ALL teacher data
+      // If user is a teacher, save to school_teachers
       if (userToSave.role === "teacher") {
         const teachers = JSON.parse(localStorage.getItem("school_teachers") || "[]");
         const existingTeacherIndex = teachers.findIndex((t) => t.id === userToSave.id);
@@ -703,7 +920,6 @@ const UsersManagement = () => {
           role: 'teacher',
           status: userToSave.status || 'active',
           password: userToSave.password || 'password123',
-          // Teacher specific fields
           level: userToSave.level || '',
           educationLevel: userToSave.level || '',
           subjects: userToSave.subjects || [],
@@ -714,7 +930,6 @@ const UsersManagement = () => {
           previousSchool: userToSave.previousSchool || '',
           assignedClasses: userToSave.assignedClasses || [],
           classes: userToSave.assignedClasses || [],
-          // Emergency contact
           emergencyContactName: userToSave.emergencyContactName || '',
           emergencyContactRelationship: userToSave.emergencyContactRelationship || '',
           emergencyContactPhone: userToSave.emergencyContactPhone || '',
@@ -725,17 +940,14 @@ const UsersManagement = () => {
         if (existingTeacherIndex === -1) {
           teachers.push(teacherData);
           localStorage.setItem("school_teachers", JSON.stringify(teachers));
-          console.log("✅ Teacher saved to school_teachers with all data");
         } else {
           teachers[existingTeacherIndex] = {
             ...teachers[existingTeacherIndex],
             ...teacherData,
           };
           localStorage.setItem("school_teachers", JSON.stringify(teachers));
-          console.log("✅ Teacher updated in school_teachers");
         }
 
-        // Also save teacher to the teacher service for compatibility
         try {
           teacherService.saveTeacher(teacherData);
         } catch (e) {
@@ -743,7 +955,7 @@ const UsersManagement = () => {
         }
       }
 
-      // If user is a parent, save to school_parents with ALL parent data
+      // If user is a parent, save to school_parents
       if (userToSave.role === "parent") {
         const parents = JSON.parse(localStorage.getItem("school_parents") || "[]");
         const existingParentIndex = parents.findIndex((p) => p.id === userToSave.id);
@@ -764,11 +976,9 @@ const UsersManagement = () => {
           role: 'parent',
           status: userToSave.status || 'active',
           password: userToSave.password || 'password123',
-          // Parent specific fields
           childrenNames: userToSave.childrenNames || '',
           occupation: userToSave.occupation || '',
           employer: userToSave.employer || '',
-          // Emergency contact
           emergencyContactName: userToSave.emergencyContactName || '',
           emergencyContactRelationship: userToSave.emergencyContactRelationship || '',
           emergencyContactPhone: userToSave.emergencyContactPhone || '',
@@ -779,46 +989,15 @@ const UsersManagement = () => {
         if (existingParentIndex === -1) {
           parents.push(parentData);
           localStorage.setItem("school_parents", JSON.stringify(parents));
-          console.log("✅ Parent saved to school_parents with all data");
         } else {
           parents[existingParentIndex] = {
             ...parents[existingParentIndex],
             ...parentData,
           };
           localStorage.setItem("school_parents", JSON.stringify(parents));
-          console.log("✅ Parent updated in school_parents");
         }
       }
 
-      // Update school_classes for teacher assignment
-      if (userToSave.role === "teacher" && userToSave.assignedClasses && userToSave.assignedClasses.length > 0) {
-        const classes = JSON.parse(localStorage.getItem("school_classes") || "[]");
-        const updatedClasses = classes.map((cls) => {
-          if (userToSave.assignedClasses.includes(cls.id)) {
-            const existingTeachers = cls.assignedTeachers || [];
-            if (!existingTeachers.includes(userToSave.id)) {
-              return {
-                ...cls,
-                teacherId: userToSave.id,
-                assignedTeachers: [...existingTeachers, userToSave.id],
-              };
-            }
-            return {
-              ...cls,
-              teacherId: userToSave.id,
-              assignedTeachers: existingTeachers,
-            };
-          }
-          return cls;
-        });
-        localStorage.setItem("school_classes", JSON.stringify(updatedClasses));
-        console.log("✅ Classes updated with teacher assignment");
-      }
-
-      // Verify data was saved
-      const verifyUsers = JSON.parse(localStorage.getItem("school_users") || "[]");
-      console.log("📊 school_users count:", verifyUsers.length);
-      
       window.dispatchEvent(new CustomEvent('usersUpdated', { 
         detail: { user: userToSave, action: 'save' }
       }));
@@ -888,28 +1067,13 @@ const UsersManagement = () => {
     return found ? found.label : qual;
   };
 
-  // ===== GET SUBJECT DISPLAY =====
-  const getSubjectDisplay = (subjectValue) => {
-    for (const category of Object.values(availableSubjects)) {
-      const found = category.find((s) => s.value === subjectValue);
-      if (found) return found.label;
-    }
-    return subjectValue;
-  };
-
-  // ===== GET CLASS NAME =====
-  const getClassName = (classId) => {
-    const found = classes.find((c) => c.id === classId);
-    return found ? found.name : classId;
-  };
-
   // ===== GET LEVEL LABEL =====
   const getLevelLabel = (level) => {
     const found = levelCategories.find((l) => l.value === level);
     return found ? found.label : level;
   };
 
-  // ===== FORMAT TIME - FIXED =====
+  // ===== FORMAT TIME =====
   const formatTime = (date) => {
     if (!date) return isArabic ? "لم يسجل الدخول بعد" : "Not logged in yet";
     try {
@@ -1030,9 +1194,7 @@ const UsersManagement = () => {
     return errors;
   };
 
-  // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
-  // ===== HANDLE ADD USER - FIXED =====
-  // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
+  // ===== HANDLE ADD USER =====
   const handleAddUser = async () => {
     const errors = validateForm();
     if (errors.length > 0) {
@@ -1045,7 +1207,6 @@ const UsersManagement = () => {
       const fullName = `${formData.firstName} ${formData.lastName}`.trim();
       const userId = `USR${String(Date.now()).slice(-6)}`;
 
-      // Base user data - include ALL fields
       let userData = {
         id: userId,
         name: fullName,
@@ -1064,13 +1225,11 @@ const UsersManagement = () => {
         password: formData.password,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        // Emergency contact - always included for all users
         emergencyContactName: formData.emergencyContactName || "",
         emergencyContactRelationship: formData.emergencyContactRelationship || "",
         emergencyContactPhone: formData.emergencyContactPhone || "",
       };
 
-      // Role-specific data
       if (formData.role === "teacher") {
         const mappedAssignedClasses = mapAssignedClassIds(formData.assignedClasses || []);
         userData = {
@@ -1097,20 +1256,15 @@ const UsersManagement = () => {
         };
       }
 
-      console.log("📝 User data being saved:", userData);
-
-      // Save user using our custom function
       const saved = saveUserToStorage(userData);
       
       if (saved) {
-        // Also add to userDataService for compatibility
         try {
           userDataService.addUser(userData);
         } catch (e) {
           console.warn("Could not add to userDataService:", e);
         }
 
-        // Send notification about new user
         const notifications = JSON.parse(
           localStorage.getItem("school_notifications") || "[]",
         );
@@ -1131,7 +1285,6 @@ const UsersManagement = () => {
           JSON.stringify(notifications),
         );
 
-        // Dispatch events
         window.dispatchEvent(new CustomEvent('usersUpdated', { 
           detail: { user: userData, action: 'add' }
         }));
@@ -1163,18 +1316,6 @@ const UsersManagement = () => {
       );
     } finally {
       setProcessingAction(false);
-    }
-  };
-
-  // ===== GET CLASS NAME BY ID =====
-  const getClassNameById = (classId) => {
-    try {
-      const classes = JSON.parse(localStorage.getItem('school_classes') || '[]');
-      const classInfo = classes.find(c => c.id === classId);
-      return classInfo?.name || classId || 'Unknown Class';
-    } catch (error) {
-      console.error('Error getting class name:', error);
-      return 'Unknown Class';
     }
   };
 
@@ -1249,9 +1390,7 @@ const UsersManagement = () => {
     setShowEditModal(true);
   };
 
-  // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
-  // ===== HANDLE SAVE EDIT - FIXED =====
-  // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
+  // ===== HANDLE SAVE EDIT =====
   const handleSaveEdit = async () => {
     setProcessingAction(true);
     try {
@@ -1270,7 +1409,6 @@ const UsersManagement = () => {
         cin: editFormData.cin,
         status: editFormData.status,
         updatedAt: new Date().toISOString(),
-        // Preserve emergency contact
         emergencyContactName: editFormData.emergencyContactName || selectedUser?.emergencyContactName || "",
         emergencyContactRelationship: editFormData.emergencyContactRelationship || selectedUser?.emergencyContactRelationship || "",
         emergencyContactPhone: editFormData.emergencyContactPhone || selectedUser?.emergencyContactPhone || "",
@@ -1326,12 +1464,10 @@ const UsersManagement = () => {
   const handleDeleteUser = async () => {
     setProcessingAction(true);
     try {
-      // Remove from school_users
       const users = JSON.parse(localStorage.getItem("school_users") || "[]");
       const updatedUsers = users.filter((u) => u.id !== selectedUser.id);
       localStorage.setItem("school_users", JSON.stringify(updatedUsers));
 
-      // Remove from role-specific storage
       if (selectedUser.role === "teacher") {
         const teachers = JSON.parse(localStorage.getItem("school_teachers") || "[]");
         const updatedTeachers = teachers.filter((t) => t.id !== selectedUser.id);
@@ -1344,7 +1480,6 @@ const UsersManagement = () => {
         localStorage.setItem("school_parents", JSON.stringify(updatedParents));
       }
 
-      // Try userDataService
       try {
         userDataService.deleteUser(selectedUser.id);
       } catch (e) {
@@ -1378,7 +1513,6 @@ const UsersManagement = () => {
         users[index].status = newStatus;
         localStorage.setItem("school_users", JSON.stringify(users));
         
-        // Also update in role-specific storage
         const user = users[index];
         if (user.role === "teacher") {
           const teachers = JSON.parse(localStorage.getItem("school_teachers") || "[]");
@@ -1953,39 +2087,43 @@ const UsersManagement = () => {
                     gap: "6px",
                   }}
                 >
-                  {availableClasses.map((c) => (
-                    <Form.Check
-                      key={c.id}
-                      type="checkbox"
-                      id={`class-${c.id}`}
-                      label={c.name}
-                      checked={formData.assignedClasses.includes(c.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setFormData({
-                            ...formData,
-                            assignedClasses: [
-                              ...formData.assignedClasses,
-                              c.id,
-                            ],
-                          });
-                        } else {
-                          setFormData({
-                            ...formData,
-                            assignedClasses: formData.assignedClasses.filter(
-                              (id) => id !== c.id,
-                            ),
-                          });
-                        }
-                      }}
-                      className="class-check"
-                      style={{
-                        ...arabicFontStyle,
-                        color: darkMode ? "#e9ecef" : "#212529",
-                        fontSize: "clamp(0.7rem, 0.85vw, 0.9rem)",
-                      }}
-                    />
-                  ))}
+                  {availableClasses.map((c) => {
+                    // Get class name based on language
+                    const className = isArabic ? (c.nameAr || c.name) : c.name;
+                    return (
+                      <Form.Check
+                        key={c.id}
+                        type="checkbox"
+                        id={`class-${c.id}`}
+                        label={className}
+                        checked={formData.assignedClasses.includes(c.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData({
+                              ...formData,
+                              assignedClasses: [
+                                ...formData.assignedClasses,
+                                c.id,
+                              ],
+                            });
+                          } else {
+                            setFormData({
+                              ...formData,
+                              assignedClasses: formData.assignedClasses.filter(
+                                (id) => id !== c.id,
+                              ),
+                            });
+                          }
+                        }}
+                        className="class-check"
+                        style={{
+                          ...arabicFontStyle,
+                          color: darkMode ? "#e9ecef" : "#212529",
+                          fontSize: "clamp(0.7rem, 0.85vw, 0.9rem)",
+                        }}
+                      />
+                    );
+                  })}
                 </div>
                 <Form.Text className="text-muted" style={arabicFontStyle}>
                   {isArabic
