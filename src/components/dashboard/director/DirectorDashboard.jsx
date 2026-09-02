@@ -79,9 +79,6 @@ const DirectorDashboard = () => {
           <p className="text-muted">Full oversight of all school operations</p>
         </div>
         <div className="d-flex gap-2">
-          <Link to="/dashboard/reports" className="btn btn-outline-primary">
-            <FaChartLine className="me-2" /> Generate Report
-          </Link>
           <Link to="/dashboard/settings" className="btn btn-primary">
             <FaEdit className="me-2" /> Settings
           </Link>
@@ -215,9 +212,6 @@ const DirectorDashboard = () => {
                 </Link>
                 <Link to="/dashboard/announcements/add" className="btn btn-outline-warning text-start">
                   <FaBell className="me-2" /> Post Announcement
-                </Link>
-                <Link to="/dashboard/reports" className="btn btn-outline-info text-start">
-                  <FaFileAlt className="me-2" /> Generate Report
                 </Link>
               </div>
             </Card.Body>

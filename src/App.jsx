@@ -67,7 +67,7 @@ import ClassesManagement from "./components/dashboard/admin/ClassesManagement";
 import TeachersManagement from "./components/dashboard/admin/TeachersManagement";
 import AnnouncementsManagement from "./components/dashboard/admin/AnnouncementsManagement";
 import RegistrationsManagement from "./components/dashboard/admin/RegistrationsManagement";
-import ReportsManagement from "./components/dashboard/admin/ReportsManagement";
+
 import ParentsManagement from "./components/dashboard/admin/ParentsManagement";
 import UsersManagement from "./components/dashboard/admin/UsersManagement";
 import Notifications from "./components/dashboard/admin/Notifications";
@@ -80,7 +80,7 @@ import TeacherDashboard from "./components/dashboard/teacher/TeacherDashboard";
 import TeacherStudents from "./components/dashboard/teacher/TeacherStudents";
 import TeacherAssessments from "./components/dashboard/teacher/TeacherAssessments";
 import TeacherAttendance from "./components/dashboard/teacher/TeacherAttendance";
-import TeacherReports from "./components/dashboard/teacher/Reports";
+
 import TeacherProfile from "./components/dashboard/teacher/TeacherProfile";
 import TeacherNotifications from "./components/dashboard/teacher/TeacherNotifications";
 import TeacherClasses from "./components/dashboard/teacher/TeacherClasses";
@@ -516,10 +516,8 @@ const Settings = () => {
     schoolWebsite: "www.madrassatalfath.edu",
     academicYearStart: "2026-09-01",
     academicYearEnd: "2027-06-30",
-    schoolHours: "8:00 AM - 4:00 PM",
     weekendDays: ["Friday", "Saturday"],
     language: "en",
-    timezone: "UTC+1",
     currency: "USD",
     enableRegistration: true,
     enableAttendance: true,
@@ -578,10 +576,8 @@ const Settings = () => {
         schoolWebsite: "www.madrassatalfath.edu",
         academicYearStart: "2026-09-01",
         academicYearEnd: "2027-06-30",
-        schoolHours: "8:00 AM - 4:00 PM",
         weekendDays: ["Friday", "Saturday"],
         language: "en",
-        timezone: "UTC+1",
         currency: "USD",
         enableRegistration: true,
         enableAttendance: true,
@@ -747,33 +743,6 @@ const Settings = () => {
                     value={settings.academicYearEnd}
                     onChange={handleChange}
                   />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>
-                    {isArabic ? "ساعات العمل" : "School Hours"}
-                  </Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="schoolHours"
-                    value={settings.schoolHours}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>
-                    {isArabic ? "المنطقة الزمنية" : "Timezone"}
-                  </Form.Label>
-                  <Form.Select
-                    name="timezone"
-                    value={settings.timezone}
-                    onChange={handleChange}
-                  >
-                    <option value="UTC+0">UTC+0</option>
-                    <option value="UTC+1">UTC+1</option>
-                    <option value="UTC+2">UTC+2</option>
-                    <option value="UTC+3">UTC+3</option>
-                    <option value="UTC+4">UTC+4</option>
-                  </Form.Select>
                 </Form.Group>
                 <Form.Group className="mb-3">
                   <Form.Label>{isArabic ? "العملة" : "Currency"}</Form.Label>
@@ -1024,7 +993,6 @@ function App() {
             <Route path="registrations" element={<RegistrationsManagement />} />
             <Route path="parents" element={<ParentsManagement />} />
             <Route path="users" element={<UsersManagement />} />
-            <Route path="reports" element={<ReportsManagement />} />
             <Route path="settings" element={<Settings />} />
             <Route path="profile" element={<Profile />} />
             <Route path="subjects" element={<SubjectsManagement />} />
@@ -1059,7 +1027,6 @@ function App() {
             <Route path="my-students" element={<TeacherStudents />} />
             <Route path="assessments" element={<TeacherAssessments />} />
             <Route path="attendance" element={<TeacherAttendance />} />
-            <Route path="reports" element={<TeacherReports />} />
             <Route path="classes" element={<TeacherClasses />} />
             <Route path="notifications" element={<TeacherNotifications />} />
             <Route path="profile" element={<TeacherProfile />} />

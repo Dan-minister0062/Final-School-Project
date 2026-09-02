@@ -125,8 +125,6 @@ const admissionSchema = yup.object().shape({
   nationality: yup.string().required("Nationality is required"),
   address: yup.string().required("Address is required"),
   city: yup.string().required("City is required"),
-  studentPhoto: yup.mixed(),
-
   // Admission Information
   academicYear: yup.string().required("Academic year is required"),
   level: yup.string().required("Please select the level"),
@@ -193,7 +191,6 @@ const Admissions = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // File state
-  const [studentPhotoFile, setStudentPhotoFile] = useState(null);
   const [reportCardFile, setReportCardFile] = useState(null);
   const [schoolCertificateFile, setSchoolCertificateFile] = useState(null);
 
@@ -271,7 +268,6 @@ const Admissions = () => {
         submittedAt: new Date().toISOString(),
         status: 'pending',
         read: false,
-        studentPhoto: data.studentPhoto || null,
         reportCard: data.reportCard || null,
         schoolCertificate: data.schoolCertificate || null,
       };
@@ -403,7 +399,6 @@ const Admissions = () => {
       
       // Reset form
       reset();
-      setStudentPhotoFile(null);
       setReportCardFile(null);
       setSchoolCertificateFile(null);
       
@@ -929,7 +924,6 @@ const Admissions = () => {
                         onClick={() => {
                           setSubmitted(false);
                           reset();
-                          setStudentPhotoFile(null);
                           setReportCardFile(null);
                           setSchoolCertificateFile(null);
                         }}
@@ -1125,32 +1119,6 @@ const Admissions = () => {
                             <Form.Control.Feedback type="invalid">
                               {errors.city?.message}
                             </Form.Control.Feedback>
-                          </Form.Group>
-                        </Col>
-                      </Row>
-
-                      <Row>
-                        <Col md={12}>
-                          <Form.Group className="mb-3">
-                            <Form.Label style={arabicFontStyle}>
-                              {isArabic ? "صورة الطالب" : "Student Photo"}
-                            </Form.Label>
-                            <Form.Control
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => {
-                                const file = e.target.files[0];
-                                setStudentPhotoFile(file);
-                                setValue("studentPhoto", file);
-                              }}
-                              className="py-2"
-                              style={arabicFontStyle}
-                            />
-                            {studentPhotoFile && (
-                              <small className="text-muted" style={arabicFontStyle}>
-                                {isArabic ? "تم الرفع: " : "Uploaded: "} {studentPhotoFile.name}
-                              </small>
-                            )}
                           </Form.Group>
                         </Col>
                       </Row>

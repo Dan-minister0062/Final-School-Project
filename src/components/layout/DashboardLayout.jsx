@@ -6,7 +6,7 @@ import {
   FaUserGraduate, FaChalkboardTeacher, FaBuilding, FaBullhorn,
   FaCalendarCheck, FaUserPlus, FaFileAlt, FaCog, FaUser, FaSignOutAlt,
   FaBars, FaBell, FaMoon, FaSun, FaSchool,
-  FaTachometerAlt, FaFilePdf,
+  FaTachometerAlt,
   FaStar, FaAward,
   FaClock, FaChevronDown,
   FaLanguage, FaCheckDouble, FaTimes, FaUsers, FaUserCog, FaBook, FaMoneyBillWave
@@ -244,7 +244,6 @@ const DashboardLayout = () => {
         { path: '/dashboard/admin/classes', icon: <FaBuilding />, label: isArabic ? 'الفصول' : 'Classes' },
         { path: '/dashboard/admin/announcements', icon: <FaBullhorn />, label: isArabic ? 'الإعلانات' : 'Announcements' },
         { path: '/dashboard/admin/registrations', icon: <FaUserPlus />, label: isArabic ? 'التسجيلات' : 'Registrations' },
-        { path: '/dashboard/admin/reports', icon: <FaFilePdf />, label: isArabic ? 'التقارير' : 'Reports' },
         { path: '/dashboard/admin/settings', icon: <FaCog />, label: isArabic ? 'الإعدادات' : 'Settings' },
         { path: '/dashboard/admin/subjects', icon: <FaBook />, label: isArabic ? 'المواد الدراسية' : 'Subjects' },
         { path: '/dashboard/admin/admissions', icon: <FaBook />, label: isArabic ? 'القبول' : 'Admission' },
@@ -261,7 +260,6 @@ const DashboardLayout = () => {
         { path: '/dashboard/teacher/assessments', icon: <FaFileAlt />, label: isArabic ? 'التقييمات' : 'Assessments' },
         { path: '/dashboard/teacher/attendance', icon: <FaClock />, label: isArabic ? 'الحضور' : 'Attendance' },
         { path: '/dashboard/teacher/notifications', icon: <FaBell />, label: isArabic ? 'الإشعارات' : 'Notifications' },
-        { path: '/dashboard/teacher/reports', icon: <FaFilePdf />, label: isArabic ? 'التقارير' : 'Reports' },
       ];
     }
 

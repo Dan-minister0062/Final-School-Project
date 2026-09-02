@@ -294,7 +294,6 @@ const UsersManagement = () => {
   const genderOptions = [
     { value: "male", label: isArabic ? "ذكر" : "Male" },
     { value: "female", label: isArabic ? "أنثى" : "Female" },
-    { value: "other", label: isArabic ? "أخرى" : "Other" },
   ];
 
   // ===== EMPLOYMENT TYPES =====
@@ -307,8 +306,11 @@ const UsersManagement = () => {
   const relationshipOptions = [
     { value: "father", label: isArabic ? "أب" : "Father" },
     { value: "mother", label: isArabic ? "أم" : "Mother" },
+    { value: "brother", label: isArabic ? "أخ" : "Brother" },
+    { value: "sister", label: isArabic ? "أخت" : "Sister" },
     { value: "guardian", label: isArabic ? "ولي أمر" : "Guardian" },
     { value: "other", label: isArabic ? "أخرى" : "Other" },
+
   ];
 
   // ===== GET SUBJECTS FOR LEVEL =====
@@ -1890,6 +1892,39 @@ const UsersManagement = () => {
                   </option>
                 ))}
               </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label
+                className="fw-semibold"
+                style={{
+                  ...arabicFontStyle,
+                  color: darkMode ? "#e9ecef" : "#212529",
+                }}
+              >
+                <FaBuilding className="me-2" />{" "}
+                {isArabic ? "المدرسة السابقة" : "Previous School"}
+              </Form.Label>
+              <Form.Control
+                type="text"
+                value={formData.previousSchool}
+                onChange={(e) =>
+                  setFormData({ ...formData, previousSchool: e.target.value })
+                }
+                placeholder={
+                  isArabic
+                    ? "أدخل المدرسة السابقة"
+                    : "Enter previous school"
+                }
+                className="form-control-lg"
+                style={{
+                  ...arabicFontStyle,
+                  background: darkMode ? "#2d2d44" : "white",
+                  color: darkMode ? "#e9ecef" : "#212529",
+                  borderRadius: "12px",
+                  fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                }}
+              />
             </Form.Group>
 
             {formData.level && (
@@ -4503,7 +4538,7 @@ const UsersManagement = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* ===== EDIT USER MODAL ===== */}
+      {/* ===== EDIT USER MODAL (FIXED: Now includes all fields) ===== */}
       <Modal
         show={showEditModal}
         onHide={() => setShowEditModal(false)}
@@ -4535,6 +4570,7 @@ const UsersManagement = () => {
           }}
         >
           <Form>
+            {/* ===== BASIC INFO ===== */}
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -4598,32 +4634,200 @@ const UsersManagement = () => {
               </Col>
             </Row>
 
-            <Form.Group className="mb-3">
-              <Form.Label
-                style={{
-                  ...arabicFontStyle,
-                  color: darkMode ? "#e9ecef" : "#212529",
-                  fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
-                }}
-              >
-                <FaEnvelope className="me-1" />{" "}
-                {isArabic ? "البريد الإلكتروني" : "Email"} *
-              </Form.Label>
-              <Form.Control
-                type="email"
-                value={editFormData.email}
-                onChange={(e) =>
-                  setEditFormData({ ...editFormData, email: e.target.value })
-                }
-                style={{
-                  ...arabicFontStyle,
-                  background: darkMode ? "#2d2d44" : "white",
-                  color: darkMode ? "#e9ecef" : "#212529",
-                  borderRadius: "12px",
-                  fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
-                }}
-              />
-            </Form.Group>
+            {/* ===== PERSONAL INFO (Date of Birth, Gender, Nationality, City, CIN) ===== */}
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaBirthdayCake className="me-1" />{" "}
+                    {isArabic ? "تاريخ الميلاد" : "Date of Birth"}
+                  </Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={editFormData.dateOfBirth}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        dateOfBirth: e.target.value,
+                      })
+                    }
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaVenusMars className="me-1" />{" "}
+                    {isArabic ? "الجنس" : "Gender"}
+                  </Form.Label>
+                  <Form.Select
+                    value={editFormData.gender}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, gender: e.target.value })
+                    }
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  >
+                    <option value="">
+                      {isArabic ? "اختر الجنس" : "Select Gender"}
+                    </option>
+                    {genderOptions.map((g) => (
+                      <option key={g.value} value={g.value}>
+                        {g.label}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaGlobe className="me-1" />{" "}
+                    {isArabic ? "الجنسية" : "Nationality"}
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={editFormData.nationality}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        nationality: e.target.value,
+                      })
+                    }
+                    placeholder={isArabic ? "أدخل الجنسية" : "Enter nationality"}
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaIdBadge className="me-1" />{" "}
+                    {isArabic ? "رقم البطاقة الوطنية" : "CIN"}
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={editFormData.cin}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, cin: e.target.value })
+                    }
+                    placeholder={isArabic ? "أدخل رقم البطاقة" : "Enter CIN"}
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaCity className="me-1" />{" "}
+                    {isArabic ? "المدينة" : "City"}
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={editFormData.city}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, city: e.target.value })
+                    }
+                    placeholder={isArabic ? "أدخل المدينة" : "Enter city"}
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaEnvelope className="me-1" />{" "}
+                    {isArabic ? "البريد الإلكتروني" : "Email"} *
+                  </Form.Label>
+                  <Form.Control
+                    type="email"
+                    value={editFormData.email}
+                    onChange={(e) =>
+                      setEditFormData({ ...editFormData, email: e.target.value })
+                    }
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
 
             <Form.Group className="mb-3">
               <Form.Label
@@ -4748,9 +4952,130 @@ const UsersManagement = () => {
               </Col>
             </Row>
 
-            {/* Role-specific fields in edit modal */}
+            {/* ===== EMERGENCY CONTACT (for all) ===== */}
+            <div className="section-divider mt-3">
+              <span className="section-divider-label">
+                <FaPhoneAlt className="me-2" />{" "}
+                {isArabic ? "جهة اتصال طارئة" : "Emergency Contact"}
+              </span>
+            </div>
+
+            <Row>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaUserCircle className="me-1" />{" "}
+                    {isArabic ? "الاسم" : "Name"}
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={editFormData.emergencyContactName}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        emergencyContactName: e.target.value,
+                      })
+                    }
+                    placeholder={isArabic ? "الاسم" : "Name"}
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaHandshake className="me-1" />{" "}
+                    {isArabic ? "العلاقة" : "Relationship"}
+                  </Form.Label>
+                  <Form.Select
+                    value={editFormData.emergencyContactRelationship}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        emergencyContactRelationship: e.target.value,
+                      })
+                    }
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  >
+                    <option value="">
+                      {isArabic ? "اختر العلاقة" : "Select Relationship"}
+                    </option>
+                    {relationshipOptions.map((rel) => (
+                      <option key={rel.value} value={rel.value}>
+                        {rel.label}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaPhone className="me-1" />{" "}
+                    {isArabic ? "رقم الهاتف" : "Phone"}
+                  </Form.Label>
+                  <Form.Control
+                    type="tel"
+                    value={editFormData.emergencyContactPhone}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        emergencyContactPhone: e.target.value,
+                      })
+                    }
+                    placeholder={isArabic ? "رقم الهاتف" : "Phone"}
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            {/* ===== TEACHER-SPECIFIC FIELDS ===== */}
             {editFormData.role === "teacher" && (
               <>
+                <div className="section-divider mt-3">
+                  <span className="section-divider-label">
+                    <FaChalkboardTeacher className="me-2" />{" "}
+                    {isArabic ? "المعلومات المهنية" : "Professional Info"}
+                  </span>
+                </div>
+
                 <Form.Group className="mb-3">
                   <Form.Label
                     style={{
@@ -4817,11 +5142,221 @@ const UsersManagement = () => {
                     }}
                   />
                 </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaGraduationCap className="me-1" />{" "}
+                    {isArabic ? "المؤهلات" : "Qualifications"}
+                  </Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    value={editFormData.qualifications?.join(", ") || ""}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        qualifications: e.target.value.split(",").map(q => q.trim()).filter(Boolean),
+                      })
+                    }
+                    placeholder={isArabic ? "افصل المؤهلات بفواصل" : "Separate qualifications with commas"}
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaBriefcase className="me-1" />{" "}
+                    {isArabic ? "التخصص" : "Specialization"}
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={editFormData.specialization}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        specialization: e.target.value,
+                      })
+                    }
+                    placeholder={isArabic ? "أدخل التخصص" : "Enter specialization"}
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaClock className="me-1" />{" "}
+                    {isArabic ? "سنوات الخبرة" : "Experience (years)"}
+                  </Form.Label>
+                  <Form.Control
+                    type="number"
+                    min="0"
+                    max="50"
+                    value={editFormData.experienceYears}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        experienceYears: e.target.value,
+                      })
+                    }
+                    placeholder={isArabic ? "سنوات الخبرة" : "Years of experience"}
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaBriefcase className="me-1" />{" "}
+                    {isArabic ? "نوع التوظيف" : "Employment Type"}
+                  </Form.Label>
+                  <Form.Select
+                    value={editFormData.employmentType}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        employmentType: e.target.value,
+                      })
+                    }
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  >
+                    <option value="">
+                      {isArabic ? "اختر نوع التوظيف" : "Select Employment Type"}
+                    </option>
+                    {employmentTypes.map((type) => (
+                      <option key={type.value} value={type.value}>
+                        {type.label}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaBuilding className="me-1" />{" "}
+                    {isArabic ? "المدرسة السابقة" : "Previous School"}
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={editFormData.previousSchool}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        previousSchool: e.target.value,
+                      })
+                    }
+                    placeholder={isArabic ? "المدرسة السابقة" : "Previous school"}
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaBuilding className="me-1" />{" "}
+                    {isArabic ? "الفصول المكلف بها" : "Assigned Classes"}
+                  </Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={2}
+                    value={editFormData.assignedClasses?.join(", ") || ""}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        assignedClasses: e.target.value.split(",").map(c => c.trim()).filter(Boolean),
+                      })
+                    }
+                    placeholder={isArabic ? "افصل الفصول بفواصل" : "Separate classes with commas"}
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  />
+                  <Form.Text className="text-muted" style={arabicFontStyle}>
+                    {isArabic
+                      ? "أدخل معرفات الفصول مفصولة بفواصل (مثال: primary_1a, primary_1b)"
+                      : "Enter class IDs separated by commas (e.g., primary_1a, primary_1b)"}
+                  </Form.Text>
+                </Form.Group>
               </>
             )}
 
+            {/* ===== PARENT-SPECIFIC FIELDS ===== */}
             {editFormData.role === "parent" && (
               <>
+                <div className="section-divider mt-3">
+                  <span className="section-divider-label">
+                    <FaUsers className="me-2" />{" "}
+                    {isArabic ? "معلومات إضافية" : "Additional Info"}
+                  </span>
+                </div>
+
                 <Form.Group className="mb-3">
                   <Form.Label
                     style={{
@@ -4837,7 +5372,10 @@ const UsersManagement = () => {
                     type="text"
                     value={editFormData.childrenNames}
                     onChange={(e) =>
-                      setEditFormData({ ...editFormData, childrenNames: e.target.value })
+                      setEditFormData({
+                        ...editFormData,
+                        childrenNames: e.target.value,
+                      })
                     }
                     placeholder={isArabic ? "أسماء الأطفال مفصولة بفواصل" : "Children names separated by commas"}
                     style={{
@@ -4865,8 +5403,43 @@ const UsersManagement = () => {
                     type="text"
                     value={editFormData.occupation}
                     onChange={(e) =>
-                      setEditFormData({ ...editFormData, occupation: e.target.value })
+                      setEditFormData({
+                        ...editFormData,
+                        occupation: e.target.value,
+                      })
                     }
+                    placeholder={isArabic ? "أدخل المهنة" : "Enter occupation"}
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaBuilding className="me-1" />{" "}
+                    {isArabic ? "جهة العمل" : "Employer"}
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    value={editFormData.employer}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        employer: e.target.value,
+                      })
+                    }
+                    placeholder={isArabic ? "أدخل جهة العمل" : "Enter employer"}
                     style={{
                       ...arabicFontStyle,
                       background: darkMode ? "#2d2d44" : "white",
@@ -5728,6 +6301,82 @@ const UsersManagement = () => {
         [dir="rtl"] .section-divider-label .me-2 {
           margin-right: 0 !important;
           margin-left: 0.5rem !important;
+        }
+
+        /* ===== RTL CHECKBOX SPACING FIX ===== */
+        [dir="rtl"] .subject-check,
+        [dir="rtl"] .qual-check,
+        [dir="rtl"] .class-check {
+          padding-left: 0 !important;
+          padding-right: 1.5rem !important;
+        }
+
+        [dir="rtl"] .subject-check .form-check-input,
+        [dir="rtl"] .qual-check .form-check-input,
+        [dir="rtl"] .class-check .form-check-input {
+          margin-left: 0 !important;
+          margin-right: -1.5rem !important;
+        }
+
+        [dir="rtl"] .subject-check .form-check-label,
+        [dir="rtl"] .qual-check .form-check-label,
+        [dir="rtl"] .class-check .form-check-label {
+          padding-left: 0 !important;
+          padding-right: 0.5rem !important;
+        }
+
+        [dir="rtl"] .subjects-grid .form-check,
+        [dir="rtl"] .qualifications-grid .form-check,
+        [dir="rtl"] .classes-grid .form-check {
+          padding-left: 0 !important;
+          padding-right: 1.5rem !important;
+        }
+
+        /* ===== RTL CHECKBOX FORCE LTR OVERRIDE ===== */
+        /* Force all checkbox grid containers to LTR */
+        [dir="rtl"] .subjects-grid,
+        [dir="rtl"] .qualifications-grid,
+        [dir="rtl"] .classes-grid {
+          direction: ltr !important;
+          text-align: left !important;
+        }
+
+        /* Force individual checkbox items to LTR */
+        [dir="rtl"] .subjects-grid .form-check,
+        [dir="rtl"] .qualifications-grid .form-check,
+        [dir="rtl"] .classes-grid .form-check,
+        [dir="rtl"] .subject-check,
+        [dir="rtl"] .qual-check,
+        [dir="rtl"] .class-check {
+          direction: ltr !important;
+          text-align: left !important;
+          padding-left: 1.5rem !important;
+          padding-right: 0 !important;
+        }
+
+        /* Keep checkbox input on the left */
+        [dir="rtl"] .subjects-grid .form-check-input,
+        [dir="rtl"] .qualifications-grid .form-check-input,
+        [dir="rtl"] .classes-grid .form-check-input,
+        [dir="rtl"] .subject-check .form-check-input,
+        [dir="rtl"] .qual-check .form-check-input,
+        [dir="rtl"] .class-check .form-check-input {
+          margin-left: -1.5rem !important;
+          margin-right: 0 !important;
+          float: left !important;
+        }
+
+        /* Keep Arabic label text right-aligned with proper spacing */
+        [dir="rtl"] .subjects-grid .form-check-label,
+        [dir="rtl"] .qualifications-grid .form-check-label,
+        [dir="rtl"] .classes-grid .form-check-label,
+        [dir="rtl"] .subject-check .form-check-label,
+        [dir="rtl"] .qual-check .form-check-label,
+        [dir="rtl"] .class-check .form-check-label {
+          padding-left: 0 !important;
+          padding-right: 0.5rem !important;
+          text-align: right !important;
+          display: inline-block !important;
         }
       `}</style>
     </div>

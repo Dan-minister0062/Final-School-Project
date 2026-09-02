@@ -1727,7 +1727,7 @@ const StudentsManagement = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* ===== VIEW STUDENT MODAL ===== */}
+      {/* ===== VIEW STUDENT MODAL (FIXED: now shows all fields) ===== */}
       <Modal show={showViewModal} onHide={() => setShowViewModal(false)} centered size="lg" className="modern-modal">
         <Modal.Header closeButton className="border-0" style={{ background: darkMode ? "#1a1a2e" : "white" }}>
           <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529" }}>
@@ -1770,9 +1770,16 @@ const StudentsManagement = () => {
                       <FaPhone className="me-1" size={12} /> {selectedStudent.phone}
                     </p>
                   )}
+                  <div className="mt-1">
+                    <Badge bg={getStatusBadge(selectedStudent.status)} style={{ borderRadius: "8px", fontSize: "0.7rem" }}>
+                      {getStatusLabel(selectedStudent.status)}
+                    </Badge>
+                  </div>
                 </div>
               </div>
+
               <Row className="g-3">
+                {/* Full Name */}
                 <Col md={6}>
                   <div className="detail-item">
                     <label className="text-muted small" style={arabicFontStyle}>
@@ -1783,6 +1790,8 @@ const StudentsManagement = () => {
                     </p>
                   </div>
                 </Col>
+
+                {/* Class */}
                 <Col md={6}>
                   <div className="detail-item">
                     <label className="text-muted small" style={arabicFontStyle}>
@@ -1793,6 +1802,8 @@ const StudentsManagement = () => {
                     </p>
                   </div>
                 </Col>
+
+                {/* Level */}
                 <Col md={6}>
                   <div className="detail-item">
                     <label className="text-muted small" style={arabicFontStyle}>
@@ -1803,6 +1814,8 @@ const StudentsManagement = () => {
                     </p>
                   </div>
                 </Col>
+
+                {/* Date of Birth */}
                 <Col md={6}>
                   <div className="detail-item">
                     <label className="text-muted small" style={arabicFontStyle}>
@@ -1813,6 +1826,72 @@ const StudentsManagement = () => {
                     </p>
                   </div>
                 </Col>
+
+                {/* Gender */}
+                <Col md={6}>
+                  <div className="detail-item">
+                    <label className="text-muted small" style={arabicFontStyle}>
+                      <FaVenusMars className="me-1" /> {isArabic ? "الجنس" : "Gender"}
+                    </label>
+                    <p className="fw-semibold mb-0" style={{ color: darkMode ? "#e9ecef" : "#212529" }}>
+                      {selectedStudent.gender 
+                        ? (isArabic 
+                            ? (selectedStudent.gender === "male" ? "ذكر" : selectedStudent.gender === "female" ? "أنثى" : "أخرى")
+                            : selectedStudent.gender.charAt(0).toUpperCase() + selectedStudent.gender.slice(1))
+                        : "N/A"}
+                    </p>
+                  </div>
+                </Col>
+
+                {/* Nationality */}
+                <Col md={6}>
+                  <div className="detail-item">
+                    <label className="text-muted small" style={arabicFontStyle}>
+                      <FaGlobe className="me-1" /> {isArabic ? "الجنسية" : "Nationality"}
+                    </label>
+                    <p className="fw-semibold mb-0" style={{ color: darkMode ? "#e9ecef" : "#212529" }}>
+                      {selectedStudent.nationality || "N/A"}
+                    </p>
+                  </div>
+                </Col>
+
+                {/* City */}
+                <Col md={6}>
+                  <div className="detail-item">
+                    <label className="text-muted small" style={arabicFontStyle}>
+                      <FaCity className="me-1" /> {isArabic ? "المدينة" : "City"}
+                    </label>
+                    <p className="fw-semibold mb-0" style={{ color: darkMode ? "#e9ecef" : "#212529" }}>
+                      {selectedStudent.city || "N/A"}
+                    </p>
+                  </div>
+                </Col>
+
+                {/* Email (repeated for clarity) */}
+                <Col md={6}>
+                  <div className="detail-item">
+                    <label className="text-muted small" style={arabicFontStyle}>
+                      <FaEnvelope className="me-1" /> {isArabic ? "البريد الإلكتروني" : "Email"}
+                    </label>
+                    <p className="fw-semibold mb-0" style={{ color: darkMode ? "#e9ecef" : "#212529" }}>
+                      {selectedStudent.email || "N/A"}
+                    </p>
+                  </div>
+                </Col>
+
+                {/* Phone (repeated) */}
+                <Col md={6}>
+                  <div className="detail-item">
+                    <label className="text-muted small" style={arabicFontStyle}>
+                      <FaPhone className="me-1" /> {isArabic ? "رقم الهاتف" : "Phone"}
+                    </label>
+                    <p className="fw-semibold mb-0" style={{ color: darkMode ? "#e9ecef" : "#212529" }}>
+                      {selectedStudent.phone || "N/A"}
+                    </p>
+                  </div>
+                </Col>
+
+                {/* Address */}
                 {selectedStudent.address && (
                   <Col md={12}>
                     <div className="detail-item">
@@ -1825,6 +1904,8 @@ const StudentsManagement = () => {
                     </div>
                   </Col>
                 )}
+
+                {/* Parent/Guardian */}
                 {selectedStudent.parentName && (
                   <Col md={12}>
                     <div className="detail-item">
@@ -1836,6 +1917,11 @@ const StudentsManagement = () => {
                         {selectedStudent.parentPhone && (
                           <span className="text-muted ms-2" style={arabicFontStyle}>
                             <FaPhone className="me-1" size={12} /> {selectedStudent.parentPhone}
+                          </span>
+                        )}
+                        {selectedStudent.parentEmail && (
+                          <span className="text-muted ms-2" style={arabicFontStyle}>
+                            <FaEnvelope className="me-1" size={12} /> {selectedStudent.parentEmail}
                           </span>
                         )}
                       </p>
@@ -1901,6 +1987,53 @@ const StudentsManagement = () => {
                 </Form.Group>
               </Col>
             </Row>
+
+            {/* ===== FIX: ADDED DOB & GENDER ROW IN EDIT MODAL ===== */}
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529" }}>
+                    <FaBirthdayCake className="me-1" /> {isArabic ? "تاريخ الميلاد *" : "Date of Birth *"}
+                  </Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={editFormData.dateOfBirth}
+                    onChange={(e) => setEditFormData({ ...editFormData, dateOfBirth: e.target.value })}
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                    }}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529" }}>
+                    <FaVenusMars className="me-1" /> {isArabic ? "الجنس *" : "Gender *"}
+                  </Form.Label>
+                  <Form.Select
+                    value={editFormData.gender}
+                    onChange={(e) => setEditFormData({ ...editFormData, gender: e.target.value })}
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                    }}
+                  >
+                    <option value="">{isArabic ? "اختر الجنس" : "Select Gender"}</option>
+                    {genderOptions.map((g) => (
+                      <option key={g.value} value={g.value}>
+                        {g.label}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+            </Row>
+
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">

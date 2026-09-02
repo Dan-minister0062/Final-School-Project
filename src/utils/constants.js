@@ -19,7 +19,6 @@ export const STORAGE_KEYS = {
   REGISTRATIONS: 'school_registrations',
   ANNOUNCEMENTS: 'school_announcements',
   PAYMENTS: 'school_payments',
-  REPORTS: 'school_reports',
   PARENTS: 'school_parents',
   ADMISSIONS: 'school_admissions'
 };
@@ -101,7 +100,6 @@ export const API_ENDPOINTS = {
   PARENTS: '/parents',
   PROFILE: '/profile',
   DASHBOARD: '/dashboard',
-  REPORTS: '/reports',
   NOTIFICATIONS: '/notifications',
   SUBJECTS: '/subjects',
   PAYMENTS: '/payments',
