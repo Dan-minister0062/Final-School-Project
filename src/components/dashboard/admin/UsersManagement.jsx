@@ -98,6 +98,7 @@ import {
   FaClipboardList,
   FaSchool as FaSchoolIcon,
   FaCity,
+  FaCamera,
 } from "react-icons/fa";
 import { useLanguage } from "../../../context/LanguageContext";
 import { useAuth } from "../../../hooks/useAuth";
@@ -1223,6 +1224,8 @@ const UsersManagement = () => {
         cin: formData.cin || "",
         status: "active",
         password: formData.password,
+        avatar: formData.profilePhoto || "",
+        profilePhoto: formData.profilePhoto || "",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         emergencyContactName: formData.emergencyContactName || "",
@@ -1369,7 +1372,7 @@ const UsersManagement = () => {
       address: user.address || "",
       city: user.city || "",
       cin: user.cin || "",
-      profilePhoto: user.profilePhoto || null,
+      profilePhoto: user.profilePhoto || user.avatar || null,
       role: user.role || "",
       status: user.status || "",
       level: user.level || "",
@@ -1412,6 +1415,8 @@ const UsersManagement = () => {
         emergencyContactName: editFormData.emergencyContactName || selectedUser?.emergencyContactName || "",
         emergencyContactRelationship: editFormData.emergencyContactRelationship || selectedUser?.emergencyContactRelationship || "",
         emergencyContactPhone: editFormData.emergencyContactPhone || selectedUser?.emergencyContactPhone || "",
+        profilePhoto: editFormData.profilePhoto || "",
+        avatar: editFormData.profilePhoto || selectedUser?.avatar || "",
       };
 
       if (editFormData.role === "teacher") {
@@ -3597,6 +3602,95 @@ const UsersManagement = () => {
             {/* Tab Content - Personal Info */}
             {activeTab === "personal" && (
               <div className="fade-in">
+                <Form.Group className="mb-4 text-center">
+                  <Form.Label
+                    className="fw-semibold d-block"
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    {isArabic ? "الصورة الشخصية" : "Profile Photo"}
+                  </Form.Label>
+                  <div className="d-flex flex-column align-items-center gap-2">
+                    <div
+                      style={{
+                        width: "clamp(90px, 10vw, 120px)",
+                        height: "clamp(90px, 10vw, 120px)",
+                        borderRadius: "50%",
+                        overflow: "hidden",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: darkMode ? "#2d2d44" : "#f1f3f5",
+                        border: `2px dashed ${darkMode ? "#4a9eff" : "#adb5bd"}`,
+                        color: darkMode ? "#adb5bd" : "#6c757d",
+                      }}
+                    >
+                      {formData.profilePhoto ? (
+                        <img
+                          src={formData.profilePhoto}
+                          alt="Profile"
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                          }}
+                        />
+                      ) : (
+                        <FaUserCircle size={48} />
+                      )}
+                    </div>
+                    <div className="d-flex gap-2">
+                      <Form.Control
+                        type="file"
+                        accept="image/*"
+                        className="d-none"
+                        id="add-user-photo-input"
+                        onChange={(e) => {
+                          const file = e.target.files && e.target.files[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (ev) =>
+                            setFormData({
+                              ...formData,
+                              profilePhoto: ev.target.result,
+                            });
+                          reader.readAsDataURL(file);
+                          e.target.value = "";
+                        }}
+                      />
+                      <label
+                        htmlFor="add-user-photo-input"
+                        className="btn btn-sm"
+                        style={{
+                          background: "#4a9eff",
+                          color: "#fff",
+                          borderRadius: "8px",
+                          cursor: "pointer",
+                          fontWeight: "600",
+                        }}
+                      >
+                        <FaCamera className="me-1" />
+                        {isArabic ? "اختيار صورة" : "Choose Photo"}
+                      </label>
+                      {formData.profilePhoto && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-danger"
+                          style={{ borderRadius: "8px", fontWeight: "600" }}
+                          onClick={() =>
+                            setFormData({ ...formData, profilePhoto: null })
+                          }
+                        >
+                          <FaTimes className="me-1" />
+                          {isArabic ? "إزالة" : "Remove"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </Form.Group>
                 <Row>
                   <Col md={6}>
                     <Form.Group className="mb-3">
@@ -4708,6 +4802,97 @@ const UsersManagement = () => {
           }}
         >
           <Form>
+            {/* ===== PROFILE PHOTO ===== */}
+            <Form.Group className="mb-4 text-center">
+              <Form.Label
+                className="fw-semibold d-block"
+                style={{
+                  ...arabicFontStyle,
+                  color: darkMode ? "#e9ecef" : "#212529",
+                  fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                }}
+              >
+                {isArabic ? "الصورة الشخصية" : "Profile Photo"}
+              </Form.Label>
+              <div className="d-flex flex-column align-items-center gap-2">
+                <div
+                  style={{
+                    width: "clamp(90px, 10vw, 120px)",
+                    height: "clamp(90px, 10vw, 120px)",
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: darkMode ? "#2d2d44" : "#f1f3f5",
+                    border: `2px dashed ${darkMode ? "#4a9eff" : "#adb5bd"}`,
+                    color: darkMode ? "#adb5bd" : "#6c757d",
+                  }}
+                >
+                  {editFormData.profilePhoto ? (
+                    <img
+                      src={editFormData.profilePhoto}
+                      alt="Profile"
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                      }}
+                    />
+                  ) : (
+                    <FaUserCircle size={48} />
+                  )}
+                </div>
+                <div className="d-flex gap-2">
+                  <Form.Control
+                    type="file"
+                    accept="image/*"
+                    className="d-none"
+                    id="edit-user-photo-input"
+                    onChange={(e) => {
+                      const file = e.target.files && e.target.files[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (ev) =>
+                        setEditFormData({
+                          ...editFormData,
+                          profilePhoto: ev.target.result,
+                        });
+                      reader.readAsDataURL(file);
+                      e.target.value = "";
+                    }}
+                  />
+                  <label
+                    htmlFor="edit-user-photo-input"
+                    className="btn btn-sm"
+                    style={{
+                      background: "#4a9eff",
+                      color: "#fff",
+                      borderRadius: "8px",
+                      cursor: "pointer",
+                      fontWeight: "600",
+                    }}
+                  >
+                    <FaCamera className="me-1" />
+                    {isArabic ? "اختيار صورة" : "Choose Photo"}
+                  </label>
+                  {editFormData.profilePhoto && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-danger"
+                      style={{ borderRadius: "8px", fontWeight: "600" }}
+                      onClick={() =>
+                        setEditFormData({ ...editFormData, profilePhoto: null })
+                      }
+                    >
+                      <FaTimes className="me-1" />
+                      {isArabic ? "إزالة" : "Remove"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </Form.Group>
+
             {/* ===== BASIC INFO ===== */}
             <Row>
               <Col md={6}>
