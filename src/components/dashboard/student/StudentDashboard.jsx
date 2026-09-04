@@ -168,9 +168,11 @@ const StudentDashboard = () => {
   const [subjects, setSubjects] = useState([]);
   const [studentSubjects, setStudentSubjects] = useState([]);
   
-  // ===== ANNOUNCEMENTS STATE =====
+  // ===== ANNOUNCEMENTS & NOTIFICATIONS STATE =====
   const [announcements, setAnnouncements] = useState([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [unreadAssessments, setUnreadAssessments] = useState(0);
+  const [totalNotifications, setTotalNotifications] = useState(0);
   
   // ===== FILTER STATE =====
   const [searchQuery, setSearchQuery] = useState('');
@@ -212,34 +214,46 @@ const StudentDashboard = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // ===== LOAD ANNOUNCEMENTS =====
-  const loadAnnouncements = () => {
+  // ===== LOAD ANNOUNCEMENTS & NOTIFICATIONS =====
+  const loadAnnouncementsAndNotifications = () => {
     try {
+      // Load announcements
       const allAnnouncements = JSON.parse(localStorage.getItem('announcements') || '[]');
-      
       const publishedAnnouncements = allAnnouncements.filter(a => 
         a.status === 'published' && a.isActive !== false
       );
-      
       const studentAnnouncements = publishedAnnouncements.filter(a => {
         const targetAudience = a.targetAudience || [];
         return targetAudience.includes('all') || targetAudience.includes('students');
       });
-      
       const sortedAnnouncements = studentAnnouncements.sort((a, b) => {
         return new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date);
       });
-      
       setAnnouncements(sortedAnnouncements.slice(0, 3));
-      
+
+      // Load notifications
       const allNotifications = JSON.parse(localStorage.getItem('school_notifications') || '[]');
       const unread = allNotifications.filter(n => {
         const isForStudent = n.targetAudience?.includes('all') || 
-                            n.targetAudience?.includes('students');
+                            n.targetAudience?.includes('students') ||
+                            n.recipientRole === 'student';
         return isForStudent && !n.read;
       }).length;
-      
       setUnreadNotifications(unread);
+
+      // Load unread assessments
+      const studentId = studentData?.id || user?.id;
+      const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
+      const myUnreadAssessments = studentAssessments.filter(a => 
+        a.studentId === studentId && !a.read
+      ).length;
+      setUnreadAssessments(myUnreadAssessments);
+
+      // Total notifications (unread notifications + unread assessments)
+      const total = unread + myUnreadAssessments;
+      setTotalNotifications(total);
+      
+      console.log('🔔 Total notifications:', total, '(Notifications:', unread, 'Assessments:', myUnreadAssessments, ')');
       
     } catch (error) {
       console.error('Error loading announcements:', error);
@@ -393,7 +407,7 @@ const StudentDashboard = () => {
       const classAssessments = allAssessments.filter(a => {
         const isForClass = a.classId === student.classId || a.classId === student.class;
         const isAssigned = a.assignedStudents ? a.assignedStudents.includes(student.id) : true;
-        const isPublished = a.status === 'published' || a.status === 'closed' || a.status === 'pending_marking';
+        const isPublished = a.status === 'published' || a.status === 'closed' || a.status === 'pending_marking' || a.status === 'sent_to_students';
         return isForClass && isAssigned && isPublished;
       });
 
@@ -478,8 +492,8 @@ const StudentDashboard = () => {
       }
       console.log('💰 Payment status:', paymentStatus);
 
-      // ===== LOAD ANNOUNCEMENTS =====
-      loadAnnouncements();
+      // ===== LOAD ANNOUNCEMENTS & NOTIFICATIONS =====
+      loadAnnouncementsAndNotifications();
 
       setLoading(false);
     } catch (err) {
@@ -504,7 +518,8 @@ const StudentDashboard = () => {
         e.key === "school_submissions" ||
         e.key === "school_notifications" ||
         e.key === "currentUser" ||
-        e.key === "announcements"
+        e.key === "announcements" ||
+        e.key === "student_assessments"
       ) {
         console.log("🔄 Storage changed, refreshing student data");
         loadStudentData();
@@ -548,6 +563,12 @@ const StudentDashboard = () => {
     };
     window.addEventListener("announcementsUpdated", handleAnnouncementsUpdated);
 
+    const handleStudentAssessmentsUpdated = () => {
+      console.log("📝 Student assessments updated, refreshing");
+      loadStudentData();
+    };
+    window.addEventListener("studentAssessmentsUpdated", handleStudentAssessmentsUpdated);
+
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("assessmentChanged", handleAssessmentChanged);
@@ -556,6 +577,7 @@ const StudentDashboard = () => {
       window.removeEventListener("submissionChanged", handleSubmissionChanged);
       window.removeEventListener("notificationAdded", handleNotificationAdded);
       window.removeEventListener("announcementsUpdated", handleAnnouncementsUpdated);
+      window.removeEventListener("studentAssessmentsUpdated", handleStudentAssessmentsUpdated);
     };
   }, []);
 
@@ -639,6 +661,7 @@ const StudentDashboard = () => {
         type: 'submission',
         read: false,
         recipientRole: 'teacher',
+        targetAudience: ['teacher', 'admin'],
         studentId: studentData.id,
         studentName: studentData.name || studentData.firstName,
         assessmentId: selectedAssessment.id,
@@ -939,12 +962,24 @@ const StudentDashboard = () => {
             <Button variant="outline-primary" size="sm" className="me-2" onClick={handleRefresh} disabled={refreshing}>
               <FaSync className={refreshing ? 'spinning' : ''} /> {isArabic ? 'تحديث' : 'Refresh'}
             </Button>
-            <Button variant="primary" size="sm" onClick={() => navigate('/dashboard/student/announcements')}>
-              <FaBullhorn className="me-1" /> 
-              {isArabic ? 'الإعلانات' : 'Announcements'}
-              {unreadNotifications > 0 && (
-                <Badge bg="danger" className="ms-2 rounded-pill" style={{ fontSize: '0.6rem' }}>
-                  {unreadNotifications}
+            <Button 
+              variant="primary" 
+              size="sm" 
+              className="position-relative"
+              onClick={() => navigate('/dashboard/student/announcements')}
+            >
+              <FaBell className="me-1" /> 
+              {isArabic ? 'الإشعارات والإعلانات' : 'Notifications & Announcements'}
+              {totalNotifications > 0 && (
+                <Badge 
+                  bg="danger" 
+                  className="ms-2 rounded-pill notification-badge"
+                  style={{ 
+                    fontSize: '0.6rem',
+                    animation: totalNotifications > 0 ? 'pulse-badge 2s infinite' : 'none'
+                  }}
+                >
+                  {totalNotifications}
                 </Badge>
               )}
             </Button>
@@ -1548,6 +1583,11 @@ const StudentDashboard = () => {
           <h6 className="fw-bold mb-0" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
             <FaBullhorn className="me-2 text-warning" />
             {isArabic ? 'آخر الإعلانات' : 'Latest Announcements'}
+            {totalNotifications > 0 && (
+              <Badge bg="danger" className="ms-2 rounded-pill" style={{ fontSize: '0.55rem' }}>
+                +{totalNotifications}
+              </Badge>
+            )}
           </h6>
           <Button 
             variant="link" 
@@ -1830,11 +1870,20 @@ const StudentDashboard = () => {
           100% { transform: rotate(360deg); }
         }
 
+        @keyframes pulse-badge {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+
         .spinning {
           animation: spin 1s linear infinite;
         }
 
         .student-dashboard { padding: 0; }
+
+        .notification-badge {
+          animation: pulse-badge 2s infinite;
+        }
 
         .dashboard-header {
           background: var(--bg-card);

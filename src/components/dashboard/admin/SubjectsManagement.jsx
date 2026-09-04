@@ -86,19 +86,19 @@ const SubjectsManagement = () => {
       { value: 'arabic_k', label: 'Arabic', labelAr: 'اللغة العربية' }
     ],
     primary: [
-      { value: 'quran_p', label: "Qur'an", labelAr: 'القرآن الكريم' },
+      { value: 'quran_p', label: "Qur'an", labelAr: 'التربية الإسلامية والقرآن الكريم  ' },
       { value: 'arabic_p', label: 'Arabic', labelAr: 'اللغة العربية' },
       { value: 'english_p', label: 'English', labelAr: 'اللغة الإنجليزية' },
       { value: 'french_p', label: 'French', labelAr: 'اللغة الفرنسية' },
       { value: 'mathematics_p', label: 'Mathematics', labelAr: 'الرياضيات' },
-      { value: 'science_p', label: 'Science', labelAr: 'العلوم' },
+      { value: 'science_p', label: 'Science', labelAr: 'النشاط العلمي' },
       { value: 'sports_p', label: 'Sports', labelAr: 'الرياضة' },
-      { value: 'ict_p', label: 'ICT', labelAr: 'تكنولوجيا المعلومات' },
-      { value: 'art_p', label: 'Art & Plastic', labelAr: 'الفنون التشكيلية' },
-      { value: 'geography_p', label: 'Geography', labelAr: 'الجغرافيا' }
+      { value: 'ict_p', label: 'ICT', labelAr: ' الإعلاميات' },
+      { value: 'art_p', label: 'Art & Plastic', labelAr: 'التربية التشكيلية' },
+      { value: 'geography_p', label: 'Geography', labelAr: 'الاجتماعيات' }
     ],
     secondary: [
-      { value: 'quran_s', label: "Qur'an", labelAr: 'القرآن الكريم' },
+      { value: 'quran_s', label: "Qur'an", labelAr: 'التربية الإسلامية والقرآن الكريم ' },
       { value: 'arabic_s', label: 'Arabic', labelAr: 'اللغة العربية' },
       { value: 'english_s', label: 'English', labelAr: 'اللغة الإنجليزية' },
       { value: 'french_s', label: 'French', labelAr: 'اللغة الفرنسية' },
@@ -106,11 +106,11 @@ const SubjectsManagement = () => {
       { value: 'svt_s', label: 'SVT (Biology)', labelAr: 'علوم الحياة والأرض' },
       { value: 'physics_s', label: 'Physics', labelAr: 'الفيزياء' },
       { value: 'sports_s', label: 'Sports', labelAr: 'الرياضة' },
-      { value: 'ict_s', label: 'ICT', labelAr: 'تكنولوجيا المعلومات' },
-      { value: 'geography_s', label: 'Geography', labelAr: 'الجغرافيا' }
+      { value: 'ict_s', label: 'ICT', labelAr: 'الإعلاميات' },
+      { value: 'geography_s', label: 'Geography', labelAr: 'الاجتماعيات' }
     ],
     high_school: [
-      { value: 'quran_h', label: "Qur'an", labelAr: 'القرآن الكريم' },
+      { value: 'quran_h', label: "Qur'an", labelAr: 'التربية الإسلامية والقرآن الكريم' },
       { value: 'arabic_h', label: 'Arabic', labelAr: 'اللغة العربية' },
       { value: 'english_h', label: 'English', labelAr: 'اللغة الإنجليزية' },
       { value: 'french_h', label: 'French', labelAr: 'اللغة الفرنسية' },
@@ -118,8 +118,8 @@ const SubjectsManagement = () => {
       { value: 'svt_h', label: 'SVT (Biology)', labelAr: 'علوم الحياة والأرض' },
       { value: 'physics_h', label: 'Physics', labelAr: 'الفيزياء' },
       { value: 'sports_h', label: 'Sports', labelAr: 'الرياضة' },
-      { value: 'ict_h', label: 'ICT', labelAr: 'تكنولوجيا المعلومات' },
-      { value: 'geography_h', label: 'Geography', labelAr: 'الجغرافيا' },
+      { value: 'ict_h', label: 'ICT', labelAr: 'الإعلاميات' },
+      { value: 'geography_h', label: 'Geography', labelAr: 'الاجتماعيات' },
       { value: 'philosophy_h', label: 'Philosophy', labelAr: 'الفلسفة' }
     ]
   };

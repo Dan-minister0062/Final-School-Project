@@ -74,7 +74,7 @@ import Notifications from "./components/dashboard/admin/Notifications";
 import SubjectsManagement from "./components/dashboard/admin/SubjectsManagement";
 import AdmissionManagement from "./components/dashboard/admin/AdmissionManagement";
 import PaymentsManagement from "./components/dashboard/admin/PaymentsManagement";
-
+import AdminAssessments from './components/dashboard/admin/AdminAssessments';
 // ===== TEACHER PAGES =====
 import TeacherDashboard from "./components/dashboard/teacher/TeacherDashboard";
 import TeacherStudents from "./components/dashboard/teacher/TeacherStudents";
@@ -998,6 +998,7 @@ function App() {
             <Route path="subjects" element={<SubjectsManagement />} />
             <Route path="notifications" element={<Notifications />} />
             <Route path="admissions" element={<AdmissionManagement />} />
+            <Route path="/dashboard/admin/assessments" element={<AdminAssessments />} />
             <Route path="payments" element={<PaymentsManagement />} />
           </Route>
 
