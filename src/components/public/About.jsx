@@ -5,7 +5,7 @@ import {
   FaHistory,
   FaEye,
   FaBullseye,
-  FaHeart,
+  FaKaaba,
   FaBook,
   FaUsers,
   FaHands,
@@ -56,7 +56,7 @@ const About = () => {
   // ✅ Values
   const values = [
     {
-      icon: <FaHeart />,
+      icon: <FaKaaba />,
       title: t("valueIslamic"),
       desc: t("valueIslamicDesc"),
     },
@@ -750,8 +750,8 @@ const About = () => {
               }}
             >
               {isArabic
-                ? "منذ 2020 إلى 2026 - مسيرة من التميز والتطوير"
-                : "From 2020 to 2026 - A journey of excellence and development"}
+                ? "من  2020 كانت انطلاقتنا في مسيرة من التميز والتطور"
+                : "Since 2020, we have embarked on a journey of excellence and continuous growth."}
             </p>
           </div>
 

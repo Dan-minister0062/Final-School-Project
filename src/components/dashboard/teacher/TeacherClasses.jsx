@@ -19,7 +19,7 @@ import {
   FaBook,
   FaUsers,
   FaArrowRight,
-  FaGraduationCap,  // <-- THIS WAS MISSING - ADDED
+  FaGraduationCap,
 } from "react-icons/fa";
 import { useLanguage } from "../../../context/LanguageContext";
 import { useNotification } from "../../../hooks/useNotification";
@@ -51,6 +51,51 @@ const TeacherClasses = () => {
     lineHeight: isArabic ? '1.8' : '1.6',
     letterSpacing: isArabic ? '0.5px' : '0px',
     fontSize: isArabic ? 'clamp(0.9rem, 1.1vw, 1.05rem)' : 'clamp(0.85rem, 1vw, 1rem)',
+  };
+
+  // ===== MAP CLASS NAME TO ARABIC/ENGLISH (FIXED) =====
+  // We directly map English to Arabic using index matching instead of complex regex
+  const getLocalizedClassName = (className, level) => {
+    // If not Arabic, just return as is (or force English if you prefer)
+    if (!isArabic) {
+      return className;
+    }
+    
+    // If already in Arabic, return as is
+    if (/[\u0600-\u06FF]/.test(className)) return className;
+    
+    // English lookup arrays (Must match the ones in service)
+    const englishLookup = {
+      kindergarten: ['Introductory', 'Preparatory 1 -A-', 'Preparatory 1 -B-', 'Preparatory 2 -A-', 'Preparatory 2 -B-'],
+      primary: ['1 -A-', '1 -B-', '2 -A-', '2 -B-', '3 -A-', '3 -B-', '4 -A-', '4 -B-', '5 -A-', '5 -B-', '6 -A-', '6 -B-'],
+      secondary: ['Secondary 1 -A-', 'Secondary 1 -B-', 'Secondary 2 -A-', 'Secondary 2 -B-', 'Secondary 3 -A-', 'Secondary 3 -B-'],
+      high_school: ['Common Core Science', '1st Baccalaureate Experimental Sciences', '2nd Baccalaureate Physical Sciences']
+    };
+
+    // Arabic lookup arrays
+    const arabicLookup = {
+      kindergarten: ['الاستئناس', 'التمهيدي الأول -أ-', 'التمهيدي الأول -ب-', 'التمهيدي الثاني -أ-', 'التمهيدي الثاني -ب-'],
+      primary: ['الأول -أ-', 'الأول -ب-', 'الثاني -أ-', 'الثاني -ب-', 'الثالث -أ-', 'الثالث -ب-', 'الرابع -أ-', 'الرابع -ب-', 'الخامس -أ-', 'الخامس -ب-', 'السادس -أ-', 'السادس -ب-'],
+      secondary: ['الأولى إعدادي -أ-', 'الأولى إعدادي -ب-', 'الثانية إعدادي -أ-', 'الثانية إعدادي -ب-', 'الثالثة إعدادي -أ-', 'الثالثة إعدادي -ب-'],
+      high_school: ['جذع مشترك علمي', 'الأولى باكالوريا علوم تجريبية', 'الثانية باكالوريا علوم فيزيائية']
+    };
+
+    const englishList = englishLookup[level] || [];
+    const arabicList = arabicLookup[level] || [];
+
+    // Normalize strings for comparison (remove spaces and dashes)
+    const normalize = (str) => str.replace(/[\s-]/g, '').toLowerCase();
+    const cleanClassName = normalize(className);
+
+    // Find index match
+    const index = englishList.findIndex(name => normalize(name) === cleanClassName);
+    
+    if (index !== -1 && arabicList[index]) {
+      return arabicList[index];
+    }
+
+    // Fallback to original
+    return className;
   };
 
   // ===== Check dark mode & mobile =====
@@ -97,14 +142,18 @@ const TeacherClasses = () => {
       setTeacher(currentTeacher);
       
       // Get the teacher's assigned classes using the teacherService
-      const assignedClasses = teacherService.getAssignedClasses(currentTeacher.id);
+      // IMPORTANT: We pass the language to the service so it automatically localizes it
+      const assignedClasses = teacherService.getAssignedClasses(currentTeacher.id, null, isArabic ? 'ar' : 'en');
       console.log('📚 Assigned classes:', assignedClasses);
       
-      // Get students for each class
+      // Get students for each class and ensure names are localized (just in case)
       const classesWithStudents = assignedClasses.map(cls => {
         const students = teacherService.getAssignedStudents(currentTeacher.id, [cls]);
+        // Localize the class name just in case the service missed it
+        const localizedName = getLocalizedClassName(cls.name, cls.level);
         return {
           ...cls,
+          name: localizedName, 
           students: students || [],
           studentCount: students ? students.length : 0,
         };
@@ -172,13 +221,21 @@ const TeacherClasses = () => {
     };
     window.addEventListener("usersUpdated", handleUsersUpdated);
 
+    // Listen for language change
+    const handleLanguageChange = () => {
+      console.log("🌐 Language changed, refreshing classes");
+      loadClassesData();
+    };
+    window.addEventListener("languageChanged", handleLanguageChange);
+
     return () => {
       if (unsubscribeTeacher) unsubscribeTeacher();
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("classAssigned", handleClassAssigned);
       window.removeEventListener("usersUpdated", handleUsersUpdated);
+      window.removeEventListener("languageChanged", handleLanguageChange);
     };
-  }, []);
+  }, [isArabic]); // Re-run when language changes
 
   // ===== FILTER CLASSES =====
   const getFilteredClasses = () => {
@@ -192,7 +249,7 @@ const TeacherClasses = () => {
 
   const filteredClasses = getFilteredClasses();
 
-  // ===== GET LEVEL DISPLAY =====
+  // ===== GET LEVEL DISPLAY (FIXED OPERATOR PRECEDENCE) =====
   const getLevelDisplay = (level) => {
     const levels = {
       kindergarten: isArabic ? 'أولي' : 'Kindergarten',
@@ -200,7 +257,8 @@ const TeacherClasses = () => {
       secondary: isArabic ? 'إعدادي' : 'Secondary',
       high_school: isArabic ? 'ثانوي' : 'High School',
     };
-    return levels[level] || level || isArabic ? 'غير محدد' : 'Unknown';
+    // Must wrap the ternary in parentheses to prevent the || operator from breaking it
+    return levels[level] || (isArabic ? 'غير محدد' : 'Unknown');
   };
 
   const getLevelColor = (level) => {
@@ -218,7 +276,7 @@ const TeacherClasses = () => {
       kindergarten: <FaBuilding />,
       primary: <FaBook />,
       secondary: <FaUserGraduate />,
-      high_school: <FaGraduationCap />,  // <-- NOW THIS WORKS
+      high_school: <FaGraduationCap />,
     };
     return icons[level] || <FaBuilding />;
   };
@@ -491,7 +549,7 @@ const TeacherClasses = () => {
                       <FaCalendarAlt className="text-muted" size={isMobile ? 12 : 14} />
                       <span style={{ ...arabicFontStyle, fontSize: isMobile ? '0.8rem' : '0.9rem', color: darkMode ? '#e9ecef' : '#212529' }}>
                         {isArabic ? 'الجدول: ' : 'Schedule: '}
-                        {cls.schedule || isArabic ? 'غير محدد' : 'Not set'}
+                        {cls.schedule || (isArabic ? 'غير محدد' : 'Not set')}
                       </span>
                     </div>
                     <div className="info-item d-flex align-items-center gap-2">
@@ -619,7 +677,7 @@ const TeacherClasses = () => {
                       <FaClock className="me-1" /> {isArabic ? 'الجدول' : 'Schedule'}
                     </label>
                     <p className="fw-semibold mb-0" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                      {selectedClass.schedule || isArabic ? 'غير محدد' : 'Not set'}
+                      {selectedClass.schedule || (isArabic ? 'غير محدد' : 'Not set')}
                     </p>
                   </div>
                 </Col>
@@ -629,7 +687,7 @@ const TeacherClasses = () => {
                       <FaChalkboardTeacher className="me-1" /> {isArabic ? 'المعلم' : 'Teacher'}
                     </label>
                     <p className="fw-semibold mb-0" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                      {teacher?.name || teacher?.firstName || selectedClass.teacher || isArabic ? 'غير محدد' : 'Not set'}
+                      {teacher?.name || teacher?.firstName || selectedClass.teacher || (isArabic ? 'غير محدد' : 'Not set')}
                     </p>
                   </div>
                 </Col>

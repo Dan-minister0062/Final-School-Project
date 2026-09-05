@@ -15,7 +15,7 @@ import {
   FaQuoteLeft,
   FaArrowRight,
   FaSchool,
-  FaHeart,
+  FaPhoneSquareAlt ,
   FaRocket,
   FaTrophy,
   FaBook,
@@ -172,7 +172,7 @@ const Home = () => {
     { icon: <FaUserPlus />, title: t('Admissions'), desc: t('enrollToday'), link: '/admissions', color: '#1a5f7a' },
     { icon: <FaCalendarCheck />, title: t('Events'), desc: t('viewEvents'), link: '/news', color: '#2d6a4f' },
     { icon: <FaBookOpen />, title: t('Academics'), desc: t('explorePrograms'), link: '/academics', color: '#c49a6c' },
-    { icon: <FaHeart />, title: t('Support'), desc: t('getInTouch'), link: '/contact', color: '#d4a373' },
+    { icon: <FaPhoneSquareAlt  />, title: t('Support'), desc: t('getInTouch'), link: '/contact', color: '#d4a373' },
   ];
 
   const testimonials = [
@@ -310,7 +310,7 @@ const Home = () => {
                       fontSize: isArabic ? 'clamp(2.5rem, 5vw, 3.8rem)' : 'clamp(2.2rem, 4.5vw, 3.8rem)',
                     }}>
                       <span style={{ color: '#ffffff' }}>
-                        {isArabic ? 'التميز في التعليم صنعتها' : 'Excellence in Education'}
+                        {isArabic ? 'التميز في التعليم صنعتنا' : 'Excellence in Education'}
                       </span>
                       <br />
                     </h1>

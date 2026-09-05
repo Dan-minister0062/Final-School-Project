@@ -24,7 +24,7 @@ import {
   FaCheckCircle,
   FaRocket,
   FaLightbulb,
-  FaHeart,
+  FaKaaba,
   FaBrain,
   FaMicroscope,
   FaLaptop,
@@ -136,9 +136,9 @@ const Academics = () => {
       badgeColor: 'warning',
       subjects: [
         { icon: <FaQuran />, name: isArabic ? 'القرآن الكريم (التربية الإسلامية)' : "Qur'an (Islamic Education)"},
+        { icon: <FaLanguage />, name: isArabic ? 'اللغة العربية' : 'Arabic', },
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الإنجليزية' : 'English',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الفرنسية' : 'French', },
-        { icon: <FaLanguage />, name: isArabic ? 'اللغة العربية' : 'Arabic', },
       ],
       schedule: '9:00صباحاً  16:00مساءً',
       features: [
@@ -165,10 +165,10 @@ const Academics = () => {
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الإنجليزية' : 'English',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الفرنسية' : 'French',},
         { icon: <FaCalculator />, name: isArabic ? 'الرياضيات' : 'Mathematics',},
-        { icon: <FaFlask />, name: isArabic ? 'العلوم' : 'Science',},
+        { icon: <FaFlask />, name: isArabic ? 'النشاط العلمي' : 'Science',},
         { icon: <FaDumbbell />, name: isArabic ? 'الرياضة' : 'Sports',},
-        { icon: <FaLaptop />, name: isArabic ? 'المعلوماتية' : 'ICT',},
-        { icon: <FaPalette />, name: isArabic ? 'الفنون التشكيلية' : 'Art & Plastic',},
+        { icon: <FaLaptop />, name: isArabic ? 'الإعلاميات' : 'ICT',},
+        { icon: <FaPalette />, name: isArabic ? 'التربية التشكيلية' : 'Art & Plastic',},
         { icon: <FaGlobeAsia />, name: isArabic ? 'الإجتماعيات' : 'Geography',},
       ],
       schedule: '9:00صباحاً  16:00مساءً',
@@ -191,13 +191,13 @@ const Academics = () => {
       badge: isArabic ? 'إعدادي' : '',
       badgeColor: 'warning',
       subjects: [
+        { icon: <FaQuran />, name: isArabic ? 'القرآن الكريم (التربية الإسلامية)' : "Qur'an (Islamic Education)",},
+        { icon: <FaLanguage />, name: isArabic ? 'اللغة العربية' : 'Arabic',},
+        { icon: <FaLanguage />, name: isArabic ? 'اللغة الفرنسية' : 'French',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الإنجليزية' : 'English',},
         { icon: <FaCalculator />, name: isArabic ? 'الرياضيات' : 'Mathematics',},
-        { icon: <FaLanguage />, name: isArabic ? 'اللغة الفرنسية' : 'French',},
-        { icon: <FaLanguage />, name: isArabic ? 'اللغة العربية' : 'Arabic',},
         { icon: <FaMicroscope />, name: isArabic ? 'علوم الحياة والأرض (SVT)' : 'SVT (Biology)',},
         { icon: <FaFlask />, name: isArabic ? 'الفيزياء' : 'Physics',},
-        { icon: <FaQuran />, name: isArabic ? 'القرآن الكريم (التربية الإسلامية)' : "Qur'an (Islamic Education)",},
         { icon: <FaDumbbell />, name: isArabic ? 'الرياضة' : 'Sports',},
         { icon: <FaLaptop />, name: isArabic ? 'الإعلاميات' : 'ICT',},
         { icon: <FaGlobeAsia />, name: isArabic ? 'الإجتماعيات' : 'Geography',},
@@ -217,18 +217,18 @@ const Academics = () => {
         ? 'مرحلة متقدمة تسعى إلى إعداد متعلمين متميزين قادرين على التفكير والتحليل والإبداع، من خلال تطوير كفاءاتهم العلمية والشخصية، وتأهيلهم للنجاح في التعليم العالي والحياة المستقبلية'
         : 'An advanced stage that prepares outstanding learners to think critically, analyze, and innovate by developing their academic and personal skills, and equipping them for success in higher education and future endeavors.',
       icon: <FaAward />,
-      color: '#6c757d',
-      gradient: 'linear-gradient(135deg, #6c757d 0%, #adb5bd 100%)',
+      color: '#0b89f7',
+      gradient: 'linear-gradient(135deg, #2497fb 0%, #007af3 100%)',
       badge: isArabic ? 'ثانوي' : '',
       badgeColor: 'secondary',
       subjects: [
+        { icon: <FaQuran />, name: isArabic ? 'القرآن الكريم (التربية الإسلامية)' : "Qur'an (Islamic Education)",},
+        { icon: <FaLanguage />, name: isArabic ? 'اللغة العربية' : 'Arabic',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الإنجليزية' : 'English',},
         { icon: <FaCalculator />, name: isArabic ? 'الرياضيات' : 'Mathematics',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الفرنسية' : 'French',},
-        { icon: <FaLanguage />, name: isArabic ? 'اللغة العربية' : 'Arabic',},
         { icon: <FaMicroscope />, name: isArabic ? 'علوم الحياة والأرض (SVT)' : 'SVT (Biology)',},
         { icon: <FaFlask />, name: isArabic ? 'الفيزياء' : 'Physics',},
-        { icon: <FaQuran />, name: isArabic ? 'القرآن الكريم (التربية الإسلامية)' : "Qur'an (Islamic Education)",},
         { icon: <FaDumbbell />, name: isArabic ? 'الرياضة' : 'Sports',},
         { icon: <FaLaptop />, name: isArabic ? 'الإعلاميات' : 'ICT',},
         { icon: <FaGlobeAsia />, name: isArabic ? 'الإجتماعيات' : 'Geography',},
@@ -508,7 +508,7 @@ const Academics = () => {
                         </p>
                       </div>
                       <div className="text-center" style={{ transition: 'all 0.3s ease' }}>
-                        <FaHeart className="fs-2" style={{ color: currentLevel.color }} />
+                        <FaKaaba className="fs-2" style={{ color: currentLevel.color }} />
                         <p className="small text-muted mt-1" style={arabicFontStyle}>
                           {isArabic ? 'القيم الإسلامية' : 'Islamic Values'}
                         </p>

@@ -1,6 +1,6 @@
 // src/components/dashboard/student/StudentResults.jsx
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Table, Badge, Button, ProgressBar, Form, InputGroup, Pagination } from 'react-bootstrap';
+import { Container, Row, Col, Card, Table, Badge, Button, ProgressBar, Form, InputGroup } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   FaSearch, FaFilter, FaDownload, FaFilePdf, FaPrint,
@@ -14,7 +14,7 @@ import {
   FaBookOpen, FaQuran, FaLanguage, FaCalculator,
   FaFlask, FaLaptop, FaRunning, FaPalette, FaGlobe,
   FaAtom, FaDna, FaBrain, FaMicroscope, FaMusic,
-  FaUniversity, FaBuilding, FaChild
+  FaUniversity, FaBuilding, FaChild, FaComment
 } from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { getTranslation } from '../../../utils/translations';
@@ -69,7 +69,6 @@ const StudentResults = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSubject, setFilterSubject] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
   const [exporting, setExporting] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -78,7 +77,6 @@ const StudentResults = () => {
   const [studentData, setStudentData] = useState(null);
   const [subjects, setSubjects] = useState([]);
   const [studentSubjects, setStudentSubjects] = useState([]);
-  const itemsPerPage = 5;
 
   // ===== Arabic Font Style =====
   const arabicFontStyle = getArabicFontStyle(isArabic);
@@ -138,14 +136,46 @@ const StudentResults = () => {
     return colors[level] || '#6c757d';
   };
 
+  // ===== GET GRADE FROM SCORE =====
+  const getGradeFromScore = (score, maxMarks) => {
+    if (score === null || score === undefined) return null;
+    const percentage = (score / maxMarks) * 100;
+    if (percentage >= 90) return 'A+';
+    if (percentage >= 80) return 'A';
+    if (percentage >= 75) return 'A-';
+    if (percentage >= 70) return 'B+';
+    if (percentage >= 65) return 'B';
+    if (percentage >= 60) return 'B-';
+    if (percentage >= 55) return 'C+';
+    if (percentage >= 50) return 'C';
+    if (percentage >= 45) return 'D';
+    return 'F';
+  };
+
+  // ===== GET GRADE COLOR =====
+  const getGradeColor = (grade) => {
+    if (!grade) return '#6c757d';
+    const gradeMap = {
+      'A+': '#28a745',
+      'A': '#28a745',
+      'A-': '#40c057',
+      'B+': '#5cb85c',
+      'B': '#ffc107',
+      'B-': '#ffc107',
+      'C+': '#fd7e14',
+      'C': '#fd7e14',
+      'D': '#dc3545',
+      'F': '#dc3545',
+    };
+    return gradeMap[grade] || '#6c757d';
+  };
+
   // ===== LOAD SUBJECTS FOR STUDENT'S LEVEL =====
   const loadSubjectsForLevel = (level) => {
     try {
-      // Try to get from localStorage first
       const allSubjects = JSON.parse(localStorage.getItem('school_subjects') || '[]');
       
       if (allSubjects.length === 0) {
-        // Try from userDataService
         const serviceSubjects = userDataService.getAllSubjects();
         if (serviceSubjects && Object.keys(serviceSubjects).length > 0) {
           const subjectsList = [];
@@ -261,36 +291,59 @@ const StudentResults = () => {
       const levelSubjects = loadSubjectsForLevel(studentLevel);
       console.log('📚 Subjects for level:', levelSubjects.length);
 
-      // Get assessments from localStorage
-      const allAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
+      // ===== Load exam results from student_results =====
+      const studentResults = JSON.parse(localStorage.getItem('student_results') || '[]');
+      const myExamResults = studentResults.filter(r => r.studentId === student.id || r.studentId === currentUser.id);
       
-      // Filter assessments for this student's class
-      const classAssessments = allAssessments.filter(a => {
-        const isForClass = a.classId === student.classId || a.classId === student.class;
-        const isAssigned = a.assignedStudents ? a.assignedStudents.includes(student.id) : true;
-        const isPublished = a.status === 'published' || a.status === 'closed' || a.status === 'pending_marking';
-        return isForClass && isAssigned && isPublished;
-      });
+      console.log('📝 Exam results from student_results:', myExamResults.length);
 
-      // Create results from assessments
-      const resultsData = classAssessments.map(a => {
-        const studentGrade = a.grades?.find(g => g.studentId === student.id);
+      // ===== Create results for each subject =====
+      const resultsData = levelSubjects.map(subject => {
+        // Find exam result for this subject
+        const examResult = myExamResults.find(r => r.subject === subject.name);
+        
+        // If there's an exam result, use it
+        if (examResult) {
+          return {
+            id: examResult.id || `exam_${Date.now()}`,
+            subject: subject.name,
+            subjectAr: subject.nameAr || subject.name,
+            semester: examResult.semester || 'First Semester',
+            score: examResult.score ?? null,
+            maxMarks: examResult.totalMarks || 20,
+            grade: examResult.grade || (examResult.score !== null ? getGradeFromScore(examResult.score, examResult.totalMarks || 20) : null),
+            status: examResult.score !== null && examResult.score !== undefined ? 'graded' : 'pending',
+            date: examResult.date || examResult.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
+            teacher: examResult.teacherName || examResult.teacher || 'Teacher',
+            remarks: examResult.remarks || '',
+            isExam: true,
+            assessmentTitle: examResult.assessmentTitle || 'Exam',
+            percentage: examResult.percentage || (examResult.score !== null ? ((examResult.score / (examResult.totalMarks || 20)) * 100).toFixed(1) : null),
+            academicYear: examResult.academicYear || new Date().getFullYear().toString(),
+            examId: examResult.assessmentId || examResult.id,
+          };
+        }
+
+        // No exam result for this subject
         return {
-          id: a.id,
-          subject: a.subject,
-          semester: a.semester || 'First Semester',
-          score: studentGrade?.score ?? null,
-          grade: studentGrade ? getGradeFromScore(studentGrade.score, a.totalMarks) : null,
-          status: studentGrade ? 'graded' : 'pending',
-          date: a.dueDate || a.createdAt?.split('T')[0] || '',
-          teacher: a.teacherName || a.teacherId || 'Teacher',
-          remarks: studentGrade?.remarks || '',
-          maxMarks: a.totalMarks || 20,
+          id: `subject_${subject.id}`,
+          subject: subject.name,
+          subjectAr: subject.nameAr || subject.name,
+          semester: 'First Semester',
+          score: null,
+          maxMarks: 20,
+          grade: null,
+          status: 'pending',
+          date: '',
+          teacher: '-',
+          remarks: '',
+          isExam: false,
         };
       });
 
       setResults(resultsData);
-      console.log('📝 Results:', resultsData.length);
+      console.log('📝 Total results:', resultsData.length);
+      console.log('📝 Exam results found:', resultsData.filter(r => r.isExam && r.status === 'graded').length);
 
       setLoading(false);
     } catch (err) {
@@ -300,104 +353,66 @@ const StudentResults = () => {
     }
   };
 
-  // ===== GET GRADE FROM SCORE =====
-  const getGradeFromScore = (score, maxMarks) => {
-    if (score === null || score === undefined) return null;
-    const percentage = (score / maxMarks) * 100;
-    if (percentage >= 90) return 'A+';
-    if (percentage >= 80) return 'A';
-    if (percentage >= 75) return 'A-';
-    if (percentage >= 70) return 'B+';
-    if (percentage >= 65) return 'B';
-    if (percentage >= 60) return 'B-';
-    if (percentage >= 55) return 'C+';
-    if (percentage >= 50) return 'C';
-    if (percentage >= 45) return 'D';
-    return 'F';
-  };
-
   // ===== SETUP EFFECT =====
   useEffect(() => {
     loadResults();
 
-    // Listen for storage changes
     const handleStorageChange = (e) => {
-      if (e.key === "school_assessments") {
-        console.log("🔄 Assessments changed, refreshing results");
+      if (e.key === "student_results" || e.key === "school_assessments") {
+        console.log("🔄 Data changed, refreshing results");
         loadResults();
       }
     };
     window.addEventListener("storage", handleStorageChange);
 
-    // Listen for custom events
     const handleAssessmentChanged = () => {
       console.log("📝 Assessment changed, refreshing results");
       loadResults();
     };
     window.addEventListener("assessmentChanged", handleAssessmentChanged);
 
+    const handleResultsUpdated = () => {
+      console.log("📊 Results updated, refreshing");
+      loadResults();
+    };
+    window.addEventListener("resultsUpdated", handleResultsUpdated);
+
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("assessmentChanged", handleAssessmentChanged);
+      window.removeEventListener("resultsUpdated", handleResultsUpdated);
     };
   }, []);
 
-  // ===== SUBJECTS =====
-  const subjectNames = [...new Set(results.map(r => r.subject))];
-
   // ===== FILTERED RESULTS =====
   const filteredResults = results.filter(r => {
-    const matchesSearch = r.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const subjectDisplay = isArabic ? r.subjectAr : r.subject;
+    const matchesSearch = subjectDisplay.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          r.teacher.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSubject = filterSubject === 'all' || r.subject === filterSubject;
     const matchesStatus = filterStatus === 'all' || r.status === filterStatus;
     return matchesSearch && matchesSubject && matchesStatus;
   });
 
-  // ===== PAGINATION =====
-  const totalPages = Math.ceil(filteredResults.length / itemsPerPage);
-  const displayedResults = filteredResults.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
   // ===== STATS =====
-  const gradedResults = results.filter(r => r.status === 'graded');
+  const gradedResults = results.filter(r => r.status === 'graded' && r.score !== null);
   const pendingResults = results.filter(r => r.status === 'pending');
+  const examOnlyResults = results.filter(r => r.isExam === true && r.status === 'graded');
   
   const stats = {
-    total: studentSubjects.length || results.length || 0,
+    total: results.length || 0,
     graded: gradedResults.length,
     pending: pendingResults.length,
+    exams: examOnlyResults.length,
     average: (() => {
       if (gradedResults.length === 0) return 0;
-      const total = gradedResults.reduce((acc, curr) => acc + curr.score, 0);
+      const total = gradedResults.reduce((acc, curr) => acc + (curr.score || 0), 0);
       return Math.round(total / gradedResults.length);
     })(),
-    highest: gradedResults.length > 0 ? Math.max(...gradedResults.map(r => r.score)) : 0,
-    lowest: gradedResults.length > 0 ? Math.min(...gradedResults.map(r => r.score)) : 0,
-  };
-
-  // ===== GET GRADE COLOR =====
-  const getGradeColor = (grade) => {
-    if (!grade) return '#6c757d';
-    const gradeMap = {
-      'A+': '#28a745',
-      'A': '#28a745',
-      'A-': '#40c057',
-      'B+': '#5cb85c',
-      'B': '#ffc107',
-      'B-': '#ffc107',
-      'C+': '#fd7e14',
-      'C': '#fd7e14',
-      'D': '#dc3545',
-      'F': '#dc3545',
-    };
-    return gradeMap[grade] || '#6c757d';
   };
 
   // ===== GET STATUS BADGE =====
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, isExam) => {
     if (status === 'graded') {
       return { bg: 'success', icon: <FaCheckCircle />, label: isArabic ? 'مصحح' : 'Graded' };
     }
@@ -436,8 +451,8 @@ const StudentResults = () => {
         let tableRows = '';
         const dataToExport = filteredResults.length > 0 ? filteredResults : results;
         dataToExport.forEach(r => {
-          const statusInfo = getStatusBadge(r.status);
-          const subject = isArabic ? getTranslatedSubject(r.subject) : r.subject;
+          const statusInfo = getStatusBadge(r.status, r.isExam);
+          const subject = isArabic ? r.subjectAr : r.subject;
           const teacher = isArabic ? getTranslatedTeacher(r.teacher) : r.teacher;
           
           tableRows += `
@@ -469,8 +484,8 @@ const StudentResults = () => {
                 .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1a5f7a; padding-bottom: 20px; }
                 .header h2 { color: #1a5f7a; margin-bottom: 5px; font-size: 24px; }
                 .header p { color: #6c757d; margin: 0; }
-                .stats { display: flex; justify-content: space-around; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; }
-                .stat-item { text-align: center; }
+                .stats { display: flex; justify-content: space-around; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; flex-wrap: wrap; }
+                .stat-item { text-align: center; padding: 5px 10px; }
                 .stat-label { font-size: 0.7rem; color: #6c757d; text-transform: uppercase; }
                 .stat-value { font-size: 1.1rem; font-weight: bold; color: #2d3436; }
                 table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -571,26 +586,6 @@ const StudentResults = () => {
   };
 
   // ===== TRANSLATION HELPERS =====
-  const getTranslatedSubject = (subject) => {
-    const subjectMap = {
-      'Mathematics': isArabic ? 'الرياضيات' : 'Mathematics',
-      'Science': isArabic ? 'العلوم' : 'Science',
-      'English': isArabic ? 'اللغة الإنجليزية' : 'English',
-      'Arabic': isArabic ? 'اللغة العربية' : 'Arabic',
-      'Islamic Studies': isArabic ? 'الدراسات الإسلامية' : 'Islamic Studies',
-      'French': isArabic ? 'اللغة الفرنسية' : 'French',
-      'Biology': isArabic ? 'علم الأحياء' : 'Biology',
-      'Physics': isArabic ? 'الفيزياء' : 'Physics',
-      'Chemistry': isArabic ? 'الكيمياء' : 'Chemistry',
-      'ICT': isArabic ? 'تكنولوجيا المعلومات' : 'ICT',
-      'Art': isArabic ? 'الفنون' : 'Art',
-      'Sports': isArabic ? 'الرياضة' : 'Sports',
-      'Geography': isArabic ? 'الجغرافيا' : 'Geography',
-      'Philosophy': isArabic ? 'الفلسفة' : 'Philosophy',
-    };
-    return subjectMap[subject] || subject;
-  };
-
   const getTranslatedTeacher = (teacher) => {
     const teacherMap = {
       'Ustadh Khalid': isArabic ? 'الأستاذ خالد' : 'Ustadh Khalid',
@@ -635,11 +630,11 @@ const StudentResults = () => {
   const levelColor = getLevelColor(studentLevel);
   const levelIcon = getLevelIcon(studentLevel);
 
-  // ===== STATS CARDS - SAME AS DASHBOARD =====
+  // ===== STATS CARDS =====
   const statsCards = [
     {
       label: isArabic ? 'المواد الدراسية' : 'Subjects',
-      value: formatNumber(studentSubjects.length || stats.total || 0),
+      value: formatNumber(stats.total),
       icon: <FaBook />,
       gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       shadow: '0 8px 30px rgba(102, 126, 234, 0.4)',
@@ -648,17 +643,17 @@ const StudentResults = () => {
       subColor: 'rgba(255,255,255,0.9)',
     },
     {
-      label: isArabic ? 'مصحح' : 'Graded',
-      value: formatNumber(stats.graded),
-      icon: <FaCheckCircle />,
+      label: isArabic ? 'امتحانات مصححة' : 'Graded Exams',
+      value: formatNumber(stats.exams),
+      icon: <FaStar />,
       gradient: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
       shadow: '0 8px 30px rgba(17, 153, 142, 0.4)',
-      subtitle: `${stats.graded} / ${stats.total}`,
+      subtitle: `${stats.exams} ${isArabic ? 'امتحان مصحح' : 'exams graded'}`,
       subIcon: <FaCheckCircle />,
       subColor: 'rgba(255,255,255,0.9)',
     },
     {
-      label: isArabic ? 'قيد الانتظار' : 'Pending',
+      label: isArabic ? 'بانتظار التصحيح' : 'Pending',
       value: formatNumber(stats.pending),
       icon: <FaClock />,
       gradient: 'linear-gradient(135deg, #f2994a 0%, #f2c94c 100%)',
@@ -698,8 +693,8 @@ const StudentResults = () => {
               fontSize: isArabic ? 'clamp(0.8rem, 1vw, 0.95rem)' : 'clamp(0.75rem, 0.9vw, 0.9rem)' 
             }}>
               {isArabic 
-                ? `عرض جميع المواد والنتائج الدراسية (${formatNumber(studentSubjects.length)} مواد)`
-                : `View all subjects and academic results (${formatNumber(studentSubjects.length)} subjects)`}
+                ? `عرض جميع المواد والنتائج الدراسية (${formatNumber(results.length)} مواد)`
+                : `View all subjects and academic results (${formatNumber(results.length)} subjects)`}
             </p>
           </div>
           <div className="d-flex gap-1 gap-sm-2 flex-wrap flex-shrink-0">
@@ -871,7 +866,9 @@ const StudentResults = () => {
               >
                 <option value="all">{isArabic ? 'جميع المواد' : 'All Subjects'}</option>
                 {studentSubjects.map((subject) => (
-                  <option key={subject.id} value={subject.name}>{isArabic ? subject.nameAr || subject.name : subject.name}</option>
+                  <option key={subject.id} value={subject.name}>
+                    {isArabic ? subject.nameAr || subject.name : subject.name}
+                  </option>
                 ))}
               </Form.Select>
             </Col>
@@ -902,7 +899,7 @@ const StudentResults = () => {
         </Card.Body>
       </Card>
 
-      {/* ===== SUBJECTS & RESULTS TABLE ===== */}
+      {/* ===== RESULTS TABLE - All Subjects in One Page ===== */}
       <Card className="shadow-sm border-0 modern-card" style={{
         background: darkMode ? '#1a1a2e' : '#ffffff',
         border: `1px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`,
@@ -921,7 +918,7 @@ const StudentResults = () => {
               {isArabic ? 'المواد والنتائج' : 'Subjects & Results'}
             </h6>
             <span className="text-muted small" style={{ color: darkMode ? '#adb5bd' : '#6c757d', ...arabicFontStyle, fontSize: isMobile ? '0.6rem' : '0.7rem' }}>
-              {formatNumber(studentSubjects.length)} {isArabic ? 'مادة' : 'subjects'}
+              {formatNumber(results.length)} {isArabic ? 'مادة' : 'subjects'}
             </span>
           </div>
         </Card.Header>
@@ -941,23 +938,24 @@ const StudentResults = () => {
                 </tr>
               </thead>
               <tbody>
-                {studentSubjects.length === 0 ? (
+                {filteredResults.length === 0 ? (
                   <tr>
                     <td colSpan="8" className="text-center py-4">
                       <p className="text-muted" style={arabicFontStyle}>
-                        {isArabic ? 'لا توجد مواد لهذا المستوى' : 'No subjects for this level'}
+                        {isArabic ? 'لا توجد نتائج لعرضها' : 'No results to display'}
                       </p>
                     </td>
                   </tr>
                 ) : (
-                  studentSubjects.map((subject, index) => {
-                    // Find if there's a result for this subject
-                    const result = results.find(r => r.subject === subject.name);
-                    const statusInfo = result ? getStatusBadge(result.status) : { bg: 'secondary', icon: <FaClock />, label: isArabic ? 'غير مسجل' : 'Not Recorded' };
-                    const subjectDisplay = isArabic ? subject.nameAr || subject.name : subject.name;
+                  filteredResults.map((result, index) => {
+                    const statusInfo = getStatusBadge(result.status, result.isExam);
+                    const subjectDisplay = isArabic ? result.subjectAr : result.subject;
+                    const teacherDisplay = isArabic ? getTranslatedTeacher(result.teacher) : result.teacher;
                     
                     return (
-                      <tr key={subject.id || index}>
+                      <tr key={result.id || index} style={{
+                        background: result.isExam && result.status === 'graded' ? (darkMode ? 'rgba(23, 162, 184, 0.12)' : 'rgba(23, 162, 184, 0.08)') : 'transparent'
+                      }}>
                         <td style={{ color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? 'clamp(0.6rem, 0.7vw, 0.75rem)' : 'clamp(0.7rem, 0.8vw, 0.85rem)', padding: isMobile ? '4px 6px' : '6px 12px' }}>
                           {formatNumber(index + 1)}
                         </td>
@@ -975,18 +973,29 @@ const StudentResults = () => {
                               fontSize: isMobile ? '0.5rem' : '0.7rem',
                               flexShrink: 0,
                             }}>
-                              {getSubjectIcon(subject.name)}
+                              {getSubjectIcon(result.subject)}
                             </div>
                             <span className="fw-semibold" style={{ ...arabicFontStyle, fontSize: isMobile ? 'clamp(0.65rem, 0.75vw, 0.8rem)' : 'clamp(0.75rem, 0.9vw, 0.95rem)', color: darkMode ? '#e9ecef' : '#212529' }}>
                               {subjectDisplay}
+                              {result.isExam && result.status === 'graded' && (
+                                <span className="text-muted ms-1" style={{ fontSize: isMobile ? '0.45rem' : '0.55rem', display: 'block' }}>
+                                  {result.assessmentTitle || 'Exam'}
+                                </span>
+                              )}
+                              {result.remarks && result.status === 'graded' && (
+                                <div className="text-muted small" style={{ fontSize: isMobile ? '0.45rem' : '0.55rem', display: 'flex', alignItems: 'center', gap: '2px' }}>
+                                  <FaComment size={10} />
+                                  <span>{result.remarks}</span>
+                                </div>
+                              )}
                             </span>
                           </div>
                         </td>
                         <td style={{ ...arabicFontStyle, fontSize: isMobile ? 'clamp(0.6rem, 0.7vw, 0.75rem)' : 'clamp(0.7rem, 0.8vw, 0.85rem)', color: darkMode ? '#e9ecef' : '#212529', padding: isMobile ? '4px 6px' : '6px 12px' }} className="d-none d-sm-table-cell">
-                          {result?.semester || '-'}
+                          {result.semester || '-'}
                         </td>
                         <td style={{ padding: isMobile ? '4px 6px' : '6px 12px' }}>
-                          {result && result.status === 'graded' ? (
+                          {result.status === 'graded' && result.score !== null ? (
                             <span className="fw-bold" style={{ color: getGradeColor(result.grade), fontSize: isMobile ? 'clamp(0.6rem, 0.7vw, 0.8rem)' : 'clamp(0.7rem, 0.8vw, 0.95rem)' }}>
                               {formatNumber(result.score)}/{formatNumber(result.maxMarks || 20)}
                             </span>
@@ -995,9 +1004,14 @@ const StudentResults = () => {
                               -
                             </span>
                           )}
+                          {result.isExam && result.status === 'graded' && result.percentage && (
+                            <div className="text-muted small" style={{ fontSize: isMobile ? '0.45rem' : '0.55rem' }}>
+                              {result.percentage}%
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: isMobile ? '4px 6px' : '6px 12px' }} className="d-none d-sm-table-cell">
-                          {result && result.status === 'graded' ? (
+                          {result.status === 'graded' && result.grade ? (
                             <Badge style={{ background: getGradeColor(result.grade), color: 'white', padding: isMobile ? '2px 6px' : '4px 10px', fontSize: isMobile ? '0.5rem' : '0.6rem' }}>
                               {result.grade}
                             </Badge>
@@ -1014,10 +1028,10 @@ const StudentResults = () => {
                           </Badge>
                         </td>
                         <td style={{ ...arabicFontStyle, fontSize: isMobile ? 'clamp(0.6rem, 0.7vw, 0.75rem)' : 'clamp(0.7rem, 0.8vw, 0.85rem)', color: darkMode ? '#e9ecef' : '#212529', padding: isMobile ? '4px 6px' : '6px 12px' }} className="d-none d-md-table-cell">
-                          {result?.teacher || '-'}
+                          {teacherDisplay || '-'}
                         </td>
                         <td style={{ ...arabicFontStyle, fontSize: isMobile ? 'clamp(0.6rem, 0.7vw, 0.75rem)' : 'clamp(0.7rem, 0.8vw, 0.85rem)', color: darkMode ? '#e9ecef' : '#212529', padding: isMobile ? '4px 6px' : '6px 12px' }} className="d-none d-md-table-cell">
-                          {result?.date || '-'}
+                          {result.date ? new Date(result.date).toLocaleDateString() : '-'}
                         </td>
                       </tr>
                     );
@@ -1028,33 +1042,6 @@ const StudentResults = () => {
           </div>
         </Card.Body>
       </Card>
-
-      {/* ===== PAGINATION ===== */}
-      {totalPages > 1 && (
-        <div className="d-flex justify-content-center mt-4">
-          <Pagination size="sm" className="responsive-pagination">
-            <Pagination.Prev onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} />
-            {[...Array(Math.min(totalPages, isMobile ? 3 : 5))].map((_, i) => {
-              let pageNum;
-              if (totalPages <= (isMobile ? 3 : 5)) {
-                pageNum = i + 1;
-              } else if (currentPage <= (isMobile ? 2 : 3)) {
-                pageNum = i + 1;
-              } else if (currentPage >= totalPages - (isMobile ? 1 : 2)) {
-                pageNum = totalPages - (isMobile ? 2 : 4) + i;
-              } else {
-                pageNum = currentPage - (isMobile ? 1 : 2) + i;
-              }
-              return (
-                <Pagination.Item key={pageNum} active={pageNum === currentPage} onClick={() => setCurrentPage(pageNum)} style={{ color: darkMode ? '#e9ecef' : '#212529', borderRadius: '8px' }}>
-                  {formatNumber(pageNum)}
-                </Pagination.Item>
-              );
-            })}
-            <Pagination.Next onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} />
-          </Pagination>
-        </div>
-      )}
 
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@100..900&family=Vazirmatn:wght@100..900&display=swap');
@@ -1102,35 +1089,6 @@ const StudentResults = () => {
           gap: 8px;
         }
 
-        .page-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        [dir="rtl"] .page-header {
-          flex-direction: row-reverse;
-        }
-
-        @media (max-width: 576px) {
-          .page-header {
-            flex-direction: column;
-            align-items: stretch !important;
-          }
-          [dir="rtl"] .page-header {
-            align-items: stretch !important;
-          }
-          .page-header .d-flex {
-            justify-content: flex-start;
-          }
-          [dir="rtl"] .page-header .d-flex {
-            justify-content: flex-end;
-          }
-        }
-
-        /* ===== ENHANCED STAT CARDS ===== */
         .stats-card-enhanced {
           transition: all 0.3s ease;
         }
@@ -1186,25 +1144,13 @@ const StudentResults = () => {
           background-color: rgba(255,255,255,0.02);
         }
 
-        .responsive-pagination .page-link {
-          padding: 4px 8px;
-          font-size: clamp(0.55rem, 0.7vw, 0.75rem);
-        }
-
         @media (max-width: 768px) {
-          .responsive-pagination .page-link {
-            padding: 2px 6px;
-            font-size: 0.6rem;
-          }
           .dashboard-header {
             padding: 12px 16px;
           }
           .header-content {
             flex-direction: column;
             align-items: stretch;
-          }
-          .header-actions {
-            justify-content: center;
           }
           .stats-card-enhanced .p-2 {
             padding: 8px !important;
@@ -1222,24 +1168,6 @@ const StudentResults = () => {
         }
 
         @media (max-width: 576px) {
-          .page-header {
-            flex-direction: column;
-            align-items: stretch !important;
-          }
-          .page-header .d-flex {
-            flex-wrap: wrap;
-            gap: 3px !important;
-          }
-          .page-header .btn {
-            font-size: 0.55rem !important;
-            padding: 3px 6px !important;
-          }
-          .page-header h4 {
-            font-size: 0.85rem !important;
-          }
-          .page-header p {
-            font-size: 0.6rem !important;
-          }
           .stats-card-enhanced {
             min-height: 60px !important;
           }
@@ -1255,53 +1183,21 @@ const StudentResults = () => {
             font-size: 0.45rem !important;
             padding: 2px 4px !important;
           }
-          .table .btn {
-            padding: 1px 4px !important;
-            font-size: 0.45rem !important;
-          }
-          .table .btn svg {
-            width: 8px !important;
-            height: 8px !important;
-          }
           .modern-card .p-2 {
             padding: 8px !important;
           }
           .modern-card .g-1 {
             gap: 2px !important;
           }
-          .modern-card .col-md-3,
-          .modern-card .col-md-2 {
-            padding: 0 2px !important;
-          }
           .modern-card .form-select,
           .modern-card .form-control {
             font-size: 0.55rem !important;
             padding: 3px 4px !important;
           }
-          .modern-card .btn {
-            font-size: 0.55rem !important;
-            padding: 3px 4px !important;
-          }
-          .modern-card .input-group-text {
-            padding: 3px 6px !important;
-          }
-          .modern-card .input-group-text svg {
-            font-size: 10px !important;
-          }
           .subject-icon-sm {
             width: 20px !important;
             height: 20px !important;
             font-size: 0.45rem !important;
-          }
-          .responsive-pagination .page-item:not(.active) .page-link {
-            display: none;
-          }
-          .responsive-pagination .page-item.active .page-link {
-            display: block;
-          }
-          .responsive-pagination .page-item.prev .page-link,
-          .responsive-pagination .page-item.next .page-link {
-            display: block;
           }
         }
 
@@ -1339,22 +1235,18 @@ const StudentResults = () => {
           margin-right: 0 !important;
           margin-left: 0.25rem !important;
         }
-
         [dir="rtl"] .me-2 {
           margin-right: 0 !important;
           margin-left: 0.5rem !important;
         }
-
         [dir="rtl"] .ms-1 {
           margin-left: 0 !important;
           margin-right: 0.25rem !important;
         }
-
         [dir="rtl"] .ms-2 {
           margin-left: 0 !important;
           margin-right: 0.5rem !important;
         }
-
         [dir="rtl"] .form-select {
           background-position: left 0.75rem center !important;
           padding-right: 0.75rem !important;
@@ -1367,8 +1259,7 @@ const StudentResults = () => {
           .modern-card .card-body .row .col-12,
           .dashboard-header .header-actions,
           .stats-card-enhanced,
-          .modern-card .card-top-bar,
-          .responsive-pagination {
+          .modern-card .card-top-bar {
             display: none !important;
           }
           .modern-card {

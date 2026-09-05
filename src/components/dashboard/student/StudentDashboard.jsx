@@ -158,7 +158,6 @@ const StudentDashboard = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [studentData, setStudentData] = useState(null);
-  const [assessments, setAssessments] = useState([]);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [attendanceStats, setAttendanceStats] = useState({ present: 0, absent: 0, late: 0, excused: 0, total: 0, monthlyPresent: 0, monthlyTotal: 0 });
   const [classes, setClasses] = useState([]);
@@ -168,26 +167,16 @@ const StudentDashboard = () => {
   const [subjects, setSubjects] = useState([]);
   const [studentSubjects, setStudentSubjects] = useState([]);
   
-  // ===== ANNOUNCEMENTS & NOTIFICATIONS STATE =====
+  // ===== ANNOUNCEMENTS & NOTIFICATIONS STATE - ALL DEFAULT TO 0 =====
   const [announcements, setAnnouncements] = useState([]);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [unreadAssessments, setUnreadAssessments] = useState(0);
   const [totalNotifications, setTotalNotifications] = useState(0);
+  const [newAnnouncementCount, setNewAnnouncementCount] = useState(0);
   
-  // ===== FILTER STATE =====
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [filterSubject, setFilterSubject] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
-
   // ===== MODAL STATE =====
   const [showViewModal, setShowViewModal] = useState(false);
-  const [showSubmitModal, setShowSubmitModal] = useState(false);
-  const [selectedAssessment, setSelectedAssessment] = useState(null);
-  const [submissionFile, setSubmissionFile] = useState(null);
-  const [submissionNote, setSubmissionNote] = useState('');
-  const [submitting, setSubmitting] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   // ===== Arabic Font Style =====
   const arabicFontStyle = getArabicFontStyle(isArabic);
@@ -217,6 +206,8 @@ const StudentDashboard = () => {
   // ===== LOAD ANNOUNCEMENTS & NOTIFICATIONS =====
   const loadAnnouncementsAndNotifications = () => {
     try {
+      const studentId = studentData?.id || user?.id || 'student_1';
+      
       // Load announcements
       const allAnnouncements = JSON.parse(localStorage.getItem('announcements') || '[]');
       const publishedAnnouncements = allAnnouncements.filter(a => 
@@ -231,32 +222,77 @@ const StudentDashboard = () => {
       });
       setAnnouncements(sortedAnnouncements.slice(0, 3));
 
-      // Load notifications
-      const allNotifications = JSON.parse(localStorage.getItem('school_notifications') || '[]');
-      const unread = allNotifications.filter(n => {
-        const isForStudent = n.targetAudience?.includes('all') || 
-                            n.targetAudience?.includes('students') ||
-                            n.recipientRole === 'student';
-        return isForStudent && !n.read;
-      }).length;
+      // Count new announcements (unread) - default to 0
+      let newCount = 0;
+      try {
+        const readAnnouncements = JSON.parse(localStorage.getItem('read_announcements') || '[]');
+        newCount = sortedAnnouncements.filter(a => {
+          const readKey = `${a.id}_${studentId}`;
+          return !readAnnouncements.includes(readKey);
+        }).length;
+      } catch (e) {
+        console.warn('Error reading read_announcements:', e);
+      }
+      setNewAnnouncementCount(newCount);
+
+      // Load notifications from school_notifications - default to 0
+      let unread = 0;
+      try {
+        const allNotifications = JSON.parse(localStorage.getItem('school_notifications') || '[]');
+        unread = allNotifications.filter(n => {
+          const isForStudent = n.targetAudience?.includes('all') || 
+                              n.targetAudience?.includes('students') ||
+                              n.recipientRole === 'student' ||
+                              n.studentId === studentId;
+          return isForStudent && !n.read;
+        }).length;
+      } catch (e) {
+        console.warn('Error reading school_notifications:', e);
+      }
       setUnreadNotifications(unread);
 
-      // Load unread assessments
-      const studentId = studentData?.id || user?.id;
-      const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
-      const myUnreadAssessments = studentAssessments.filter(a => 
-        a.studentId === studentId && !a.read
-      ).length;
+      // Load unread assessments from student_assessments - default to 0
+      let myUnreadAssessments = 0;
+      try {
+        const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
+        myUnreadAssessments = studentAssessments.filter(a => 
+          a.studentId === studentId && !a.read
+        ).length;
+      } catch (e) {
+        console.warn('Error reading student_assessments:', e);
+      }
       setUnreadAssessments(myUnreadAssessments);
 
-      // Total notifications (unread notifications + unread assessments)
-      const total = unread + myUnreadAssessments;
+      // Check for new assessments from school_assessments - default to 0
+      let newAssessments = 0;
+      try {
+        const allAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
+        newAssessments = allAssessments.filter(a => 
+          a.studentId === studentId && 
+          (a.status === 'sent_to_students' || a.status === 'published') &&
+          !a.readByStudent
+        ).length;
+      } catch (e) {
+        console.warn('Error reading school_assessments:', e);
+      }
+      
+      // Total notifications = sum of all - default to 0
+      const total = unread + myUnreadAssessments + newAssessments + newCount;
       setTotalNotifications(total);
       
-      console.log('🔔 Total notifications:', total, '(Notifications:', unread, 'Assessments:', myUnreadAssessments, ')');
+      console.log('🔔 Total notifications:', total, 
+        '(Notifications:', unread, 
+        'Assessments:', myUnreadAssessments, 
+        'New:', newAssessments,
+        'Announcements:', newCount, ')');
       
     } catch (error) {
       console.error('Error loading announcements:', error);
+      // Set all to 0 on error
+      setNewAnnouncementCount(0);
+      setUnreadNotifications(0);
+      setUnreadAssessments(0);
+      setTotalNotifications(0);
     }
   };
 
@@ -402,38 +438,6 @@ const StudentDashboard = () => {
       setClasses(studentClass ? [studentClass] : []);
       console.log('📚 Student class:', studentClass);
 
-      // ===== GET ASSESSMENTS =====
-      const allAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
-      const classAssessments = allAssessments.filter(a => {
-        const isForClass = a.classId === student.classId || a.classId === student.class;
-        const isAssigned = a.assignedStudents ? a.assignedStudents.includes(student.id) : true;
-        const isPublished = a.status === 'published' || a.status === 'closed' || a.status === 'pending_marking' || a.status === 'sent_to_students';
-        return isForClass && isAssigned && isPublished;
-      });
-
-      const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-      const studentSubmissions = allSubmissions.filter(s => s.studentId === student.id);
-
-      const enrichedAssessments = classAssessments.map(a => {
-        const studentGrade = a.grades?.find(g => g.studentId === student.id);
-        const submission = studentSubmissions.find(s => s.assessmentId === a.id);
-        
-        return {
-          ...a,
-          studentScore: studentGrade?.score || null,
-          studentGrade: studentGrade,
-          isGraded: !!studentGrade,
-          hasSubmitted: !!submission,
-          submissionId: submission?.id || null,
-          submissionDate: submission?.submittedAt || null,
-          status: studentGrade ? 'graded' : (submission ? 'submitted' : (a.status === 'closed' ? 'closed' : a.status)),
-          canSubmit: a.status !== 'closed' && !studentGrade && !submission,
-        };
-      });
-
-      setAssessments(enrichedAssessments);
-      console.log('📝 Assessments:', enrichedAssessments.length);
-
       // ===== GET ATTENDANCE =====
       const allAttendance = JSON.parse(localStorage.getItem('school_attendance') || '[]');
       const studentAttendance = allAttendance.filter(r => 
@@ -519,7 +523,8 @@ const StudentDashboard = () => {
         e.key === "school_notifications" ||
         e.key === "currentUser" ||
         e.key === "announcements" ||
-        e.key === "student_assessments"
+        e.key === "student_assessments" ||
+        e.key === "read_announcements"
       ) {
         console.log("🔄 Storage changed, refreshing student data");
         loadStudentData();
@@ -594,158 +599,6 @@ const StudentDashboard = () => {
     }, 800);
   };
 
-  // ===== HANDLE SUBMIT ASSESSMENT =====
-  const handleSubmitAssessment = () => {
-    if (!submissionFile && !submissionNote) {
-      notify(
-        isArabic ? 'يرجى إضافة ملف أو ملاحظات للتقديم' : 'Please add a file or notes to submit',
-        'warning'
-      );
-      return;
-    }
-
-    setSubmitting(true);
-    
-    try {
-      const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-      console.log('📤 Current submissions count before:', allSubmissions.length);
-      
-      const newSubmission = {
-        id: `SUB${String(Date.now()).slice(-6)}`,
-        assessmentId: selectedAssessment.id,
-        studentId: studentData.id,
-        studentName: studentData.name || studentData.firstName || 'Student',
-        content: submissionNote || 'No content provided',
-        fileType: submissionFile ? submissionFile.type : null,
-        fileName: submissionFile ? submissionFile.name : null,
-        fileSize: submissionFile ? submissionFile.size : null,
-        submittedAt: new Date().toISOString(),
-        status: 'submitted'
-      };
-      
-      console.log('📤 Creating submission:', newSubmission);
-      
-      allSubmissions.push(newSubmission);
-      localStorage.setItem('school_submissions', JSON.stringify(allSubmissions));
-      console.log('📤 Submissions saved. New count:', allSubmissions.length);
-      
-      const allAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
-      const index = allAssessments.findIndex(a => a.id === selectedAssessment.id);
-      
-      if (index !== -1) {
-        if (!allAssessments[index].submissions) {
-          allAssessments[index].submissions = [];
-        }
-        
-        allAssessments[index].submissions.push({
-          studentId: studentData.id,
-          submissionId: newSubmission.id,
-          submittedAt: newSubmission.submittedAt
-        });
-        
-        if (allAssessments[index].status === 'published') {
-          allAssessments[index].status = 'pending_marking';
-        }
-        
-        localStorage.setItem('school_assessments', JSON.stringify(allAssessments));
-        console.log('📝 Assessment updated with submission reference');
-      }
-      
-      const notifications = JSON.parse(localStorage.getItem('school_notifications') || '[]');
-      const notification = {
-        id: `NOT${String(Date.now()).slice(-6)}`,
-        title: isArabic ? '📤 تم تقديم واجب' : '📤 Assignment Submitted',
-        message: isArabic 
-          ? `${studentData.name || studentData.firstName} قدم: ${selectedAssessment.title}`
-          : `${studentData.name || studentData.firstName} submitted: ${selectedAssessment.title}`,
-        type: 'submission',
-        read: false,
-        recipientRole: 'teacher',
-        targetAudience: ['teacher', 'admin'],
-        studentId: studentData.id,
-        studentName: studentData.name || studentData.firstName,
-        assessmentId: selectedAssessment.id,
-        assessmentTitle: selectedAssessment.title,
-        createdAt: new Date().toISOString(),
-        time: new Date().toLocaleString(),
-        link: '/dashboard/teacher/assessments',
-      };
-      notifications.push(notification);
-      localStorage.setItem('school_notifications', JSON.stringify(notifications));
-      
-      window.dispatchEvent(new CustomEvent('submissionChanged', { 
-        detail: { 
-          submission: newSubmission,
-          assessmentId: selectedAssessment.id,
-          studentId: studentData.id
-        }
-      }));
-      window.dispatchEvent(new CustomEvent('assessmentChanged'));
-      window.dispatchEvent(new CustomEvent('notificationAdded', { detail: notification }));
-      
-      notify(
-        isArabic ? '✅ تم تقديم الواجب بنجاح' : '✅ Assignment submitted successfully',
-        'success'
-      );
-      
-      setShowSubmitModal(false);
-      setSubmissionFile(null);
-      setSubmissionNote('');
-      setSelectedAssessment(null);
-      loadStudentData();
-      
-    } catch (error) {
-      console.error('❌ Error submitting assignment:', error);
-      notify(
-        isArabic ? '❌ حدث خطأ أثناء تقديم الواجب' : '❌ Error submitting assignment',
-        'error'
-      );
-    }
-    setSubmitting(false);
-  };
-
-  // ===== HANDLE FILE UPLOAD =====
-  const handleFileUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSubmissionFile(file);
-      console.log('📎 File selected:', file.name, file.type, file.size);
-    }
-  };
-
-  // ===== FILTER ASSESSMENTS =====
-  const filteredAssessments = assessments.filter(a => {
-    const matchesSearch = a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         a.subject.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = filterStatus === 'all' || a.status === filterStatus;
-    const matchesSubject = filterSubject === 'all' || a.subject === filterSubject;
-    return matchesSearch && matchesStatus && matchesSubject;
-  });
-
-  // ===== PAGINATION =====
-  const totalPages = Math.ceil(filteredAssessments.length / itemsPerPage);
-  const displayedAssessments = filteredAssessments.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  // ===== SUBJECTS =====
-  const subjectNames = [...new Set(assessments.map(a => a.subject))];
-
-  // ===== CALCULATE STATS =====
-  const stats = {
-    total: assessments.length,
-    graded: assessments.filter(a => a.isGraded).length,
-    pending: assessments.filter(a => a.status === 'pending' || a.status === 'published').length,
-    submitted: assessments.filter(a => a.hasSubmitted).length,
-    averageScore: (() => {
-      const graded = assessments.filter(a => a.isGraded);
-      if (graded.length === 0) return 0;
-      const total = graded.reduce((acc, a) => acc + (a.studentScore || 0), 0);
-      return Math.round((total / graded.length / (graded[0]?.totalMarks || 100)) * 100);
-    })(),
-  };
-
   // ===== GET LEVEL DISPLAY =====
   const getLevelDisplay = (level) => {
     const levels = {
@@ -779,41 +632,30 @@ const StudentDashboard = () => {
     return colors[level] || '#6c757d';
   };
 
-  // ===== GET STATUS BADGE =====
-  const getStatusBadge = (status) => {
-    const statuses = {
-      graded: { bg: 'success', icon: <FaCheckCircle />, label: isArabic ? 'مصحح' : 'Graded' },
-      pending: { bg: 'warning', icon: <FaHourglassHalf />, label: isArabic ? 'قيد الانتظار' : 'Pending' },
-      submitted: { bg: 'info', icon: <FaPaperPlane />, label: isArabic ? 'مرسل' : 'Submitted' },
-      closed: { bg: 'secondary', icon: <FaCheckCircle />, label: isArabic ? 'مغلق' : 'Closed' },
-      published: { bg: 'primary', icon: <FaClock />, label: isArabic ? 'منشور' : 'Published' },
-    };
-    return statuses[status] || statuses.pending;
-  };
-
-  // ===== GET TYPE BADGE =====
-  const getTypeBadge = (type) => {
-    const types = {
-      homework: { bg: 'primary', icon: <FaTasks />, label: isArabic ? 'واجب منزلي' : 'Homework' },
-      assignment: { bg: 'warning', icon: <FaClipboardList />, label: isArabic ? 'مشروع' : 'Assignment' },
-      quiz: { bg: 'info', icon: <FaCheckCircle />, label: isArabic ? 'اختبار قصير' : 'Quiz' },
-      test: { bg: 'danger', icon: <FaFileAlt />, label: isArabic ? 'اختبار' : 'Test' },
-      exam: { bg: 'danger', icon: <FaCheckCircle />, label: isArabic ? 'امتحان' : 'Exam' },
-      project: { bg: 'success', icon: <FaFileAlt />, label: isArabic ? 'مشروع' : 'Project' },
-      classwork: { bg: 'secondary', icon: <FaTasks />, label: isArabic ? 'عمل صفي' : 'Classwork' },
-    };
-    return types[type] || types.assignment;
-  };
-
-  // ===== GET GRADE COLOR =====
-  const getGradeColor = (score, maxScore) => {
-    if (score === null || score === undefined) return '#6c757d';
-    const percentage = (score / maxScore) * 100;
-    if (percentage >= 90) return '#28a745';
-    if (percentage >= 75) return '#5cb85c';
-    if (percentage >= 60) return '#ffc107';
-    if (percentage >= 50) return '#fd7e14';
-    return '#dc3545';
+  // ===== GET PAYMENT STATUS DISPLAY =====
+  const getPaymentStatusDisplay = () => {
+    if (paymentStatus.status === 'paid' || paymentStatus.status === 'approved') {
+      return {
+        label: isArabic ? '✅ مدفوع' : '✅ Paid',
+        color: '#2ecc71',
+        icon: <FaCheckCircle />,
+        bg: 'rgba(46, 204, 113, 0.1)',
+      };
+    } else if (paymentStatus.status === 'pending') {
+      return {
+        label: isArabic ? '⏳ قيد الانتظار' : '⏳ Pending',
+        color: '#f39c12',
+        icon: <FaClock />,
+        bg: 'rgba(243, 156, 18, 0.1)',
+      };
+    } else {
+      return {
+        label: isArabic ? '❌ غير مدفوع' : '❌ Unpaid',
+        color: '#e74c3c',
+        icon: <FaTimesCircle />,
+        bg: 'rgba(231, 76, 60, 0.1)',
+      };
+    }
   };
 
   // ===== GET TRANSLATED ANNOUNCEMENT =====
@@ -869,33 +711,6 @@ const StudentDashboard = () => {
   const levelDisplay = getLevelDisplay(studentLevel);
   const levelColor = getLevelColor(studentLevel);
   const levelIcon = getLevelIcon(studentLevel);
-
-  // ===== GET PAYMENT STATUS DISPLAY =====
-  const getPaymentStatusDisplay = () => {
-    if (paymentStatus.status === 'paid' || paymentStatus.status === 'approved') {
-      return {
-        label: isArabic ? '✅ مدفوع' : '✅ Paid',
-        color: '#2ecc71',
-        icon: <FaCheckCircle />,
-        bg: 'rgba(46, 204, 113, 0.1)',
-      };
-    } else if (paymentStatus.status === 'pending') {
-      return {
-        label: isArabic ? '⏳ قيد الانتظار' : '⏳ Pending',
-        color: '#f39c12',
-        icon: <FaClock />,
-        bg: 'rgba(243, 156, 18, 0.1)',
-      };
-    } else {
-      return {
-        label: isArabic ? '❌ غير مدفوع' : '❌ Unpaid',
-        color: '#e74c3c',
-        icon: <FaTimesCircle />,
-        bg: 'rgba(231, 76, 60, 0.1)',
-      };
-    }
-  };
-
   const paymentDisplay = getPaymentStatusDisplay();
 
   // ===== STATS CARDS =====
@@ -1222,7 +1037,7 @@ const StudentDashboard = () => {
         </Card.Body>
       </Card>
 
-      {/* ===== SUBJECTS & ASSIGNMENTS CARD ===== */}
+      {/* ===== SUBJECTS CARD ===== */}
       <Card className="shadow-sm border-0 mb-4 modern-card" style={{
         background: darkMode ? '#1a1a2e' : '#ffffff',
         border: `1px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`,
@@ -1235,7 +1050,7 @@ const StudentDashboard = () => {
         <Card.Header className="bg-transparent border-0 p-3" style={{ borderBottom: `1px solid ${darkMode ? '#2d2d44' : '#e9ecef'}` }}>
           <h6 className="fw-bold mb-0" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
             <FaBookOpen className="me-2 text-primary" />
-            {isArabic ? 'موادي الدراسية والواجبات' : 'My Subjects & Assignments'}
+            {isArabic ? 'موادي الدراسية' : 'My Subjects'}
             <span className="text-muted ms-2" style={{ fontSize: '0.75rem' }}>
               ({formatNumber(studentSubjects.length)} {isArabic ? 'مادة' : 'subjects'})
             </span>
@@ -1252,14 +1067,8 @@ const StudentDashboard = () => {
           ) : (
             <Row className="g-2">
               {studentSubjects.map((subject, index) => {
-                const subjectAssessments = assessments.filter(a => a.subject === subject.name);
-                const hasAssignment = subjectAssessments.length > 0;
-                const latestAssessment = subjectAssessments[0];
-                const isGraded = latestAssessment?.isGraded;
-                const canSubmit = latestAssessment?.canSubmit;
-                
                 return (
-                  <Col key={index} xs={12} sm={6} lg={4}>
+                  <Col key={index} xs={12} sm={6} lg={3}>
                     <div className="subject-card" style={{
                       background: darkMode ? '#1a1a2e' : '#f8f9fa',
                       border: `1px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`,
@@ -1296,55 +1105,7 @@ const StudentDashboard = () => {
                         <div className="fw-semibold text-truncate" style={{ ...arabicFontStyle, fontSize: '0.85rem', color: darkMode ? '#e9ecef' : '#212529' }}>
                           {isArabic ? subject.nameAr || subject.name : subject.name}
                         </div>
-                        {hasAssignment ? (
-                          <div className="d-flex align-items-center gap-2">
-                            <Badge bg={isGraded ? 'success' : (latestAssessment?.hasSubmitted ? 'info' : 'warning')} style={{ fontSize: '0.55rem' }}>
-                              {isGraded ? (isArabic ? 'مصحح' : 'Graded') : (latestAssessment?.hasSubmitted ? (isArabic ? 'مرسل' : 'Submitted') : (isArabic ? 'قيد الانتظار' : 'Pending'))}
-                            </Badge>
-                            {canSubmit && (
-                              <Button 
-                                variant="outline-primary" 
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedAssessment(latestAssessment);
-                                  setShowSubmitModal(true);
-                                }}
-                                style={{ 
-                                  padding: '2px 8px', 
-                                  fontSize: '0.6rem', 
-                                  borderRadius: '6px',
-                                  ...arabicFontStyle
-                                }}
-                              >
-                                <FaUpload className="me-1" size={10} />
-                                {isArabic ? 'تقديم' : 'Submit'}
-                              </Button>
-                            )}
-                          </div>
-                        ) : (
-                          <small className="text-muted" style={{ ...arabicFontStyle, fontSize: '0.65rem' }}>
-                            {isArabic ? 'لا توجد واجبات' : 'No assignments'}
-                          </small>
-                        )}
                       </div>
-                      {hasAssignment && (
-                        <Button 
-                          variant="outline-secondary" 
-                          size="sm"
-                          onClick={() => {
-                            setSelectedAssessment(latestAssessment);
-                            setShowViewModal(true);
-                          }}
-                          style={{ 
-                            padding: '2px 6px', 
-                            fontSize: '0.6rem', 
-                            borderRadius: '6px',
-                            flexShrink: 0,
-                          }}
-                        >
-                          <FaEye size={10} />
-                        </Button>
-                      )}
                     </div>
                   </Col>
                 );
@@ -1354,221 +1115,8 @@ const StudentDashboard = () => {
         </Card.Body>
       </Card>
 
-      {/* ===== SEARCH & FILTER ===== */}
-      {assessments.length > 0 && (
-        <Card className="shadow-sm border-0 mb-4 modern-card" style={{
-          background: darkMode ? '#1a1a2e' : '#ffffff',
-          border: `1px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`,
-        }}>
-          <div className="card-top-bar" style={{
-            height: '4px',
-            background: 'linear-gradient(90deg, #1a5f7a, #2a7f9a)',
-            transition: 'height 0.4s ease'
-          }}></div>
-          <Card.Body className="p-2 p-md-3">
-            <Row className="g-2 align-items-end">
-              <Col xs={12} sm={12} md={5}>
-                <InputGroup size="sm">
-                  <InputGroup.Text style={{ background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529' }}>
-                    <FaSearch size={12} />
-                  </InputGroup.Text>
-                  <Form.Control
-                    placeholder={isArabic ? 'بحث في التقييمات...' : 'Search assessments...'}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    style={{ 
-                      fontSize: '0.8rem', 
-                      background: darkMode ? '#2d2d44' : 'white', 
-                      color: darkMode ? '#e9ecef' : '#212529',
-                      ...arabicFontStyle 
-                    }}
-                  />
-                </InputGroup>
-              </Col>
-              <Col xs={6} sm={6} md={3}>
-                <Form.Select 
-                  size="sm" 
-                  value={filterStatus} 
-                  onChange={(e) => setFilterStatus(e.target.value)} 
-                  style={{ 
-                    fontSize: '0.75rem', 
-                    background: darkMode ? '#2d2d44' : 'white', 
-                    color: darkMode ? '#e9ecef' : '#212529',
-                    ...arabicFontStyle 
-                  }}
-                >
-                  <option value="all">{isArabic ? 'جميع الحالات' : 'All Status'}</option>
-                  <option value="graded">{isArabic ? 'مصحح' : 'Graded'}</option>
-                  <option value="submitted">{isArabic ? 'مرسل' : 'Submitted'}</option>
-                  <option value="pending">{isArabic ? 'قيد الانتظار' : 'Pending'}</option>
-                  <option value="closed">{isArabic ? 'مغلق' : 'Closed'}</option>
-                </Form.Select>
-              </Col>
-              <Col xs={6} sm={6} md={3}>
-                <Form.Select 
-                  size="sm" 
-                  value={filterSubject} 
-                  onChange={(e) => setFilterSubject(e.target.value)} 
-                  style={{ 
-                    fontSize: '0.75rem', 
-                    background: darkMode ? '#2d2d44' : 'white', 
-                    color: darkMode ? '#e9ecef' : '#212529',
-                    ...arabicFontStyle 
-                  }}
-                >
-                  <option value="all">{isArabic ? 'جميع المواد' : 'All Subjects'}</option>
-                  {subjectNames.map((subject) => (
-                    <option key={subject} value={subject}>{subject}</option>
-                  ))}
-                </Form.Select>
-              </Col>
-              <Col xs={12} sm={12} md={1}>
-                <div className="text-muted small text-center" style={{ color: darkMode ? '#adb5bd' : '#6c757d', ...arabicFontStyle }}>
-                  {formatNumber(filteredAssessments.length)}
-                </div>
-              </Col>
-            </Row>
-          </Card.Body>
-        </Card>
-      )}
-
-      {/* ===== ASSESSMENTS TABLE ===== */}
+      {/* ===== LATEST ANNOUNCEMENTS ===== */}
       <Card className="shadow-sm border-0 modern-card" style={{
-        background: darkMode ? '#1a1a2e' : '#ffffff',
-        border: `1px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`,
-      }}>
-        <div className="card-top-bar" style={{
-          height: '4px',
-          background: 'linear-gradient(90deg, #1a5f7a, #2a7f9a)',
-          transition: 'height 0.4s ease'
-        }}></div>
-        <Card.Header className="bg-transparent border-0 p-3" style={{ borderBottom: `1px solid ${darkMode ? '#2d2d44' : '#e9ecef'}` }}>
-          <div className="d-flex justify-content-between align-items-center">
-            <h6 className="fw-bold mb-0" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
-              <FaClipboardList className="me-2" />
-              {isArabic ? 'التقييمات والواجبات' : 'Assessments & Assignments'}
-            </h6>
-            <span className="text-muted small" style={{ color: darkMode ? '#adb5bd' : '#6c757d', ...arabicFontStyle }}>
-              {formatNumber(filteredAssessments.length)} {isArabic ? 'نتيجة' : 'results'}
-            </span>
-          </div>
-        </Card.Header>
-        <Card.Body className="p-0">
-          {assessments.length === 0 ? (
-            <div className="text-center py-4">
-              <FaClipboardList size={40} className="text-muted opacity-25 mb-2" />
-              <p className="text-muted" style={{ ...arabicFontStyle, color: darkMode ? '#adb5bd' : '#6c757d' }}>
-                {isArabic ? 'لا توجد تقييمات حتى الآن' : 'No assessments available yet'}
-              </p>
-            </div>
-          ) : filteredAssessments.length === 0 ? (
-            <div className="text-center py-4">
-              <FaSearch size={40} className="text-muted opacity-25 mb-2" />
-              <p className="text-muted" style={{ ...arabicFontStyle, color: darkMode ? '#adb5bd' : '#6c757d' }}>
-                {isArabic ? 'لا توجد نتائج تطابق البحث' : 'No assessments match your search'}
-              </p>
-            </div>
-          ) : (
-            <div className="table-responsive">
-              <Table hover className="mb-0">
-                <thead>
-                  <tr>
-                    <th style={arabicFontStyle}>{isArabic ? 'الواجب' : 'Assignment'}</th>
-                    <th style={arabicFontStyle}>{isArabic ? 'المادة' : 'Subject'}</th>
-                    <th style={arabicFontStyle}>{isArabic ? 'النوع' : 'Type'}</th>
-                    <th style={arabicFontStyle}>{isArabic ? 'الدرجة' : 'Score'}</th>
-                    <th style={arabicFontStyle}>{isArabic ? 'الحالة' : 'Status'}</th>
-                    <th style={arabicFontStyle}>{isArabic ? 'تاريخ التسليم' : 'Due Date'}</th>
-                    <th style={arabicFontStyle}>{isArabic ? 'الإجراءات' : 'Actions'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {displayedAssessments.map((assessment) => {
-                    const statusInfo = getStatusBadge(assessment.isGraded ? 'graded' : (assessment.hasSubmitted ? 'submitted' : assessment.status));
-                    const typeInfo = getTypeBadge(assessment.type);
-                    const gradeColor = getGradeColor(assessment.studentScore, assessment.totalMarks);
-                    
-                    return (
-                      <tr key={assessment.id}>
-                        <td>
-                          <div className="fw-semibold" style={{ ...arabicFontStyle, fontSize: '0.85rem', color: darkMode ? '#e9ecef' : '#212529' }}>{assessment.title}</div>
-                          <small className="text-muted" style={{ ...arabicFontStyle, fontSize: '0.65rem', color: darkMode ? '#adb5bd' : '#6c757d' }}>{assessment.description?.substring(0, 50)}...</small>
-                        </td>
-                        <td style={{ ...arabicFontStyle, fontSize: '0.85rem', color: darkMode ? '#e9ecef' : '#212529' }}>{assessment.subject}</td>
-                        <td>
-                          <Badge bg={typeInfo.bg} className="px-2 py-1" style={{ fontSize: '0.6rem' }}>
-                            {typeInfo.icon} {typeInfo.label}
-                          </Badge>
-                        </td>
-                        <td>
-                          {assessment.isGraded ? (
-                            <div>
-                              <span className="fw-bold" style={{ color: gradeColor }}>
-                                {formatNumber(assessment.studentScore)}/{formatNumber(assessment.totalMarks)}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-muted" style={{ ...arabicFontStyle, fontSize: '0.7rem', color: darkMode ? '#adb5bd' : '#6c757d' }}>{isArabic ? 'لم يصحح' : 'Not graded'}</span>
-                          )}
-                        </td>
-                        <td>
-                          <Badge bg={statusInfo.bg} className="px-2 py-1" style={{ fontSize: '0.6rem' }}>
-                            {statusInfo.icon} {statusInfo.label}
-                          </Badge>
-                        </td>
-                        <td style={{ ...arabicFontStyle, fontSize: '0.8rem', color: darkMode ? '#e9ecef' : '#212529' }}>{assessment.dueDate}</td>
-                        <td>
-                          <div className="d-flex gap-1">
-                            <Button variant="outline-primary" size="sm" onClick={() => { setSelectedAssessment(assessment); setShowViewModal(true); }}>
-                              <FaEye size={12} />
-                            </Button>
-                            {assessment.canSubmit && (
-                              <Button variant="outline-success" size="sm" onClick={() => { setSelectedAssessment(assessment); setShowSubmitModal(true); }}>
-                                <FaUpload size={12} />
-                              </Button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </Table>
-            </div>
-          )}
-        </Card.Body>
-      </Card>
-
-      {/* ===== PAGINATION ===== */}
-      {totalPages > 1 && (
-        <div className="d-flex justify-content-center mt-4">
-          <Pagination size="sm" className="responsive-pagination">
-            <Pagination.Prev onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} />
-            {[...Array(Math.min(totalPages, 5))].map((_, i) => {
-              let pageNum;
-              if (totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (currentPage <= 3) {
-                pageNum = i + 1;
-              } else if (currentPage >= totalPages - 2) {
-                pageNum = totalPages - 4 + i;
-              } else {
-                pageNum = currentPage - 2 + i;
-              }
-              return (
-                <Pagination.Item key={pageNum} active={currentPage === pageNum} onClick={() => setCurrentPage(pageNum)}>
-                  {formatNumber(pageNum)}
-                </Pagination.Item>
-              );
-            })}
-            {totalPages > 5 && currentPage < totalPages - 2 && <Pagination.Ellipsis />}
-            <Pagination.Next onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} />
-          </Pagination>
-        </div>
-      )}
-
-      {/* ===== LATEST ANNOUNCEMENTS - MOVED TO BOTTOM ===== */}
-      <Card className="shadow-sm border-0 mt-4 modern-card" style={{
         background: darkMode ? '#1a1a2e' : '#ffffff',
         border: `1px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`,
         borderRadius: '16px',
@@ -1583,9 +1131,9 @@ const StudentDashboard = () => {
           <h6 className="fw-bold mb-0" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
             <FaBullhorn className="me-2 text-warning" />
             {isArabic ? 'آخر الإعلانات' : 'Latest Announcements'}
-            {totalNotifications > 0 && (
+            {newAnnouncementCount > 0 && (
               <Badge bg="danger" className="ms-2 rounded-pill" style={{ fontSize: '0.55rem' }}>
-                +{totalNotifications}
+                +{newAnnouncementCount}
               </Badge>
             )}
           </h6>
@@ -1619,6 +1167,10 @@ const StudentDashboard = () => {
             announcements.map((ann, index) => {
               const { title, content } = getTranslatedAnnouncement(ann);
               const isUrgent = ann.priority === 'high';
+              const studentId = studentData?.id || user?.id || 'student_1';
+              const readAnnouncements = JSON.parse(localStorage.getItem('read_announcements') || '[]');
+              const readKey = `${ann.id}_${studentId}`;
+              const isRead = readAnnouncements.includes(readKey);
               
               return (
                 <div 
@@ -1629,7 +1181,6 @@ const StudentDashboard = () => {
                     borderColor: darkMode ? '#2d2d44' : '#e9ecef',
                     cursor: 'pointer'
                   }}
-                  onClick={() => navigate('/dashboard/student/announcements')}
                 >
                   <div className="d-flex justify-content-between align-items-start">
                     <div className="flex-grow-1">
@@ -1642,7 +1193,7 @@ const StudentDashboard = () => {
                             {isArabic ? 'عاجل' : 'Urgent'}
                           </Badge>
                         )}
-                        {!ann.isRead && (
+                        {!isRead && (
                           <Badge bg="info" className="rounded-pill" style={{ fontSize: '0.5rem' }}>
                             {isArabic ? 'جديد' : 'New'}
                           </Badge>
@@ -1663,15 +1214,26 @@ const StudentDashboard = () => {
                       </div>
                     </div>
                     <Button 
-                      variant="outline-primary" 
+                      variant={!isRead ? "primary" : "outline-primary"} 
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
+                        // Mark as read when clicked
+                        if (!isRead) {
+                          const readList = JSON.parse(localStorage.getItem('read_announcements') || '[]');
+                          if (!readList.includes(readKey)) {
+                            readList.push(readKey);
+                            localStorage.setItem('read_announcements', JSON.stringify(readList));
+                            // Update local state
+                            setNewAnnouncementCount(prev => Math.max(0, prev - 1));
+                            setTotalNotifications(prev => Math.max(0, prev - 1));
+                          }
+                        }
                         navigate('/dashboard/student/announcements');
                       }}
                       style={{ borderRadius: '50px', flexShrink: 0, marginLeft: '8px' }}
                     >
-                      {isArabic ? 'اقرأ' : 'Read'}
+                      {!isRead ? (isArabic ? 'اقرأ' : 'Read') : (isArabic ? 'فتح' : 'Open')}
                     </Button>
                   </div>
                 </div>
@@ -1680,184 +1242,6 @@ const StudentDashboard = () => {
           )}
         </Card.Body>
       </Card>
-
-      {/* ===== VIEW MODAL ===== */}
-      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} centered size="lg" className="modern-modal">
-        <Modal.Header closeButton className="border-0" style={{ background: darkMode ? '#1a1a2e' : 'white' }}>
-          <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
-            <FaEye className="me-2 text-primary" />
-            {isArabic ? 'تفاصيل الواجب' : 'Assignment Details'}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body style={{ background: darkMode ? '#0d1117' : 'white' }}>
-          {selectedAssessment && (
-            <div>
-              <div className="view-assessment-header">
-                <h5 className="fw-bold" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>{selectedAssessment.title}</h5>
-                <div className="d-flex flex-wrap gap-2 mt-2">
-                  <Badge bg={getTypeBadge(selectedAssessment.type).bg}>
-                    {getTypeBadge(selectedAssessment.type).icon} {getTypeBadge(selectedAssessment.type).label}
-                  </Badge>
-                  <Badge bg={getStatusBadge(selectedAssessment.isGraded ? 'graded' : (selectedAssessment.hasSubmitted ? 'submitted' : selectedAssessment.status)).bg}>
-                    {getStatusBadge(selectedAssessment.isGraded ? 'graded' : (selectedAssessment.hasSubmitted ? 'submitted' : selectedAssessment.status)).icon} {getStatusBadge(selectedAssessment.isGraded ? 'graded' : (selectedAssessment.hasSubmitted ? 'submitted' : selectedAssessment.status)).label}
-                  </Badge>
-                </div>
-              </div>
-              <hr style={{ borderColor: darkMode ? '#2d2d44' : '#e9ecef' }} />
-              <div className="view-assessment-body">
-                <Row>
-                  <Col md={6}>
-                    <div className="detail-item">
-                      <label className="text-muted small" style={{ ...arabicFontStyle, color: darkMode ? '#adb5bd' : '#6c757d' }}>{isArabic ? 'المادة' : 'Subject'}</label>
-                      <p className="fw-semibold mb-0" style={{ color: darkMode ? '#e9ecef' : '#212529', ...arabicFontStyle }}>{selectedAssessment.subject}</p>
-                    </div>
-                  </Col>
-                  <Col md={6}>
-                    <div className="detail-item">
-                      <label className="text-muted small" style={{ ...arabicFontStyle, color: darkMode ? '#adb5bd' : '#6c757d' }}>{isArabic ? 'الدرجة الكلية' : 'Max Score'}</label>
-                      <p className="fw-semibold mb-0" style={{ color: darkMode ? '#e9ecef' : '#212529', ...arabicFontStyle }}>{formatNumber(selectedAssessment.totalMarks)}</p>
-                    </div>
-                  </Col>
-                </Row>
-                <Row>
-                  <Col md={6}>
-                    <div className="detail-item">
-                      <label className="text-muted small" style={{ ...arabicFontStyle, color: darkMode ? '#adb5bd' : '#6c757d' }}>{isArabic ? 'الدرجة' : 'Score'}</label>
-                      <p className="fw-semibold mb-0" style={{ color: darkMode ? '#e9ecef' : '#212529', ...arabicFontStyle }}>
-                        {selectedAssessment.isGraded ? `${formatNumber(selectedAssessment.studentScore)} / ${formatNumber(selectedAssessment.totalMarks)}` : (selectedAssessment.hasSubmitted ? isArabic ? 'بانتظار التصحيح' : 'Pending grading' : isArabic ? 'لم يصحح' : 'Not graded')}
-                      </p>
-                    </div>
-                  </Col>
-                  <Col md={6}>
-                    <div className="detail-item">
-                      <label className="text-muted small" style={{ ...arabicFontStyle, color: darkMode ? '#adb5bd' : '#6c757d' }}>{isArabic ? 'تاريخ التسليم' : 'Due Date'}</label>
-                      <p className="fw-semibold mb-0" style={{ color: darkMode ? '#e9ecef' : '#212529', ...arabicFontStyle }}>{selectedAssessment.dueDate}</p>
-                    </div>
-                  </Col>
-                </Row>
-                {selectedAssessment.description && (
-                  <div className="detail-item mt-2">
-                    <label className="text-muted small" style={{ ...arabicFontStyle, color: darkMode ? '#adb5bd' : '#6c757d' }}>{isArabic ? 'الوصف' : 'Description'}</label>
-                    <p className="mb-0" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>{selectedAssessment.description}</p>
-                  </div>
-                )}
-                {selectedAssessment.isGraded && selectedAssessment.studentGrade?.gradedAt && (
-                  <div className="detail-item mt-2">
-                    <label className="text-muted small" style={{ ...arabicFontStyle, color: darkMode ? '#adb5bd' : '#6c757d' }}>{isArabic ? 'تاريخ التصحيح' : 'Graded on'}</label>
-                    <p className="fw-semibold mb-0" style={{ color: darkMode ? '#e9ecef' : '#212529', ...arabicFontStyle }}>
-                      {new Date(selectedAssessment.studentGrade.gradedAt).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
-                {selectedAssessment.hasSubmitted && selectedAssessment.submissionDate && (
-                  <div className="detail-item mt-2">
-                    <label className="text-muted small" style={{ ...arabicFontStyle, color: darkMode ? '#adb5bd' : '#6c757d' }}>{isArabic ? 'تاريخ التقديم' : 'Submitted on'}</label>
-                    <p className="fw-semibold mb-0" style={{ color: darkMode ? '#e9ecef' : '#212529', ...arabicFontStyle }}>
-                      {new Date(selectedAssessment.submissionDate).toLocaleDateString()}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer className="border-0" style={{ background: darkMode ? '#1a1a2e' : 'white' }}>
-          <Button variant="secondary" onClick={() => setShowViewModal(false)} style={arabicFontStyle}>
-            {isArabic ? 'إغلاق' : 'Close'}
-          </Button>
-          {selectedAssessment?.canSubmit && (
-            <Button variant="success" onClick={() => { setShowViewModal(false); setShowSubmitModal(true); }} style={arabicFontStyle}>
-              <FaUpload className="me-2" /> {isArabic ? 'تقديم' : 'Submit'}
-            </Button>
-          )}
-        </Modal.Footer>
-      </Modal>
-
-      {/* ===== SUBMIT MODAL ===== */}
-      <Modal show={showSubmitModal} onHide={() => setShowSubmitModal(false)} centered size="md" className="modern-modal">
-        <Modal.Header closeButton className="border-0" style={{ background: darkMode ? '#1a1a2e' : 'white' }}>
-          <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
-            <FaUpload className="me-2 text-primary" />
-            {isArabic ? 'تقديم الواجب' : 'Submit Assignment'}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body style={{ background: darkMode ? '#0d1117' : 'white' }}>
-          {selectedAssessment && (
-            <>
-              <Alert variant="info" className="mb-3" style={{ ...arabicFontStyle, background: darkMode ? '#1a2a3a' : '#e3f2fd' }}>
-                <FaInfoCircle className="me-2" />
-                <span>{isArabic ? 'تقديم: ' : 'Submitting: '} <strong>{selectedAssessment.title}</strong></span>
-                <br />
-                <small className="text-muted">{isArabic ? 'المادة: ' : 'Subject: '} {selectedAssessment.subject}</small>
-                <br />
-                <small className="text-muted">{isArabic ? 'تاريخ التسليم: ' : 'Due Date: '} {selectedAssessment.dueDate}</small>
-              </Alert>
-              <Form.Group className="mb-3">
-                <Form.Label style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
-                  <FaFileAlt className="me-2" />
-                  {isArabic ? 'رفع الملف (اختياري)' : 'Upload File (Optional)'}
-                </Form.Label>
-                <Form.Control
-                  type="file"
-                  onChange={handleFileUpload}
-                  accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.jpg,.png"
-                  style={{ 
-                    background: darkMode ? '#2d2d44' : 'white', 
-                    color: darkMode ? '#e9ecef' : '#212529',
-                    borderColor: darkMode ? '#3d3d5c' : '#e9ecef',
-                    borderRadius: '12px',
-                  }}
-                />
-                <Form.Text className="text-muted" style={{ ...arabicFontStyle, color: darkMode ? '#adb5bd' : '#6c757d' }}>
-                  {isArabic ? 'الملفات المدعومة: PDF, Word, PowerPoint, Excel, TXT, صور' : 'Supported files: PDF, Word, PowerPoint, Excel, TXT, Images'}
-                </Form.Text>
-                {submissionFile && (
-                  <div className="mt-2 text-success" style={{ ...arabicFontStyle, fontSize: '0.85rem' }}>
-                    <FaCheckCircle className="me-1" /> {isArabic ? 'تم اختيار الملف: ' : 'File selected: '} {submissionFile.name}
-                  </div>
-                )}
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
-                  {isArabic ? 'ملاحظات (اختياري)' : 'Notes (Optional)'}
-                </Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  value={submissionNote}
-                  onChange={(e) => setSubmissionNote(e.target.value)}
-                  placeholder={isArabic ? 'أضف أي ملاحظات إضافية...' : 'Add any additional notes...'}
-                  style={{ 
-                    ...arabicFontStyle,
-                    background: darkMode ? '#2d2d44' : 'white', 
-                    color: darkMode ? '#e9ecef' : '#212529',
-                    borderColor: darkMode ? '#3d3d5c' : '#e9ecef',
-                    borderRadius: '12px',
-                  }}
-                />
-              </Form.Group>
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer className="border-0" style={{ background: darkMode ? '#1a1a2e' : 'white' }}>
-          <Button variant="secondary" onClick={() => setShowSubmitModal(false)} style={arabicFontStyle}>
-            {isArabic ? 'إلغاء' : 'Cancel'}
-          </Button>
-          <Button variant="success" onClick={handleSubmitAssessment} disabled={submitting} style={arabicFontStyle}>
-            {submitting ? (
-              <>
-                <FaSpinner className="spinning me-2" />
-                {isArabic ? 'جاري التقديم...' : 'Submitting...'}
-              </>
-            ) : (
-              <>
-                <FaPaperPlane className="me-2" />
-                {isArabic ? 'تقديم' : 'Submit'}
-              </>
-            )}
-          </Button>
-        </Modal.Footer>
-      </Modal>
 
       <style>{`
         @keyframes floatBubble {
@@ -2097,43 +1481,6 @@ const StudentDashboard = () => {
           transition: transform 0.3s ease;
         }
 
-        .table th {
-          font-weight: 600;
-          font-size: 0.65rem;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-          color: #6c757d;
-          border-bottom: 2px solid #e9ecef;
-          padding: 10px 16px;
-        }
-        .table td {
-          vertical-align: middle;
-          padding: 10px 16px;
-          font-size: 0.85rem;
-        }
-
-        .detail-item { margin-bottom: 8px; }
-        .detail-item label { display: block; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; color: #6c757d; margin-bottom: 2px; }
-
-        .responsive-pagination .page-link {
-          padding: 4px 10px;
-          font-size: 0.75rem;
-        }
-
-        .view-assessment-header {
-          margin-bottom: 4px;
-        }
-        .view-assessment-body {
-          margin-top: 4px;
-        }
-
-        .modern-modal .modal-content {
-          border-radius: 20px !important;
-          border: none !important;
-          box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-          overflow: hidden;
-        }
-
         .dashboard-wrapper.rtl .stat-card-gradient-content {
           flex-direction: row-reverse;
         }
@@ -2149,28 +1496,9 @@ const StudentDashboard = () => {
           background: #1a1a2e !important;
           border-color: #2d2d44 !important;
         }
-        .dashboard-wrapper.dark-theme .table td {
-          color: #e9ecef !important;
-        }
-        .dashboard-wrapper.dark-theme .table th {
-          color: #adb5bd !important;
-          border-color: #2d2d44 !important;
-        }
         .dashboard-wrapper.dark-theme .student-profile-card {
           background: #1a1a2e !important;
           border-color: #2d2d44 !important;
-        }
-        .dashboard-wrapper.dark-theme .modal-content {
-          background: #1a1a2e !important;
-        }
-        .dashboard-wrapper.dark-theme .modal-body {
-          background: #0d1117 !important;
-        }
-        .dashboard-wrapper.dark-theme .modal-header {
-          background: #1a1a2e !important;
-        }
-        .dashboard-wrapper.dark-theme .modal-footer {
-          background: #1a1a2e !important;
         }
         .dashboard-wrapper.dark-theme .announcement-item:hover {
           background: rgba(196, 154, 108, 0.08);
@@ -2206,11 +1534,6 @@ const StudentDashboard = () => {
           }
           .stat-subtitle-gradient {
             font-size: 0.5rem !important;
-          }
-          .table th,
-          .table td {
-            font-size: 0.75rem;
-            padding: 8px 12px;
           }
           .student-info-tag {
             font-size: 0.65rem !important;
@@ -2261,11 +1584,6 @@ const StudentDashboard = () => {
             flex-direction: column;
             align-items: center !important;
             text-align: center;
-          }
-          .table th,
-          .table td {
-            font-size: 0.65rem;
-            padding: 6px 8px;
           }
           .header-actions .btn {
             font-size: 0.7rem !important;

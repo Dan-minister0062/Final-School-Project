@@ -10,7 +10,7 @@ import {
   FaCheckCircle, FaClock as FaClockIcon, FaPaperPlane,
   FaUpload, FaFilter, FaSort, FaArrowRight, FaArrowLeft,
   FaBell, FaFileExcel, FaFilePowerpoint, FaFileCode, FaStar,
-  FaTrash, FaInbox, FaUserCheck
+  FaTrash
 } from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
@@ -84,6 +84,63 @@ const getMimeType = (fileName, fileType) => {
   return mimeMap[ext] || 'application/octet-stream';
 };
 
+// ===== DOWNLOAD FILE HELPER =====
+const downloadFileHelper = (content, fileName, fileType) => {
+  try {
+    // If content is a data URL
+    if (content && content.startsWith('data:')) {
+      const link = document.createElement('a');
+      link.href = content;
+      link.download = fileName || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return true;
+    }
+    
+    // If content is base64 (no data: prefix)
+    if (content && content.length > 0) {
+      let mimeType = fileType || 'application/octet-stream';
+      let base64Data = content;
+      
+      if (!content.startsWith('data:')) {
+        const ext = fileName ? fileName.split('.').pop().toLowerCase() : '';
+        const mimeMap = {
+          'pdf': 'application/pdf',
+          'doc': 'application/msword',
+          'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'jpg': 'image/jpeg',
+          'jpeg': 'image/jpeg',
+          'png': 'image/png',
+          'gif': 'image/gif',
+          'txt': 'text/plain',
+          'xls': 'application/vnd.ms-excel',
+          'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'ppt': 'application/vnd.ms-powerpoint',
+          'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+        };
+        if (mimeMap[ext]) {
+          mimeType = mimeMap[ext];
+        }
+        base64Data = `data:${mimeType};base64,${content}`;
+      }
+      
+      const link = document.createElement('a');
+      link.href = base64Data;
+      link.download = fileName || 'download';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return true;
+    }
+    
+    return false;
+  } catch (err) {
+    console.error('Download error:', err);
+    return false;
+  }
+};
+
 const AdminAssessments = () => {
   const { isArabic } = useLanguage();
   const { notify } = useNotification();
@@ -102,12 +159,9 @@ const AdminAssessments = () => {
   const [allAssessments, setAllAssessments] = useState([]);
   const [filteredAll, setFilteredAll] = useState([]);
   
-  // Student submissions
+  // Student submissions (direct from students to teachers)
   const [studentSubmissions, setStudentSubmissions] = useState([]);
   const [filteredSubmissions, setFilteredSubmissions] = useState([]);
-  
-  // Forwarded submissions (tracking)
-  const [forwardedSubmissions, setForwardedSubmissions] = useState([]);
   
   // Search and filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -119,8 +173,6 @@ const AdminAssessments = () => {
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedItemType, setSelectedItemType] = useState('assessment');
   const [actionLoading, setActionLoading] = useState(false);
-  const [showForwardModal, setShowForwardModal] = useState(false);
-  const [forwarding, setForwarding] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -173,18 +225,17 @@ const AdminAssessments = () => {
       setAllAssessments(allAssessments);
       setFilteredAll(allAssessments);
 
-      // 3. Load student submissions
+      // 3. Load student submissions (direct from students to teachers)
+      // Admin can see all submissions that students send to teachers
       const submissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-      console.log('📤 Student submissions:', submissions.length);
-      setStudentSubmissions(submissions);
-      setFilteredSubmissions(submissions);
+      // Only show submissions that are submitted (not drafts)
+      const submittedSubmissions = submissions.filter(s => s.status === 'submitted');
+      console.log('📤 Student submissions:', submittedSubmissions.length);
+      setStudentSubmissions(submittedSubmissions);
+      setFilteredSubmissions(submittedSubmissions);
 
-      // 4. Load forwarded submissions
-      const forwarded = JSON.parse(localStorage.getItem('forwarded_submissions') || '[]');
-      setForwardedSubmissions(forwarded);
-
-      // 5. Check for new notifications
-      checkForNewNotifications(pending, submissions, forwarded);
+      // 4. Check for new notifications
+      checkForNewNotifications(pending, submittedSubmissions);
 
       setLoading(false);
     } catch (err) {
@@ -194,18 +245,18 @@ const AdminAssessments = () => {
   };
 
   // ===== CHECK FOR NEW NOTIFICATIONS =====
-  const checkForNewNotifications = (pending, submissions, forwarded) => {
+  const checkForNewNotifications = (pending, submissions) => {
     try {
       const adminNotifications = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
       const unreadNotifications = adminNotifications.filter(n => !n.read);
       
-      // Check for submissions that haven't been forwarded yet
-      const forwardedIds = forwarded.map(f => f.submissionId);
+      // Check for new submissions that admin hasn't seen
+      const seenSubmissions = JSON.parse(localStorage.getItem('admin_seen_submissions') || '[]');
       const newSubmissions = submissions.filter(s => {
-        return !forwardedIds.includes(s.id) && !s.forwardedToTeacher;
+        return !seenSubmissions.find(f => f.submissionId === s.id);
       });
       
-      const hasNew = unreadNotifications.length > 0 || newSubmissions.length > 0 || pending.length > 0;
+      const hasNew = unreadNotifications.length > 0 || newSubmissions.length > 0;
       setHasNewNotifications(hasNew);
       
       console.log('🔔 New notifications:', hasNew);
@@ -256,7 +307,8 @@ const AdminAssessments = () => {
         (s.title || '').toLowerCase().includes(term) ||
         (s.studentName || '').toLowerCase().includes(term) ||
         (s.subject || '').toLowerCase().includes(term) ||
-        (s.teacherName || '').toLowerCase().includes(term)
+        (s.teacherName || '').toLowerCase().includes(term) ||
+        (s.className || '').toLowerCase().includes(term)
       );
     }
     setFilteredSubmissions(filteredSubs);
@@ -271,8 +323,7 @@ const AdminAssessments = () => {
       if (e.key === "pending_assessments" || 
           e.key === "school_assessments" || 
           e.key === "school_submissions" ||
-          e.key === "admin_notifications" ||
-          e.key === "forwarded_submissions") {
+          e.key === "admin_notifications") {
         loadData();
       }
     };
@@ -288,16 +339,17 @@ const AdminAssessments = () => {
     };
     window.addEventListener("submissionChanged", handleSubmissionChanged);
 
-    const handleSubmissionForwarded = () => {
+    // Listen for new student submissions
+    const handleStudentSubmission = () => {
       loadData();
     };
-    window.addEventListener("submissionForwarded", handleSubmissionForwarded);
+    window.addEventListener("studentSubmission", handleStudentSubmission);
 
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("assessmentSent", handleAssessmentSent);
       window.removeEventListener("submissionChanged", handleSubmissionChanged);
-      window.removeEventListener("submissionForwarded", handleSubmissionForwarded);
+      window.removeEventListener("studentSubmission", handleStudentSubmission);
     };
   }, []);
 
@@ -340,8 +392,7 @@ const AdminAssessments = () => {
       'closed': 'dark',
       'draft': 'secondary',
       'submitted': 'info',
-      'graded': 'success',
-      'forwarded': 'info'
+      'graded': 'success'
     };
     return statusMap[status] || 'secondary';
   };
@@ -358,32 +409,14 @@ const AdminAssessments = () => {
       'closed': isArabic ? 'مغلق' : 'Closed',
       'draft': isArabic ? 'مسودة' : 'Draft',
       'submitted': isArabic ? 'تم التقديم' : 'Submitted',
-      'graded': isArabic ? 'مصحح' : 'Graded',
-      'forwarded': isArabic ? 'مرسل للمعلم' : 'Forwarded to Teacher'
+      'graded': isArabic ? 'مصحح' : 'Graded'
     };
     return labels[status] || status;
   };
 
-  // ===== CHECK IF SUBMISSION IS FORWARDED =====
-  const isSubmissionForwarded = (submissionId) => {
-    return forwardedSubmissions.some(f => f.submissionId === submissionId);
-  };
-
-  // ===== CHECK IF SUBMISSION IS GRADED =====
-  const isSubmissionGraded = (submissionId) => {
-    const forwarded = forwardedSubmissions.find(f => f.submissionId === submissionId);
-    return forwarded?.graded || false;
-  };
-
-  // ===== GET SUBMISSION GRADE =====
-  const getSubmissionGrade = (submissionId) => {
-    const forwarded = forwardedSubmissions.find(f => f.submissionId === submissionId);
-    return forwarded?.score || null;
-  };
-
   // ===== HANDLE DOWNLOAD FILE =====
   const handleDownloadFile = (item) => {
-    if (!item.attachment && !item.fileName && !item.content) {
+    if (!item) {
       notify(
         isArabic ? 'لا يوجد ملف للتحميل' : 'No file to download',
         'warning'
@@ -391,58 +424,42 @@ const AdminAssessments = () => {
       return;
     }
 
-    try {
-      const fileName = item.attachmentName || item.fileName || 'file';
-      const fileType = item.attachmentType || item.fileType || 'text/plain';
-      const fileContent = item.attachment || item.content || '';
-      
-      const mimeType = getMimeType(fileName, fileType);
-      
-      if (fileContent && typeof fileContent === 'string' && fileContent.startsWith('data:')) {
-        const base64Data = fileContent.split(',')[1] || fileContent;
-        const byteCharacters = atob(base64Data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
+    // Try multiple possible content sources
+    let content = item.attachment || item.content || item.fileContent || '';
+    let fileName = item.attachmentName || item.fileName || 'file';
+    let fileType = item.attachmentType || item.fileType || 'text/plain';
+
+    // If content is not found, try to get from localStorage by id
+    if (!content && item.id) {
+      try {
+        const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
+        const found = allSubmissions.find(s => s.id === item.id);
+        if (found) {
+          content = found.attachment || found.content || found.fileContent || '';
+          fileName = found.attachmentName || found.fileName || fileName;
+          fileType = found.attachmentType || found.fileType || fileType;
         }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: mimeType });
-        
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-        
-        notify(
-          isArabic ? '✅ تم تحميل الملف بنجاح' : '✅ File downloaded successfully',
-          'success'
-        );
-        return;
-      }
-      
-      const blob = new Blob([fileContent || 'No content available'], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      
+      } catch (e) {}
+    }
+
+    if (!content) {
       notify(
-        isArabic ? '✅ تم تحميل الملف بنجاح' : '✅ File downloaded successfully',
+        isArabic ? '❌ لا يوجد ملف للتحميل' : '❌ No file to download',
+        'warning'
+      );
+      return;
+    }
+
+    const success = downloadFileHelper(content, fileName, fileType);
+    
+    if (success) {
+      notify(
+        isArabic ? `✅ تم تحميل الملف: ${fileName}` : `✅ File downloaded: ${fileName}`,
         'success'
       );
-      
-    } catch (err) {
-      console.error('Error downloading file:', err);
+    } else {
       notify(
-        isArabic ? '❌ حدث خطأ أثناء التحميل' : '❌ Error downloading file',
+        isArabic ? '❌ حدث خطأ أثناء تحميل الملف' : '❌ Error downloading file',
         'error'
       );
     }
@@ -471,6 +488,7 @@ const AdminAssessments = () => {
           deleted = true;
         }
         
+        // Also remove from admin notifications
         let adminNotifications = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
         const notifIndex = adminNotifications.findIndex(n => n.id === itemToDelete.id);
         if (notifIndex !== -1) {
@@ -499,14 +517,6 @@ const AdminAssessments = () => {
           localStorage.setItem('school_submissions', JSON.stringify(submissions));
           deleted = true;
         }
-        
-        // Also remove from forwarded submissions
-        let forwarded = JSON.parse(localStorage.getItem('forwarded_submissions') || '[]');
-        const fIndex = forwarded.findIndex(f => f.submissionId === itemToDelete.id);
-        if (fIndex !== -1) {
-          forwarded.splice(fIndex, 1);
-          localStorage.setItem('forwarded_submissions', JSON.stringify(forwarded));
-        }
       }
       
       if (deleted) {
@@ -531,123 +541,6 @@ const AdminAssessments = () => {
       );
     } finally {
       setDeleting(false);
-    }
-  };
-
-  // ===== HANDLE FORWARD TO TEACHER =====
-  const handleForwardToTeacher = (submission) => {
-    setSelectedItem(submission);
-    setShowForwardModal(true);
-  };
-
-  const confirmForwardToTeacher = () => {
-    if (!selectedItem) return;
-    
-    setForwarding(true);
-    try {
-      const forwardedSubmissions = JSON.parse(localStorage.getItem('forwarded_submissions') || '[]');
-      
-      const existing = forwardedSubmissions.find(f => f.submissionId === selectedItem.id);
-      if (existing) {
-        notify(
-          isArabic ? '❌ هذا التقديم تم إرساله بالفعل للمعلم' : '❌ This submission has already been forwarded to the teacher',
-          'warning'
-        );
-        setShowForwardModal(false);
-        setForwarding(false);
-        return;
-      }
-      
-      // Get teacher info
-      const teachers = JSON.parse(localStorage.getItem('school_teachers') || '[]');
-      const teacher = teachers.find(t => t.id === selectedItem.teacherId);
-      
-      // Get student info
-      const users = JSON.parse(localStorage.getItem('school_users') || '[]');
-      const student = users.find(u => u.id === selectedItem.studentId);
-      
-      // Get assessment info
-      const assessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
-      const assessment = assessments.find(a => a.id === selectedItem.assessmentId);
-      
-      const forwardedEntry = {
-        submissionId: selectedItem.id,
-        forwardedAt: new Date().toISOString(),
-        assessmentId: selectedItem.assessmentId,
-        studentId: selectedItem.studentId,
-        teacherId: selectedItem.teacherId,
-        status: 'forwarded',
-        graded: false,
-        score: null,
-        gradedAt: null,
-        // Store additional info for the teacher view
-        studentName: student?.name || selectedItem.studentName || 'Student',
-        teacherName: teacher?.name || selectedItem.teacherName || 'Teacher',
-        title: assessment?.title || selectedItem.title || 'Assessment',
-        subject: assessment?.subject || selectedItem.subject || 'N/A',
-        className: assessment?.className || selectedItem.className || 'N/A',
-        totalMarks: assessment?.totalMarks || 20,
-        content: selectedItem.content || '',
-        fileName: selectedItem.fileName || selectedItem.attachmentName || '',
-        fileType: selectedItem.fileType || selectedItem.attachmentType || '',
-        submittedAt: selectedItem.submittedAt || new Date().toISOString()
-      };
-      
-      forwardedSubmissions.push(forwardedEntry);
-      localStorage.setItem('forwarded_submissions', JSON.stringify(forwardedSubmissions));
-      
-      // Create teacher notification
-      const teacherNotifications = JSON.parse(localStorage.getItem('teacher_notifications') || '[]');
-      teacherNotifications.push({
-        id: `TEACH_NOTIF_${Date.now()}`,
-        type: 'submission_forwarded',
-        title: isArabic ? `تقديم جديد من طالب` : 'New student submission',
-        message: isArabic 
-          ? `الطالب ${forwardedEntry.studentName} قدم تقييم ${forwardedEntry.title}`
-          : `Student ${forwardedEntry.studentName} submitted ${forwardedEntry.title}`,
-        studentName: forwardedEntry.studentName,
-        studentId: forwardedEntry.studentId,
-        assessmentId: forwardedEntry.assessmentId,
-        submissionId: forwardedEntry.submissionId,
-        read: false,
-        createdAt: new Date().toISOString(),
-        link: `/dashboard/teacher/assessments`
-      });
-      localStorage.setItem('teacher_notifications', JSON.stringify(teacherNotifications));
-      
-      // Update submission status
-      const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-      const updatedSubmissions = allSubmissions.map(s => {
-        if (s.id === selectedItem.id) {
-          return { ...s, forwardedToTeacher: true, forwardedAt: new Date().toISOString() };
-        }
-        return s;
-      });
-      localStorage.setItem('school_submissions', JSON.stringify(updatedSubmissions));
-      
-      notify(
-        isArabic ? `✅ تم إرسال التقديم إلى المعلم بنجاح` : `✅ Submission forwarded to teacher successfully`,
-        'success'
-      );
-      
-      setShowForwardModal(false);
-      setForwarding(false);
-      loadData();
-      
-      window.dispatchEvent(new CustomEvent('submissionForwarded', { 
-        detail: { submission: selectedItem }
-      }));
-      window.dispatchEvent(new CustomEvent('notificationAdded', { 
-        detail: { type: 'submission_forwarded', submission: selectedItem }
-      }));
-      
-    } catch (err) {
-      console.error('Error forwarding submission:', err);
-      notify(
-        isArabic ? '❌ حدث خطأ أثناء إرسال التقديم' : '❌ Error forwarding submission',
-        'error'
-      );
-      setForwarding(false);
     }
   };
 
@@ -751,6 +644,22 @@ const AdminAssessments = () => {
     }
   };
 
+  // ===== MARK SUBMISSION AS SEEN =====
+  const markSubmissionAsSeen = (submissionId) => {
+    try {
+      const seenSubmissions = JSON.parse(localStorage.getItem('admin_seen_submissions') || '[]');
+      if (!seenSubmissions.find(s => s.submissionId === submissionId)) {
+        seenSubmissions.push({
+          submissionId: submissionId,
+          seenAt: new Date().toISOString()
+        });
+        localStorage.setItem('admin_seen_submissions', JSON.stringify(seenSubmissions));
+      }
+    } catch (e) {
+      console.warn('Error marking submission as seen:', e);
+    }
+  };
+
   // ===== FORMAT DATE =====
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -777,13 +686,11 @@ const AdminAssessments = () => {
   }
 
   // ===== STATS =====
-  const forwardedCount = forwardedSubmissions.filter(f => !f.graded).length;
   const stats = {
     pending: pendingAssessments.length,
     total: allAssessments.length,
     submitted: studentSubmissions.length,
-    active: allAssessments.filter(a => a.status === 'published' || a.status === 'sent_to_students').length,
-    forwarded: forwardedCount
+    active: allAssessments.filter(a => a.status === 'published' || a.status === 'sent_to_students').length
   };
 
   return (
@@ -1082,12 +989,6 @@ const AdminAssessments = () => {
                   {formatNumber(studentSubmissions.length)}
                 </Badge>
               )}
-              {stats.forwarded > 0 && (
-                <Badge className="ms-1" style={{ background: '#9b59b6', color: 'white', borderRadius: '50px' }}>
-                  <FaInbox className="me-1" size={10} />
-                  {formatNumber(stats.forwarded)}
-                </Badge>
-              )}
               {hasNewNotifications && studentSubmissions.length > 0 && (
                 <span style={{
                   position: 'absolute',
@@ -1313,7 +1214,7 @@ const AdminAssessments = () => {
             )}
           </Tab.Pane>
 
-          {/* ===== STUDENT SUBMISSIONS TAB ===== */}
+          {/* ===== STUDENT SUBMISSIONS TAB (Admin as Intermediary) ===== */}
           <Tab.Pane eventKey="submissions">
             {filteredSubmissions.length === 0 ? (
               <div className="text-center py-5">
@@ -1323,8 +1224,8 @@ const AdminAssessments = () => {
                 </h5>
                 <p className="text-muted" style={arabicFontStyle}>
                   {isArabic 
-                    ? 'لم يقدم أي طالب تقييمات بعد' 
-                    : 'No students have submitted assessments yet'}
+                    ? 'لم يقدم أي طالب تقييمات للمعلمين بعد' 
+                    : 'No students have submitted assessments to teachers yet'}
                 </p>
               </div>
             ) : (
@@ -1338,154 +1239,127 @@ const AdminAssessments = () => {
                       <th style={{ color: darkMode ? '#e9ecef' : '#212529' }} className="d-none d-md-table-cell">{isArabic ? 'النوع' : 'Type'}</th>
                       <th style={{ color: darkMode ? '#e9ecef' : '#212529' }} className="d-none d-sm-table-cell">{isArabic ? 'المادة' : 'Subject'}</th>
                       <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'المرفق' : 'Attachment'}</th>
-                      <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'الحالة' : 'Status'}</th>
                       <th style={{ color: darkMode ? '#e9ecef' : '#212529' }} className="text-center">{isArabic ? 'إجراءات' : 'Actions'}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredSubmissions.map((submission) => {
-                      const isForwarded = isSubmissionForwarded(submission.id);
-                      const isGraded = isSubmissionGraded(submission.id);
-                      const grade = getSubmissionGrade(submission.id);
-                      
-                      return (
-                        <tr key={submission.id}>
-                          <td>
-                            <div className="d-flex align-items-center gap-2">
-                              <FaUserGraduate className="text-success" />
-                              <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                                {submission.studentName || 'Student'}
+                    {filteredSubmissions.map((submission) => (
+                      <tr key={submission.id}>
+                        <td>
+                          <div className="d-flex align-items-center gap-2">
+                            <FaUserGraduate className="text-success" />
+                            <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                              {submission.studentName || 'Student'}
+                            </span>
+                          </div>
+                        </td>
+                        <td>
+                          <div className="d-flex align-items-center gap-2">
+                            <FaChalkboardTeacher className="text-primary" />
+                            <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                              {submission.teacherName || 'Unknown'}
+                            </span>
+                          </div>
+                        </td>
+                        <td>
+                          <div style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                            {submission.title || 'Assessment'}
+                          </div>
+                          <small className="text-muted d-block d-md-none" style={arabicFontStyle}>
+                            {getTypeLabel(submission.type)} • {submission.subject || 'N/A'}
+                          </small>
+                        </td>
+                        <td className="d-none d-md-table-cell">
+                          <Badge bg="info" style={{ fontSize: '0.6rem' }}>
+                            {getTypeLabel(submission.type)}
+                          </Badge>
+                        </td>
+                        <td className="d-none d-sm-table-cell">
+                          <Badge bg="secondary" style={{ fontSize: '0.6rem' }}>
+                            {submission.subject || 'N/A'}
+                          </Badge>
+                        </td>
+                        <td>
+                          {submission.fileName || submission.attachmentName ? (
+                            <Badge bg="info" style={{ fontSize: '0.6rem', cursor: 'pointer' }} 
+                              onClick={() => {
+                                const item = { 
+                                  ...submission, 
+                                  content: submission.attachment || submission.content,
+                                  fileName: submission.fileName || submission.attachmentName,
+                                  fileType: submission.fileType || submission.attachmentType
+                                };
+                                handleDownloadFile(item);
+                              }}
+                            >
+                              {getFileIcon(submission.fileType || submission.attachmentType).icon}
+                              <span className="ms-1">
+                                {submission.fileName || submission.attachmentName}
                               </span>
-                            </div>
-                          </td>
-                          <td>
-                            <div className="d-flex align-items-center gap-2">
-                              <FaChalkboardTeacher className="text-primary" />
-                              <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                                {submission.teacherName || 'Unknown'}
-                              </span>
-                            </div>
-                          </td>
-                          <td>
-                            <div style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                              {submission.title || 'Assessment'}
-                            </div>
-                            <small className="text-muted d-block d-md-none" style={arabicFontStyle}>
-                              {getTypeLabel(submission.type)} • {submission.subject || 'N/A'}
-                            </small>
-                          </td>
-                          <td className="d-none d-md-table-cell">
-                            <Badge bg="info" style={{ fontSize: '0.6rem' }}>
-                              {getTypeLabel(submission.type)}
+                              <FaDownload size={10} className="ms-1" />
                             </Badge>
-                          </td>
-                          <td className="d-none d-sm-table-cell">
-                            <Badge bg="secondary" style={{ fontSize: '0.6rem' }}>
-                              {submission.subject || 'N/A'}
+                          ) : submission.content ? (
+                            <Badge bg="warning" style={{ fontSize: '0.6rem' }}>
+                              <FaFileCode className="me-1" />
+                              {isArabic ? 'نص' : 'Text'}
                             </Badge>
-                          </td>
-                          <td>
-                            {submission.fileName || submission.attachmentName ? (
-                              <Badge bg="info" style={{ fontSize: '0.6rem' }}>
-                                {getFileIcon(submission.fileType || submission.attachmentType).icon}
-                                <span className="ms-1">
-                                  {submission.fileName || submission.attachmentName}
-                                </span>
-                              </Badge>
-                            ) : submission.content ? (
-                              <Badge bg="warning" style={{ fontSize: '0.6rem' }}>
-                                <FaFileCode className="me-1" />
-                                {isArabic ? 'نص' : 'Text'}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted" style={{ fontSize: '0.6rem' }}>
-                                {isArabic ? 'لا يوجد' : 'None'}
-                              </span>
-                            )}
-                          </td>
-                          <td>
-                            {isForwarded ? (
-                              isGraded ? (
-                                <Badge bg="success" style={{ fontSize: '0.6rem' }}>
-                                  <FaCheckCircle className="me-1" size={10} />
-                                  {isArabic ? 'مصحح' : 'Graded'}
-                                  {grade !== null && (
-                                    <span className="ms-1">({formatNumber(grade)})</span>
-                                  )}
-                                </Badge>
-                              ) : (
-                                <Badge bg="info" style={{ fontSize: '0.6rem' }}>
-                                  <FaInbox className="me-1" size={10} />
-                                  {isArabic ? 'مرسل للمعلم' : 'Forwarded'}
-                                </Badge>
-                              )
-                            ) : (
-                              <Badge bg="warning" style={{ fontSize: '0.6rem' }}>
-                                <FaClock className="me-1" size={10} />
-                                {isArabic ? 'بانتظار الإرسال' : 'Pending'}
-                              </Badge>
-                            )}
-                          </td>
-                          <td>
-                            <div className="d-flex gap-1 justify-content-center flex-wrap">
+                          ) : (
+                            <span className="text-muted" style={{ fontSize: '0.6rem' }}>
+                              {isArabic ? 'لا يوجد' : 'None'}
+                            </span>
+                          )}
+                        </td>
+                        <td>
+                          <div className="d-flex gap-1 justify-content-center flex-wrap">
+                            <Button 
+                              variant="outline-primary" 
+                              size="sm"
+                              className="action-btn"
+                              onClick={() => {
+                                setSelectedItem(submission);
+                                setSelectedItemType('submission');
+                                markSubmissionAsSeen(submission.id);
+                                setShowViewModal(true);
+                              }}
+                              title={isArabic ? 'عرض التفاصيل' : 'View Details'}
+                            >
+                              <FaEye size={14} />
+                            </Button>
+                            {(submission.fileName || submission.attachmentName || submission.content || submission.attachment) && (
                               <Button 
-                                variant="outline-primary" 
+                                variant="outline-info" 
                                 size="sm"
                                 className="action-btn"
                                 onClick={() => {
-                                  setSelectedItem(submission);
-                                  setSelectedItemType('submission');
-                                  setShowViewModal(true);
+                                  const item = { 
+                                    ...submission, 
+                                    content: submission.attachment || submission.content,
+                                    fileName: submission.fileName || submission.attachmentName,
+                                    fileType: submission.fileType || submission.attachmentType
+                                  };
+                                  handleDownloadFile(item);
                                 }}
-                                title={isArabic ? 'عرض التفاصيل' : 'View Details'}
+                                title={isArabic ? 'تحميل' : 'Download'}
                               >
-                                <FaEye size={14} />
+                                <FaDownload size={14} />
                               </Button>
-                              {(submission.fileName || submission.attachmentName || submission.content) && (
-                                <Button 
-                                  variant="outline-info" 
-                                  size="sm"
-                                  className="action-btn"
-                                  onClick={() => handleDownloadFile(submission)}
-                                  title={isArabic ? 'تحميل' : 'Download'}
-                                >
-                                  <FaDownload size={14} />
-                                </Button>
-                              )}
-                              {!isForwarded && (
-                                <Button 
-                                  variant="outline-success" 
-                                  size="sm"
-                                  className="action-btn"
-                                  onClick={() => handleForwardToTeacher(submission)}
-                                  title={isArabic ? 'إرسال للمعلم' : 'Forward to Teacher'}
-                                >
-                                  <FaPaperPlane size={14} />
-                                </Button>
-                              )}
-                              {isForwarded && isGraded && (
-                                <Badge bg="success" style={{ fontSize: '0.6rem', padding: '4px 8px' }}>
-                                  <FaCheckCircle className="me-1" size={10} />
-                                  {formatNumber(grade)}
-                                </Badge>
-                              )}
-                              <Button 
-                                variant="outline-danger" 
-                                size="sm"
-                                className="action-btn"
-                                onClick={() => {
-                                  const item = { ...submission, _type: 'submission' };
-                                  handleDeleteClick(item);
-                                }}
-                                title={isArabic ? 'حذف' : 'Delete'}
-                              >
-                                <FaTrash size={14} />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                            )}
+                            <Button 
+                              variant="outline-danger" 
+                              size="sm"
+                              className="action-btn"
+                              onClick={() => {
+                                const item = { ...submission, _type: 'submission' };
+                                handleDeleteClick(item);
+                              }}
+                              title={isArabic ? 'حذف' : 'Delete'}
+                            >
+                              <FaTrash size={14} />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </Table>
               </div>
@@ -1621,29 +1495,6 @@ const AdminAssessments = () => {
                     </Col>
                   </Row>
                 )}
-                {/* Forwarded status for submissions */}
-                {selectedItemType === 'submission' && isSubmissionForwarded(selectedItem.id) && (
-                  <Row className="mt-2">
-                    <Col md={12}>
-                      <div className="d-flex align-items-center gap-2">
-                        <FaInbox className="text-info" />
-                        <span className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                          {isArabic ? 'الحالة: ' : 'Status: '}
-                        </span>
-                        <Badge bg={isSubmissionGraded(selectedItem.id) ? 'success' : 'info'}>
-                          {isSubmissionGraded(selectedItem.id) 
-                            ? (isArabic ? '✅ مصحح' : '✅ Graded')
-                            : (isArabic ? '📤 مرسل للمعلم' : '📤 Forwarded to Teacher')}
-                        </Badge>
-                        {isSubmissionGraded(selectedItem.id) && (
-                          <span className="fw-bold" style={{ color: '#2ecc71' }}>
-                            {formatNumber(getSubmissionGrade(selectedItem.id))}
-                          </span>
-                        )}
-                      </div>
-                    </Col>
-                  </Row>
-                )}
               </div>
 
               {/* Description */}
@@ -1701,10 +1552,10 @@ const AdminAssessments = () => {
               )}
 
               {/* Student Submission File */}
-              {selectedItemType === 'submission' && (selectedItem.fileName || selectedItem.attachmentName || selectedItem.content) && (
+              {selectedItemType === 'submission' && (selectedItem.fileName || selectedItem.attachmentName || selectedItem.content || selectedItem.attachment) && (
                 <div className="submission-attachment-section mb-3">
                   <h6 className="fw-bold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                    {isArabic ? 'محتوى التقديم:' : 'Submission Content:'}
+                    {isArabic ? 'محتوى تقديم الطالب:' : 'Student Submission Content:'}
                   </h6>
                   <div className="p-3 rounded-3" style={{
                     background: darkMode ? '#2d2d44' : '#f8f9fa',
@@ -1726,7 +1577,15 @@ const AdminAssessments = () => {
                           variant="outline-primary" 
                           size="sm"
                           className="ms-auto"
-                          onClick={() => handleDownloadFile(selectedItem)}
+                          onClick={() => {
+                            const item = { 
+                              ...selectedItem, 
+                              content: selectedItem.attachment || selectedItem.content,
+                              fileName: selectedItem.fileName || selectedItem.attachmentName,
+                              fileType: selectedItem.fileType || selectedItem.attachmentType
+                            };
+                            handleDownloadFile(item);
+                          }}
                           style={{ ...arabicFontStyle, borderRadius: '10px' }}
                         >
                           <FaDownload className="me-1" />
@@ -1734,7 +1593,7 @@ const AdminAssessments = () => {
                         </Button>
                       </div>
                     )}
-                    {selectedItem.content && (
+                    {selectedItem.content && selectedItem.content.length > 0 && (
                       <div className="mt-2 p-2 rounded-3" style={{
                         background: darkMode ? '#1a1a2e' : '#ffffff',
                         border: `1px solid ${darkMode ? '#3d3d5c' : '#e9ecef'}`,
@@ -1746,6 +1605,31 @@ const AdminAssessments = () => {
                         whiteSpace: 'pre-wrap'
                       }}>
                         {selectedItem.content}
+                      </div>
+                    )}
+                    {selectedItem.attachment && selectedItem.attachment.length > 0 && !selectedItem.fileName && !selectedItem.content && (
+                      <div className="text-center py-3">
+                        <Badge bg="info" style={{ fontSize: '0.9rem' }}>
+                          <FaFile className="me-2" />
+                          {isArabic ? 'يوجد ملف مرفق' : 'File attached'}
+                        </Badge>
+                        <Button 
+                          variant="outline-primary" 
+                          size="sm"
+                          className="ms-2"
+                          onClick={() => {
+                            const item = { 
+                              ...selectedItem, 
+                              content: selectedItem.attachment,
+                              fileName: 'attachment'
+                            };
+                            handleDownloadFile(item);
+                          }}
+                          style={{ ...arabicFontStyle, borderRadius: '10px' }}
+                        >
+                          <FaDownload className="me-1" />
+                          {isArabic ? 'تحميل' : 'Download'}
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -1798,6 +1682,24 @@ const AdminAssessments = () => {
                       {formatDate(selectedItem.sentAt)}
                     </div>
                   )}
+                  {/* Submission date for student submissions */}
+                  {selectedItemType === 'submission' && selectedItem.submittedAt && (
+                    <div className="mt-1 text-muted small">
+                      {isArabic ? 'تاريخ التقديم: ' : 'Submitted at: '}
+                      {formatDate(selectedItem.submittedAt)}
+                    </div>
+                  )}
+                  {/* Student info for submissions */}
+                  {selectedItemType === 'submission' && (
+                    <div className="mt-2">
+                      <Badge bg="info" style={{ fontSize: '0.7rem' }}>
+                        <FaInfoCircle className="me-1" />
+                        {isArabic 
+                          ? 'هذا التقديم مرسل مباشرة من الطالب إلى المعلم' 
+                          : 'This submission is sent directly from student to teacher'}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1833,57 +1735,6 @@ const AdminAssessments = () => {
                   </Button>
                 </div>
               )}
-
-              {/* Forward button for submissions */}
-              {selectedItemType === 'submission' && !isSubmissionForwarded(selectedItem.id) && (
-                <div className="action-section mt-3 d-flex gap-2 justify-content-end">
-                  <Button 
-                    variant="success" 
-                    onClick={() => {
-                      setShowViewModal(false);
-                      handleForwardToTeacher(selectedItem);
-                    }}
-                    style={{ ...arabicFontStyle, borderRadius: '12px' }}
-                  >
-                    <FaPaperPlane className="me-2" />
-                    {isArabic ? 'إرسال للمعلم' : 'Forward to Teacher'}
-                  </Button>
-                </div>
-              )}
-
-              {selectedItemType === 'submission' && isSubmissionForwarded(selectedItem.id) && (
-                <div className="mt-3 p-3 rounded-3" style={{
-                  background: isSubmissionGraded(selectedItem.id) ? '#d4edda' : '#cce5ff',
-                  border: isSubmissionGraded(selectedItem.id) ? '1px solid #c3e6cb' : '1px solid #b8daff',
-                  borderRadius: '12px'
-                }}>
-                  <div className="d-flex align-items-center gap-2">
-                    {isSubmissionGraded(selectedItem.id) ? (
-                      <>
-                        <FaCheckCircle className="text-success" />
-                        <span className="fw-semibold" style={{ color: '#155724' }}>
-                          {isArabic ? '✅ تم تصحيح هذا التقديم من قبل المعلم' : '✅ This submission has been graded by the teacher'}
-                        </span>
-                        <Badge bg="success" className="ms-2">
-                          {formatNumber(getSubmissionGrade(selectedItem.id))}
-                        </Badge>
-                      </>
-                    ) : (
-                      <>
-                        <FaInbox className="text-info" />
-                        <span className="fw-semibold" style={{ color: '#004085' }}>
-                          {isArabic ? '📤 تم إرسال هذا التقديم إلى المعلم للمراجعة' : '📤 This submission has been forwarded to the teacher for review'}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  {isSubmissionGraded(selectedItem.id) && (
-                    <div className="mt-1 text-muted small" style={{ color: '#155724' }}>
-                      {isArabic ? 'تم التصحيح بواسطة المعلم' : 'Graded by the teacher'}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           )}
         </Modal.Body>
@@ -1904,135 +1755,6 @@ const AdminAssessments = () => {
               <FaTrash className="me-1" /> {isArabic ? 'حذف' : 'Delete'}
             </Button>
           )}
-        </Modal.Footer>
-      </Modal>
-
-      {/* ===== FORWARD TO TEACHER MODAL ===== */}
-      <Modal show={showForwardModal} onHide={() => setShowForwardModal(false)} centered className="modern-modal">
-        <Modal.Header closeButton className="border-0" style={{ background: darkMode ? '#1a1a2e' : 'white' }}>
-          <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
-            <FaPaperPlane className="me-2 text-success" />
-            {isArabic ? 'تأكيد الإرسال للمعلم' : 'Confirm Forward to Teacher'}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body style={{ background: darkMode ? '#0d1117' : 'white' }}>
-          {selectedItem && (
-            <div>
-              <div className="text-center mb-3">
-                <div
-                  className="rounded-circle bg-success bg-opacity-10 d-inline-flex p-3 mb-3"
-                  style={{
-                    width: '64px',
-                    height: '64px',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <FaPaperPlane size={28} className="text-success" />
-                </div>
-              </div>
-              <p
-                style={{
-                  ...arabicFontStyle,
-                  fontSize: 'clamp(0.9rem, 1vw, 1.05rem)',
-                  textAlign: 'center',
-                  color: darkMode ? '#e9ecef' : '#212529',
-                }}
-              >
-                {isArabic
-                  ? `هل أنت متأكد من إرسال تقديم الطالب "${selectedItem.studentName || 'Student'}" إلى المعلم؟`
-                  : `Are you sure you want to forward "${selectedItem.studentName || 'Student'}"'s submission to the teacher?`}
-              </p>
-              <div className="p-3 rounded-3" style={{
-                background: darkMode ? '#2d2d44' : '#f8f9fa',
-                border: `1px solid ${darkMode ? '#3d3d5c' : '#e9ecef'}`,
-                borderRadius: '12px'
-              }}>
-                <Row>
-                  <Col md={6}>
-                    <div className="d-flex align-items-center gap-2">
-                      <FaUserGraduate className="text-success" />
-                      <span className="text-muted">{isArabic ? 'الطالب: ' : 'Student: '}</span>
-                      <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                        {selectedItem.studentName || 'Student'}
-                      </span>
-                    </div>
-                  </Col>
-                  <Col md={6}>
-                    <div className="d-flex align-items-center gap-2">
-                      <FaChalkboardTeacher className="text-primary" />
-                      <span className="text-muted">{isArabic ? 'المعلم: ' : 'Teacher: '}</span>
-                      <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                        {selectedItem.teacherName || 'Unknown'}
-                      </span>
-                    </div>
-                  </Col>
-                </Row>
-                <Row className="mt-2">
-                  <Col md={6}>
-                    <div className="d-flex align-items-center gap-2">
-                      <FaFileAlt className="text-info" />
-                      <span className="text-muted">{isArabic ? 'التقييم: ' : 'Assessment: '}</span>
-                      <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                        {selectedItem.title || 'Assessment'}
-                      </span>
-                    </div>
-                  </Col>
-                  <Col md={6}>
-                    <div className="d-flex align-items-center gap-2">
-                      <FaBook className="text-success" />
-                      <span className="text-muted">{isArabic ? 'المادة: ' : 'Subject: '}</span>
-                      <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                        {selectedItem.subject || 'N/A'}
-                      </span>
-                    </div>
-                  </Col>
-                </Row>
-                {selectedItem.fileName && (
-                  <Row className="mt-2">
-                    <Col md={12}>
-                      <div className="d-flex align-items-center gap-2">
-                        <FaFile className="text-warning" />
-                        <span className="text-muted">{isArabic ? 'الملف: ' : 'File: '}</span>
-                        <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                          {selectedItem.fileName}
-                        </span>
-                      </div>
-                    </Col>
-                  </Row>
-                )}
-              </div>
-              <p
-                className="text-muted text-center mt-3"
-                style={{
-                  ...arabicFontStyle,
-                  fontSize: 'clamp(0.8rem, 0.9vw, 0.9rem)',
-                }}
-              >
-                {isArabic
-                  ? 'سيتم إرسال هذا التقديم إلى المعلم لمراجعته وتقييمه'
-                  : 'This submission will be sent to the teacher for review and grading'}
-              </p>
-            </div>
-          )}
-        </Modal.Body>
-        <Modal.Footer className="border-0" style={{ background: darkMode ? '#1a1a2e' : 'white' }}>
-          <Button variant="secondary" onClick={() => setShowForwardModal(false)} disabled={forwarding} style={{ ...arabicFontStyle, borderRadius: '12px' }}>
-            <FaTimes className="me-1" /> {isArabic ? 'إلغاء' : 'Cancel'}
-          </Button>
-          <Button variant="success" onClick={confirmForwardToTeacher} disabled={forwarding} style={{ ...arabicFontStyle, borderRadius: '12px' }}>
-            {forwarding ? (
-              <>
-                <FaSpinner className="spinning me-2" />
-                {isArabic ? 'جاري الإرسال...' : 'Sending...'}
-              </>
-            ) : (
-              <>
-                <FaPaperPlane className="me-1" /> 
-                {isArabic ? 'تأكيد الإرسال' : 'Confirm Forward'}
-              </>
-            )}
-          </Button>
         </Modal.Footer>
       </Modal>
 
@@ -2106,6 +1828,15 @@ const AdminAssessments = () => {
                   <span className="text-muted small">
                     {isArabic ? 'النوع: ' : 'Type: '}
                     {getTypeLabel(itemToDelete.type)}
+                  </span>
+                </div>
+              )}
+              {itemToDelete.fileName && (
+                <div className="mt-1 d-flex align-items-center gap-2">
+                  <FaFile className="text-info" size={12} />
+                  <span className="text-muted small">
+                    {isArabic ? 'الملف: ' : 'File: '}
+                    {itemToDelete.fileName}
                   </span>
                 </div>
               )}
@@ -2241,6 +1972,16 @@ const AdminAssessments = () => {
           background: transparent;
           border: none;
           color: #4a9eff;
+        }
+
+        .badge-clickable {
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .badge-clickable:hover {
+          opacity: 0.8;
+          transform: scale(1.05);
         }
 
         /* ===== RTL FIXES ===== */

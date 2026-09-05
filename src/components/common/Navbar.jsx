@@ -134,8 +134,8 @@ const NavbarComponent = () => {
               src={logo}
               alt="Madrasatul Fathi Logo"
               style={{
-                width: "65px",
-                height: "65px",
+                width: "100px",
+                height: "100px",
                 objectFit: "cover",
                 borderRadius: "50%",
                 backgroundColor: "#d4a373",

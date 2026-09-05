@@ -1796,7 +1796,7 @@ const UsersManagement = () => {
                   background: darkMode ? "#2d2d44" : "white",
                   color: darkMode ? "#e9ecef" : "#212529",
                   borderRadius: "12px",
-                  fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                  fontSize: "clamp(0.78rem, 0.9vw, 5rem)",
                 }}
               >
                 <option value="">
@@ -1862,7 +1862,7 @@ const UsersManagement = () => {
                       style={{
                         ...arabicFontStyle,
                         color: darkMode ? "#e9ecef" : "#212529",
-                        fontSize: "clamp(0.7rem, 0.85vw, 0.9rem)",
+                        fontSize: "clamp(1,3rem, 0.85vw, 0.9rem)",
                       }}
                     />
                   ))}
@@ -1926,7 +1926,7 @@ const UsersManagement = () => {
                     style={{
                       ...arabicFontStyle,
                       color: darkMode ? "#e9ecef" : "#212529",
-                      fontSize: "clamp(0.7rem, 0.85vw, 0.9rem)",
+                      fontSize: "clamp(1,2rem, 0.85vw, 0.9rem)",
                     }}
                   />
                 ))}
@@ -5493,7 +5493,7 @@ const UsersManagement = () => {
                       background: darkMode ? "#2d2d44" : "white",
                       color: darkMode ? "#e9ecef" : "#212529",
                       borderRadius: "12px",
-                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                      fontSize: "clamp(0.75rem, 1.2vw, 1,2rem)",
                     }}
                   />
                 </Form.Group>

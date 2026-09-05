@@ -1,39 +1,20 @@
 // src/components/dashboard/student/StudentAnnouncements.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Card, Button, Badge, Table, Modal, Form, Row, Col, Alert, Nav, Tab, Spinner } from 'react-bootstrap';
 import { 
-  Container, Row, Col, Card, Badge, Button, Form, 
-  InputGroup, Alert, Spinner, Pagination, Nav, Tab,
-  Modal, Dropdown, ProgressBar
-} from 'react-bootstrap';
-import { Link, useNavigate } from 'react-router-dom';
-import {
-  FaBell, FaBullhorn, FaCalendarAlt, FaClock, FaUser,
-  FaEnvelope, FaCheckCircle, FaTimesCircle, FaExclamationTriangle,
-  FaSearch, FaFilter, FaSort, FaEye, FaShare, FaBookmark,
-  FaRegBookmark, FaThumbsUp, FaComment, FaPaperPlane,
-  FaArrowRight, FaArrowLeft, FaSync, FaDownload,
-  FaPrint, FaFile, FaImage, FaVideo, FaTag, FaUsers,
-  FaStar, FaRegStar, FaInfoCircle, FaNewspaper,
-  FaGraduationCap, FaChalkboardTeacher, FaUserGraduate,
-  FaTrash, FaTrashAlt, FaCheckDouble, FaSpinner,
-  FaTimes, FaFileAlt, FaBook, FaUpload, FaFilePdf, FaFileWord, FaFileImage,
-  FaFileExcel, FaFilePowerpoint, FaFileCode, FaList, FaThList
+  FaFileAlt, FaEye, FaCheck, FaTimes, FaSearch, FaSync, 
+  FaSpinner, FaExclamationTriangle, FaDownload, FaFilePdf,
+  FaFileWord, FaFileImage, FaFile, FaClock, FaUserGraduate,
+  FaChalkboardTeacher, FaBook, FaCalendarAlt, FaInfoCircle,
+  FaUser, FaEnvelope, FaIdCard, FaGraduationCap, FaUsers,
+  FaCheckCircle, FaClock as FaClockIcon, FaPaperPlane,
+  FaUpload, FaFilter, FaSort, FaArrowRight, FaArrowLeft,
+  FaBell, FaFileExcel, FaFilePowerpoint, FaFileCode, FaStar,
+  FaTrash, FaInbox, FaUserCheck, FaPlus, FaEdit, FaSave,
+  FaTimesCircle, FaCheckDouble, FaComment, FaReply
 } from 'react-icons/fa';
-import { format, formatDistanceToNow, formatDistanceToNowStrict } from 'date-fns';
-import { ar, enUS } from 'date-fns/locale';
-
-// ===== FIXED IMPORT PATHS =====
 import { useLanguage } from '../../../context/LanguageContext';
-import { useAuth } from '../../../hooks/useAuth';
 import { useNotification } from '../../../hooks/useNotification';
-import {
-  getTranslation,
-  getAnnouncementTitle,
-  getAnnouncementContent,
-  getAnnouncementTranslation,
-  getAnnouncementKeys,
-  getAllAnnouncements
-} from '../../../utils/translations';
 
 // ===== HELPER FUNCTIONS =====
 const formatNumber = (num) => {
@@ -42,7 +23,7 @@ const formatNumber = (num) => {
 };
 
 // ===== GET FILE ICON =====
-const getFileIconHelper = (fileType) => {
+const getFileIcon = (fileType) => {
   if (!fileType) return { icon: <FaFile className="text-secondary" style={{ fontSize: '2rem' }} />, color: '#6c757d' };
   const type = fileType.toLowerCase();
   if (type.includes('pdf')) return { icon: <FaFilePdf className="text-danger" style={{ fontSize: '2rem' }} />, color: '#dc3545' };
@@ -55,7 +36,7 @@ const getFileIconHelper = (fileType) => {
 };
 
 // ===== GET FILE TYPE LABEL =====
-const getFileTypeLabelHelper = (fileType) => {
+const getFileTypeLabel = (fileType) => {
   if (!fileType) return 'Unknown';
   const type = fileType.toLowerCase();
   if (type.includes('pdf')) return 'PDF Document';
@@ -104,167 +85,67 @@ const getMimeType = (fileName, fileType) => {
   return mimeMap[ext] || 'application/octet-stream';
 };
 
-const getAnnouncementsFromStorage = () => {
+// ===== GET CURRENT USER =====
+const getCurrentUser = () => {
   try {
-    const stored = localStorage.getItem('announcements');
-    if (stored) {
-      const data = JSON.parse(stored);
-      return Array.isArray(data) ? data : [];
+    const userStr = localStorage.getItem('currentUser');
+    if (userStr) {
+      return JSON.parse(userStr);
     }
-    return [];
-  } catch (error) {
-    console.error('Error getting announcements:', error);
-    return [];
+    return null;
+  } catch {
+    return null;
   }
-};
-
-const getNotificationsFromStorage = () => {
-  try {
-    const stored = localStorage.getItem('school_notifications');
-    if (stored) {
-      const data = JSON.parse(stored);
-      return Array.isArray(data) ? data : [];
-    }
-    return [];
-  } catch (error) {
-    console.error('Error getting notifications:', error);
-    return [];
-  }
-};
-
-const saveNotificationsToStorage = (notifications) => {
-  try {
-    localStorage.setItem('school_notifications', JSON.stringify(notifications));
-    return true;
-  } catch (error) {
-    console.error('Error saving notifications:', error);
-    return false;
-  }
-};
-
-const saveAnnouncementsToStorage = (announcements) => {
-  try {
-    localStorage.setItem('announcements', JSON.stringify(announcements));
-    return true;
-  } catch (error) {
-    console.error('Error saving announcements:', error);
-    return false;
-  }
-};
-
-// ===== GET STUDENT ID =====
-const getStudentId = (user) => {
-  if (user?.id) return user.id;
-  const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-  return currentUser.id || currentUser.studentId;
-};
-
-// ===== GET TYPE LABELS =====
-const getTypeLabel = (type, isArabic) => {
-  const labels = {
-    'homework': isArabic ? 'واجب منزلي' : 'Homework',
-    'assignment': isArabic ? 'مشروع' : 'Assignment',
-    'test': isArabic ? 'اختبار' : 'Test',
-    'exam': isArabic ? 'امتحان' : 'Exam',
-    'project': isArabic ? 'مشروع' : 'Project',
-    'classwork': isArabic ? 'عمل صفي' : 'Classwork'
-  };
-  return labels[type] || type;
-};
-
-const getTypeIcon = (type) => {
-  const icons = {
-    'homework': <FaBook />,
-    'assignment': <FaFileAlt />,
-    'test': <FaCheckCircle />,
-    'exam': <FaStar />,
-    'project': <FaShare />,
-    'classwork': <FaUsers />
-  };
-  return icons[type] || <FaBullhorn />;
-};
-
-const getTypeColor = (type) => {
-  const colors = {
-    'homework': '#4a9eff',
-    'assignment': '#9b59b6',
-    'test': '#f39c12',
-    'exam': '#e74c3c',
-    'project': '#2ecc71',
-    'classwork': '#1abc9c'
-  };
-  return colors[type] || '#6c757d';
-};
-
-const getPriorityLabel = (priority, isArabic) => {
-  const labels = {
-    'high': isArabic ? 'عالي' : 'High',
-    'medium': isArabic ? 'متوسط' : 'Medium',
-    'low': isArabic ? 'منخفض' : 'Low'
-  };
-  return labels[priority] || priority;
-};
-
-const getPriorityColor = (priority) => {
-  const colors = {
-    'high': '#e74c3c',
-    'medium': '#f39c12',
-    'low': '#2ecc71'
-  };
-  return colors[priority] || '#6c757d';
 };
 
 const StudentAnnouncements = () => {
-  const { isArabic, language } = useLanguage();
-  const navigate = useNavigate();
-  const { user } = useAuth();
+  const { isArabic } = useLanguage();
   const { notify } = useNotification();
-  const notificationSound = useRef(null);
-
-  // ===== STATE =====
-  const [announcements, setAnnouncements] = useState([]);
-  const [filteredAnnouncements, setFilteredAnnouncements] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [teacherAssessments, setTeacherAssessments] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('all');
-  const [filterPriority, setFilterPriority] = useState('all');
-  const [filterStatus, setFilterStatus] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
-  const [itemsPerPage] = useState(6);
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [selectedItemType, setSelectedItemType] = useState('announcement');
-  const [unreadCount, setUnreadCount] = useState(0);
   const [darkMode, setDarkMode] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [activeTab, setActiveTab] = useState('assessments');
-  const [sortBy, setSortBy] = useState('newest');
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // Student's assessments (received from teacher via student_assessments)
+  const [myAssessments, setMyAssessments] = useState([]);
+  const [filteredAssessments, setFilteredAssessments] = useState([]);
+  
+  // Student's submissions
+  const [mySubmissions, setMySubmissions] = useState([]);
+  const [filteredSubmissions, setFilteredSubmissions] = useState([]);
+  
+  // Search and filters
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  
+  // Modal states
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [selectedItemType, setSelectedItemType] = useState('assessment');
+  
+  // Submission modal
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submissionText, setSubmissionText] = useState('');
   const [submissionFile, setSubmissionFile] = useState(null);
+  const [submissionFilePreview, setSubmissionFilePreview] = useState(null);
   const [selectedAssessment, setSelectedAssessment] = useState(null);
-  const [submissionFilter, setSubmissionFilter] = useState('all'); // 'all', 'submitted', 'pending'
-
-  // ===== DELETE MODAL STATE =====
+  
+  // Delete modal - for both submissions and assignments
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [deleteType, setDeleteType] = useState('submission'); // 'submission' or 'assignment'
   const [deleting, setDeleting] = useState(false);
-  const [deletingAll, setDeletingAll] = useState(false);
 
   // ===== ARABIC FONT STYLE =====
   const arabicFontStyle = {
     fontFamily: isArabic ? '"Hacen Tunisia", "Hacen Tunisia Bd", "Noto Sans Arabic", "Vazirmatn", "Traditional Arabic", "Arabic Typesetting", serif' : 'inherit',
     lineHeight: isArabic ? '1.8' : '1.6',
     letterSpacing: isArabic ? '0.5px' : '0px',
-    fontSize: isArabic ? 'clamp(0.95rem, 1.2vw, 1.1rem)' : 'clamp(0.9rem, 1.1vw, 1.05rem)',
+    fontSize: isArabic ? 'clamp(0.9rem, 1.1vw, 1.05rem)' : 'clamp(0.85rem, 1vw, 1rem)',
   };
 
-  // ===== CHECK DARK MODE & MOBILE =====
+  // ===== Check dark mode =====
   useEffect(() => {
     const checkDarkMode = () => {
       const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark' ||
@@ -286,621 +167,263 @@ const StudentAnnouncements = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // ===== TYPE & PRIORITY OPTIONS =====
-  const typeOptions = [
-    { value: 'all', label: isArabic ? 'الكل' : 'All' },
-    { value: 'announcement', label: isArabic ? 'إعلان' : 'Announcement', icon: <FaBullhorn />, color: '#c49a6c' },
-    { value: 'event', label: isArabic ? 'حدث' : 'Event', icon: <FaCalendarAlt />, color: '#2ecc71' },
-    { value: 'meeting', label: isArabic ? 'اجتماع' : 'Meeting', icon: <FaUsers />, color: '#f39c12' },
-    { value: 'exam', label: isArabic ? 'امتحان' : 'Exam', icon: <FaCheckCircle />, color: '#e74c3c' },
-    { value: 'news', label: isArabic ? 'خبر' : 'News', icon: <FaNewspaper />, color: '#9b59b6' },
-    { value: 'assessment', label: isArabic ? 'تقييم' : 'Assessment', icon: <FaFileAlt />, color: '#4a9eff' },
-  ];
-
-  const priorityOptions = [
-    { value: 'all', label: isArabic ? 'الكل' : 'All' },
-    { value: 'high', label: isArabic ? 'عالي' : 'High', color: '#e74c3c' },
-    { value: 'medium', label: isArabic ? 'متوسط' : 'Medium', color: '#f39c12' },
-    { value: 'low', label: isArabic ? 'منخفض' : 'Low', color: '#2ecc71' }
-  ];
-
-  const statusOptions = [
-    { value: 'all', label: isArabic ? 'الكل' : 'All' },
-    { value: 'read', label: isArabic ? 'مقروء' : 'Read', color: '#2ecc71' },
-    { value: 'unread', label: isArabic ? 'غير مقروء' : 'Unread', color: '#e74c3c' }
-  ];
-
-  // ===== SUBMISSION FILTER OPTIONS =====
-  const submissionFilterOptions = [
-    { value: 'all', label: isArabic ? 'جميع التقييمات' : 'All Assessments' },
-    { value: 'pending', label: isArabic ? 'غير مقدم' : 'Not Submitted' },
-    { value: 'submitted', label: isArabic ? 'مقدم' : 'Submitted' },
-    { value: 'graded', label: isArabic ? 'مصحح' : 'Graded' }
-  ];
-
-  // ===== GET TYPE LABELS =====
-  const getTypeLabelLocal = (type) => {
-    const found = typeOptions.find(t => t.value === type);
-    return found ? found.label : type;
-  };
-
-  const getTypeIconLocal = (type) => {
-    const found = typeOptions.find(t => t.value === type);
-    return found ? found.icon : <FaBullhorn />;
-  };
-
-  const getTypeColorLocal = (type) => {
-    const found = typeOptions.find(t => t.value === type);
-    return found ? found.color : '#6c757d';
-  };
-
-  const getPriorityLabelLocal = (priority) => {
-    const found = priorityOptions.find(p => p.value === priority);
-    return found ? found.label : priority;
-  };
-
-  const getPriorityColorLocal = (priority) => {
-    const found = priorityOptions.find(p => p.value === priority);
-    return found ? found.color : '#6c757d';
-  };
-
-  // ===== GET TRANSLATED CONTENT =====
-  const getTranslatedTitle = (item) => {
-    if (!item) return '';
-    if (item.translationKey) {
-      const translation = getAnnouncementTranslation(item.translationKey, language);
-      if (translation.title !== item.translationKey) {
-        return translation.title;
-      }
+  // ===== GET STUDENT ID =====
+  const getStudentId = () => {
+    const user = getCurrentUser();
+    if (user && user.id) {
+      return user.id;
     }
-    return isArabic ? (item.titleAr || item.title) : item.title;
+    const studentId = localStorage.getItem('studentId');
+    if (studentId) {
+      return studentId;
+    }
+    return 'student_1';
   };
 
-  const getTranslatedContent = (item) => {
-    if (!item) return '';
-    if (item.translationKey) {
-      const translation = getAnnouncementTranslation(item.translationKey, language);
-      if (translation.content !== item.translationKey) {
-        return translation.content;
-      }
+  const getStudentName = () => {
+    const user = getCurrentUser();
+    if (user && user.name) {
+      return user.name;
     }
-    return isArabic ? (item.contentAr || item.content) : item.content;
-  };
-
-  // ===== LOAD TEACHER ASSESSMENTS =====
-  const loadTeacherAssessments = () => {
-    try {
-      const studentId = getStudentId(user);
-      if (!studentId) return [];
-
-      const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
-      const myAssessments = studentAssessments.filter(a => a.studentId === studentId);
-      
-      const unreadAssessments = myAssessments.filter(a => !a.read);
-      setUnreadCount(prev => prev + unreadAssessments.length);
-      
-      return myAssessments;
-    } catch (error) {
-      console.error('Error loading teacher assessments:', error);
-      return [];
-    }
+    return 'Student';
   };
 
   // ===== LOAD DATA =====
   const loadData = () => {
-    setLoading(true);
     try {
-      const allAnnouncements = getAnnouncementsFromStorage();
-      const publishedAnnouncements = allAnnouncements.filter(a => a.status === 'published' && a.isActive !== false);
+      setLoading(true);
       
-      const assessments = loadTeacherAssessments();
-      setTeacherAssessments(assessments);
+      const studentId = getStudentId();
       
-      const assessmentItems = assessments.map(a => ({
-        id: `assess_${a.id}`,
-        type: 'assessment',
-        title: a.title,
-        titleAr: a.title,
-        content: a.description || '',
-        contentAr: a.description || '',
-        date: a.sentAt || new Date().toISOString(),
-        priority: 'high',
-        author: a.teacherName || 'Teacher',
-        status: 'published',
-        isActive: true,
-        isRead: a.read || false,
-        views: 0,
-        likes: 0,
-        assessmentData: a,
-        attachment: a.attachment,
-        attachmentName: a.attachmentName,
-        attachmentType: a.attachmentType,
-        dueDate: a.dueDate,
-        totalMarks: a.totalMarks,
-        subject: a.subject,
-        className: a.className,
-        teacherName: a.teacherName,
-        assessmentStatus: a.status || 'pending',
-        submitted: a.submitted || false,
-        grade: a.grade || null,
-        gradedAt: a.gradedAt || null
-      }));
+      // 1. Load assessments from student_assessments (sent by teacher)
+      const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
+      const myStudentAssessments = studentAssessments.filter(a => a.studentId === studentId);
       
-      const combinedItems = [...publishedAnnouncements, ...assessmentItems];
+      console.log('📝 Student assessments from student_assessments:', myStudentAssessments.length);
       
-      const sortedItems = combinedItems.sort((a, b) => {
-        const dateA = new Date(a.date || a.createdAt || a.sentAt);
-        const dateB = new Date(b.date || b.createdAt || b.sentAt);
-        if (sortBy === 'newest') return dateB - dateA;
-        if (sortBy === 'oldest') return dateA - dateB;
-        if (sortBy === 'popular') return (b.views || 0) - (a.views || 0);
-        return dateB - dateA;
+      // 2. Load student's submissions from school_submissions
+      const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
+      const studentSubmissions = allSubmissions.filter(s => s.studentId === studentId);
+      console.log('📤 Student submissions:', studentSubmissions.length);
+      setMySubmissions(studentSubmissions);
+      setFilteredSubmissions(studentSubmissions);
+      
+      // Enrich assessments with submission data
+      const enrichedAssessments = myStudentAssessments.map(a => {
+        // Find submission for this assessment
+        const submission = studentSubmissions.find(s => s.assessmentId === a.assessmentId || s.assessmentId === a.id);
+        return {
+          ...a,
+          id: a.assessmentId || a.id,
+          assessmentId: a.assessmentId || a.id,
+          status: a.status || 'pending',
+          hasSubmitted: !!submission,
+          submissionId: submission?.id || null,
+          grade: a.grade || submission?.grade || null,
+          remarks: a.remarks || submission?.remarks || null,
+          isGraded: (a.grade !== null && a.grade !== undefined) || (submission?.grade !== null && submission?.grade !== undefined),
+          submittedAt: submission?.submittedAt || a.submittedAt || null,
+          submissionData: submission || null,
+          gradedAt: a.gradedAt || submission?.gradedAt || null,
+          gradedBy: a.gradedBy || submission?.gradedBy || null,
+        };
       });
       
-      setAnnouncements(sortedItems);
-      applyFilters(sortedItems);
-    } catch (error) {
-      console.error('Error loading data:', error);
-      if (notify) {
-        notify(isArabic ? 'فشل في تحميل البيانات' : 'Failed to load data', 'error');
-      }
-    } finally {
+      setMyAssessments(enrichedAssessments);
+      setFilteredAssessments(enrichedAssessments);
+
+      setLoading(false);
+    } catch (err) {
+      console.error('Error loading student announcements:', err);
       setLoading(false);
     }
   };
 
   // ===== APPLY FILTERS =====
-  const applyFilters = (data = announcements) => {
-    let filtered = [...data];
-    
+  useEffect(() => {
+    // Filter assessments
+    let filtered = [...myAssessments];
     if (searchTerm) {
-      const searchLower = searchTerm.toLowerCase();
-      filtered = filtered.filter(a =>
-        (a.title || '').toLowerCase().includes(searchLower) ||
-        (a.titleAr || '').toLowerCase().includes(searchLower) ||
-        (a.content || '').toLowerCase().includes(searchLower) ||
-        (a.contentAr || '').toLowerCase().includes(searchLower) ||
-        (a.author || '').toLowerCase().includes(searchLower) ||
-        (a.teacherName || '').toLowerCase().includes(searchLower)
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(a => 
+        (a.title || '').toLowerCase().includes(term) ||
+        (a.teacherName || '').toLowerCase().includes(term) ||
+        (a.subject || '').toLowerCase().includes(term) ||
+        (a.className || '').toLowerCase().includes(term)
       );
     }
-    
-    if (filterType !== 'all') {
-      filtered = filtered.filter(a => a.type === filterType);
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(a => a.status === statusFilter);
     }
-    
-    if (filterPriority !== 'all') {
-      filtered = filtered.filter(a => a.priority === filterPriority);
-    }
-    
-    if (filterStatus !== 'all') {
-      if (filterStatus === 'read') {
-        filtered = filtered.filter(a => a.isRead === true);
-      } else if (filterStatus === 'unread') {
-        filtered = filtered.filter(a => !a.isRead);
-      }
-    }
-    
-    // Apply submission filter for assessments
-    if (submissionFilter !== 'all' && activeTab === 'assessments') {
-      filtered = filtered.filter(a => {
-        if (a.type !== 'assessment') return false;
-        if (submissionFilter === 'submitted') return a.submitted === true;
-        if (submissionFilter === 'pending') return a.submitted === false && !a.grade;
-        if (submissionFilter === 'graded') return a.grade !== null && a.grade !== undefined;
-        return true;
-      });
-    }
-    
-    setTotalItems(filtered.length);
-    setTotalPages(Math.ceil(filtered.length / itemsPerPage));
-    
-    const start = (currentPage - 1) * itemsPerPage;
-    const end = start + itemsPerPage;
-    const paginated = filtered.slice(start, end);
-    setFilteredAnnouncements(paginated);
-  };
+    setFilteredAssessments(filtered);
 
-  // ===== EFFECTS =====
+    // Filter submissions
+    let filteredSubs = [...mySubmissions];
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filteredSubs = filteredSubs.filter(s => 
+        (s.title || '').toLowerCase().includes(term) ||
+        (s.teacherName || '').toLowerCase().includes(term) ||
+        (s.subject || '').toLowerCase().includes(term)
+      );
+    }
+    setFilteredSubmissions(filteredSubs);
+
+  }, [myAssessments, mySubmissions, searchTerm, statusFilter]);
+
+  // ===== SETUP =====
   useEffect(() => {
     loadData();
-  }, []);
 
-  useEffect(() => {
-    applyFilters();
-  }, [announcements, searchTerm, filterType, filterPriority, filterStatus, currentPage, submissionFilter, activeTab]);
-
-  // ===== LISTEN FOR NEW NOTIFICATIONS =====
-  useEffect(() => {
-    const handleNewNotification = (event) => {
-      const detail = event.detail;
-      if (detail) {
-        const isForStudent = detail.targetAudience?.includes('all') || 
-                            detail.targetAudience?.includes('students');
-        if (isForStudent) {
-          setNotifications(prev => {
-            const updated = [{
-              ...detail,
-              read: false,
-              createdAt: new Date().toISOString()
-            }, ...prev];
-            return updated;
-          });
-          setUnreadCount(prev => prev + 1);
-          playNotificationSound();
-          if (notify) {
-            notify(
-              isArabic ? `📢 إعلان جديد: ${detail.titleAr || detail.title}` : 
-              `📢 New Announcement: ${detail.title}`,
-              'info'
-            );
-          }
-        }
+    const handleStorageChange = (e) => {
+      if (e.key === "student_assessments" || 
+          e.key === "school_submissions" ||
+          e.key === "school_assessments") {
+        loadData();
       }
     };
+    window.addEventListener("storage", handleStorageChange);
 
-    const handleAnnouncementAdded = (event) => {
-      const detail = event.detail;
-      if (detail && detail.announcement) {
-        const ann = detail.announcement;
-        if (ann.status === 'published' && ann.isActive !== false) {
-          const targetAudience = ann.targetAudience || [];
-          if (targetAudience.includes('all') || targetAudience.includes('students')) {
-            setAnnouncements(prev => [ann, ...prev]);
-          }
-        }
-      }
+    const handleAssessmentSent = () => {
+      loadData();
     };
+    window.addEventListener("assessmentSent", handleAssessmentSent);
 
     const handleStudentAssessmentsUpdated = () => {
       loadData();
     };
+    window.addEventListener("studentAssessmentsUpdated", handleStudentAssessmentsUpdated);
 
-    window.addEventListener('newNotification', handleNewNotification);
-    window.addEventListener('announcementsUpdated', loadData);
-    window.addEventListener('announcementAdded', handleAnnouncementAdded);
-    window.addEventListener('studentAssessmentsUpdated', handleStudentAssessmentsUpdated);
+    const handleSubmissionChanged = () => {
+      loadData();
+    };
+    window.addEventListener("submissionChanged", handleSubmissionChanged);
 
     return () => {
-      window.removeEventListener('newNotification', handleNewNotification);
-      window.removeEventListener('announcementsUpdated', loadData);
-      window.removeEventListener('announcementAdded', handleAnnouncementAdded);
-      window.removeEventListener('studentAssessmentsUpdated', handleStudentAssessmentsUpdated);
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("assessmentSent", handleAssessmentSent);
+      window.removeEventListener("studentAssessmentsUpdated", handleStudentAssessmentsUpdated);
+      window.removeEventListener("submissionChanged", handleSubmissionChanged);
     };
   }, []);
 
-  // ===== PLAY NOTIFICATION SOUND =====
-  const playNotificationSound = () => {
-    try {
-      if (notificationSound.current) {
-        notificationSound.current.play().catch(() => {});
-      }
-    } catch (error) {
-      console.log('Sound play error:', error);
-    }
-  };
-
-  // ===== MARK NOTIFICATION AS READ =====
-  const markAsRead = (notificationId) => {
-    const updatedNotifications = notifications.map(n => {
-      if (n.id === notificationId) {
-        return { ...n, read: true };
-      }
-      return n;
-    });
-    setNotifications(updatedNotifications);
-    
-    const unread = updatedNotifications.filter(n => !n.read).length;
-    setUnreadCount(unread);
-    
-    const allNotifications = getNotificationsFromStorage();
-    const updatedAll = allNotifications.map(n => {
-      if (n.id === notificationId) {
-        return { ...n, read: true };
-      }
-      return n;
-    });
-    saveNotificationsToStorage(updatedAll);
-  };
-
-  // ===== MARK ALL NOTIFICATIONS AS READ =====
-  const markAllNotificationsAsRead = () => {
-    const updatedNotifications = notifications.map(n => ({ ...n, read: true }));
-    setNotifications(updatedNotifications);
-    setUnreadCount(0);
-    
-    const allNotifications = getNotificationsFromStorage();
-    const updatedAll = allNotifications.map(n => {
-      if (n.targetAudience && (n.targetAudience.includes('all') || n.targetAudience.includes('students'))) {
-        return { ...n, read: true };
-      }
-      return n;
-    });
-    saveNotificationsToStorage(updatedAll);
-    
-    if (notify) {
-      notify(isArabic ? 'تم تحديد الكل كمقروء' : 'All marked as read', 'success');
-    }
-  };
-
-  // ===== DELETE SINGLE ANNOUNCEMENT =====
-  const handleDeleteClick = (item, e) => {
-    e.stopPropagation();
-    setItemToDelete(item);
-    setShowDeleteModal(true);
-  };
-
-  const handleDeleteConfirm = () => {
-    if (!itemToDelete) return;
-    
-    setDeleting(true);
-    try {
-      if (itemToDelete.type === 'assessment' && itemToDelete.assessmentData) {
-        const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
-        const updatedAssessments = studentAssessments.filter(a => a.id !== itemToDelete.assessmentData.id);
-        localStorage.setItem('student_assessments', JSON.stringify(updatedAssessments));
-        
-        const schoolSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-        const updatedSubmissions = schoolSubmissions.filter(s => s.studentId === getStudentId(user) && s.assessmentId !== itemToDelete.assessmentData.assessmentId);
-        localStorage.setItem('school_submissions', JSON.stringify(updatedSubmissions));
-        
-        setTeacherAssessments(prev => prev.filter(a => a.id !== itemToDelete.assessmentData.id));
-        setAnnouncements(prev => prev.filter(a => a.id !== itemToDelete.id));
-        
-        notify(
-          isArabic ? '✅ تم حذف التقييم بنجاح' : '✅ Assessment deleted successfully',
-          'success'
-        );
-      } else {
-        const allAnnouncements = getAnnouncementsFromStorage();
-        const updatedAnnouncements = allAnnouncements.filter(a => a.id !== itemToDelete.id);
-        saveAnnouncementsToStorage(updatedAnnouncements);
-        
-        const allNotifications = getNotificationsFromStorage();
-        const updatedNotifications = allNotifications.filter(n => n.announcementId !== itemToDelete.id);
-        saveNotificationsToStorage(updatedNotifications);
-        
-        setAnnouncements(prev => prev.filter(a => a.id !== itemToDelete.id));
-        
-        notify(
-          isArabic ? '✅ تم حذف الإعلان بنجاح' : '✅ Announcement deleted successfully',
-          'success'
-        );
-      }
-      
-      setShowDeleteModal(false);
-      setItemToDelete(null);
-      loadData();
-      
-    } catch (error) {
-      console.error('Error deleting item:', error);
-      if (notify) {
-        notify(
-          isArabic ? '❌ فشل في حذف العنصر' : '❌ Failed to delete item',
-          'error'
-        );
-      }
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const handleDeleteCancel = () => {
-    setShowDeleteModal(false);
-    setItemToDelete(null);
-    setDeleting(false);
-  };
-
-  // ===== DELETE ALL ANNOUNCEMENTS =====
-  const handleDeleteAll = () => {
-    const confirmDeleteAll = window.confirm(
-      isArabic 
-        ? 'هل أنت متأكد من حذف جميع الإعلانات؟ هذا الإجراء لا يمكن التراجع عنه.'
-        : 'Are you sure you want to delete all announcements? This action cannot be undone.'
-    );
-    
-    if (!confirmDeleteAll) return;
-    
-    setDeletingAll(true);
-    try {
-      const allAnnouncements = getAnnouncementsFromStorage();
-      const studentAnnouncements = allAnnouncements.filter(a => {
-        const targetAudience = a.targetAudience || [];
-        return targetAudience.includes('all') || targetAudience.includes('students');
-      });
-      
-      const updatedAnnouncements = allAnnouncements.filter(a => {
-        const targetAudience = a.targetAudience || [];
-        return !(targetAudience.includes('all') || targetAudience.includes('students'));
-      });
-      
-      saveAnnouncementsToStorage(updatedAnnouncements);
-      
-      const allNotifications = getNotificationsFromStorage();
-      const updatedNotifications = allNotifications.filter(n => {
-        const isStudent = n.targetAudience?.includes('all') || n.targetAudience?.includes('students');
-        return !isStudent;
-      });
-      saveNotificationsToStorage(updatedNotifications);
-      
-      setAnnouncements(prev => prev.filter(a => {
-        const targetAudience = a.targetAudience || [];
-        return !(targetAudience.includes('all') || targetAudience.includes('students'));
-      }));
-      
-      if (notify) {
-        notify(
-          isArabic ? `تم حذف جميع الإعلانات (${studentAnnouncements.length})` : `Deleted all announcements (${studentAnnouncements.length})`,
-          'success'
-        );
-      }
-      
-      loadData();
-      
-    } catch (error) {
-      console.error('Error deleting all announcements:', error);
-      if (notify) {
-        notify(
-          isArabic ? 'فشل في حذف جميع الإعلانات' : 'Failed to delete all announcements',
-          'error'
-        );
-      }
-    } finally {
-      setDeletingAll(false);
-    }
-  };
-
-  // ===== VIEW ANNOUNCEMENT =====
-  const viewAnnouncement = (item) => {
-    setSelectedItem(item);
-    setSelectedItemType(item.type || 'announcement');
-    setShowViewModal(true);
-    
-    if (item.type === 'assessment' && item.assessmentData) {
-      try {
-        const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
-        const updated = studentAssessments.map(a => {
-          if (a.id === item.assessmentData.id) {
-            return { ...a, read: true };
-          }
-          return a;
-        });
-        localStorage.setItem('student_assessments', JSON.stringify(updated));
-        setSelectedItem({ ...item, isRead: true });
-      } catch (e) {}
-    }
-    
-    if (item.type !== 'assessment') {
-      const allAnnouncements = getAnnouncementsFromStorage();
-      const updatedAnnouncements = allAnnouncements.map(a => {
-        if (a.id === item.id) {
-          return { ...a, views: (a.views || 0) + 1 };
-        }
-        return a;
-      });
-      saveAnnouncementsToStorage(updatedAnnouncements);
-      
-      const updatedItem = { ...item, views: (item.views || 0) + 1 };
-      setSelectedItem(updatedItem);
-      setAnnouncements(prev => prev.map(a => a.id === item.id ? updatedItem : a));
-    }
-  };
-
-  // ===== HANDLE SUBMIT ASSESSMENT =====
-  const handleSubmitAssessment = (assessment) => {
-    setSelectedAssessment(assessment);
-    setSubmissionText('');
-    setSubmissionFile(null);
-    setShowSubmitModal(true);
-  };
-
-  const handleSubmissionSubmit = () => {
-    if (!submissionText && !submissionFile) {
+  // ===== HANDLE REFRESH =====
+  const handleRefresh = () => {
+    setRefreshing(true);
+    loadData();
+    setTimeout(() => {
+      setRefreshing(false);
       notify(
-        isArabic ? 'يرجى إدخال نص أو تحميل ملف' : 'Please enter text or upload a file',
-        'warning'
+        isArabic ? 'تم تحديث البيانات بنجاح' : 'Data refreshed successfully',
+        'info'
       );
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const studentId = getStudentId(user);
-      const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
-      
-      const updated = studentAssessments.map(a => {
-        if (a.id === selectedAssessment.assessmentData.id && a.studentId === studentId) {
-          return {
-            ...a,
-            status: 'submitted',
-            submittedAt: new Date().toISOString(),
-            submissionContent: submissionText || '',
-            submissionFileType: submissionFile?.type || null,
-            submissionFileName: submissionFile?.name || null,
-            read: true,
-            submitted: true
-          };
-        }
-        return a;
-      });
-      
-      localStorage.setItem('student_assessments', JSON.stringify(updated));
-      
-      const schoolSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-      const filteredSubmissions = schoolSubmissions.filter(
-        s => !(s.assessmentId === selectedAssessment.assessmentData.assessmentId && s.studentId === studentId)
-      );
-      
-      filteredSubmissions.push({
-        id: `SUB_${Date.now()}`,
-        assessmentId: selectedAssessment.assessmentData.assessmentId || selectedAssessment.assessmentData.id,
-        studentId: studentId,
-        studentName: user?.name || 'Student',
-        teacherName: selectedAssessment.teacherName || selectedAssessment.assessmentData.teacherName,
-        subject: selectedAssessment.subject || selectedAssessment.assessmentData.subject,
-        className: selectedAssessment.className || selectedAssessment.assessmentData.className,
-        type: selectedAssessment.type || selectedAssessment.assessmentData.type,
-        title: selectedAssessment.title || selectedAssessment.assessmentData.title,
-        content: submissionText || '',
-        fileType: submissionFile?.type || null,
-        fileName: submissionFile?.name || null,
-        submittedAt: new Date().toISOString(),
-        forwardedToTeacher: false,
-        forwardedAt: null
-      });
-      localStorage.setItem('school_submissions', JSON.stringify(filteredSubmissions));
-      
-      const adminNotifications = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
-      adminNotifications.push({
-        id: `ADMIN_NOTIF_${Date.now()}`,
-        type: 'submission',
-        title: isArabic ? `📤 تقديم جديد من طالب` : '📤 New student submission',
-        message: isArabic 
-          ? `الطالب ${user?.name || 'Student'} قدم: ${selectedAssessment.title}`
-          : `Student ${user?.name || 'Student'} submitted: ${selectedAssessment.title}`,
-        studentName: user?.name || 'Student',
-        studentId: studentId,
-        assessmentId: selectedAssessment.assessmentData.assessmentId || selectedAssessment.assessmentData.id,
-        submissionId: `SUB_${Date.now()}`,
-        read: false,
-        createdAt: new Date().toISOString(),
-        link: '/dashboard/admin/assessments'
-      });
-      localStorage.setItem('admin_notifications', JSON.stringify(adminNotifications));
-      
-      notify(
-        isArabic ? '✅ تم إرسال التقييم بنجاح، في انتظار مراجعة الإدارة' : '✅ Assessment submitted successfully, waiting for admin review',
-        'success'
-      );
-      
-      setShowSubmitModal(false);
-      loadData();
-      
-      window.dispatchEvent(new CustomEvent('submissionChanged', { 
-        detail: { 
-          assessmentId: selectedAssessment.assessmentData.assessmentId || selectedAssessment.assessmentData.id,
-          studentId: studentId
-        }
-      }));
-      window.dispatchEvent(new CustomEvent('notificationAdded', { 
-        detail: { type: 'submission', studentName: user?.name || 'Student' }
-      }));
-      window.dispatchEvent(new CustomEvent('studentAssessmentsUpdated'));
-      
-    } catch (error) {
-      console.error('Error submitting assessment:', error);
-      notify(
-        isArabic ? '❌ حدث خطأ أثناء الإرسال' : '❌ Error submitting assessment',
-        'error'
-      );
-    } finally {
-      setSubmitting(false);
-    }
+    }, 800);
   };
 
-  // ===== HANDLE DOWNLOAD ATTACHMENT =====
-  const handleDownloadAttachment = (item) => {
-    if (!item.attachment && !item.attachmentName) {
+  // ===== GET TYPE LABEL =====
+  const getTypeLabel = (type) => {
+    const labels = {
+      'homework': isArabic ? 'واجب منزلي' : 'Homework',
+      'assignment': isArabic ? 'مشروع' : 'Assignment',
+      'test': isArabic ? 'اختبار' : 'Test',
+      'exam': isArabic ? 'امتحان' : 'Exam',
+      'project': isArabic ? 'مشروع' : 'Project',
+      'classwork': isArabic ? 'عمل صفي' : 'Classwork'
+    };
+    return labels[type] || type || 'Assessment';
+  };
+
+  // ===== GET STATUS BADGE =====
+  const getStatusBadge = (status) => {
+    const statusMap = {
+      'pending': 'warning',
+      'sent_to_students': 'primary',
+      'published': 'success',
+      'closed': 'dark',
+      'submitted': 'info',
+      'graded': 'success',
+      'pending_approval': 'warning',
+      'approved': 'success',
+      'rejected': 'danger',
+      'draft': 'secondary'
+    };
+    return statusMap[status] || 'secondary';
+  };
+
+  const getStatusLabel = (status) => {
+    const labels = {
+      'pending': isArabic ? 'بانتظار' : 'Pending',
+      'sent_to_students': isArabic ? 'مرسل' : 'Sent',
+      'published': isArabic ? 'منشور' : 'Published',
+      'closed': isArabic ? 'مغلق' : 'Closed',
+      'submitted': isArabic ? 'مقدم' : 'Submitted',
+      'graded': isArabic ? 'مصحح' : 'Graded',
+      'pending_approval': isArabic ? 'بانتظار الموافقة' : 'Pending Approval',
+      'approved': isArabic ? 'موافق' : 'Approved',
+      'rejected': isArabic ? 'مرفوض' : 'Rejected',
+      'draft': isArabic ? 'مسودة' : 'Draft'
+    };
+    return labels[status] || status;
+  };
+
+  // ===== CHECK IF SUBMISSION EXISTS =====
+  const hasSubmitted = (assessmentId) => {
+    return mySubmissions.some(s => s.assessmentId === assessmentId);
+  };
+
+  // ===== GET SUBMISSION STATUS =====
+  const getSubmissionStatus = (assessmentId) => {
+    const submission = mySubmissions.find(s => s.assessmentId === assessmentId);
+    if (!submission) return null;
+    return submission.status || 'submitted';
+  };
+
+  // ===== GET SUBMISSION GRADE =====
+  const getSubmissionGrade = (assessmentId) => {
+    // Check from submissions first
+    const submission = mySubmissions.find(s => s.assessmentId === assessmentId);
+    if (submission && (submission.grade !== undefined && submission.grade !== null)) {
+      return submission.grade;
+    }
+    // Check from student_assessments
+    const studentAssess = myAssessments.find(a => a.assessmentId === assessmentId || a.id === assessmentId);
+    if (studentAssess && studentAssess.grade !== undefined && studentAssess.grade !== null) {
+      return studentAssess.grade;
+    }
+    return null;
+  };
+
+  // ===== GET SUBMISSION REMARKS =====
+  const getSubmissionRemarks = (assessmentId) => {
+    // Check from submissions first
+    const submission = mySubmissions.find(s => s.assessmentId === assessmentId);
+    if (submission && submission.remarks) {
+      return submission.remarks;
+    }
+    // Check from student_assessments
+    const studentAssess = myAssessments.find(a => a.assessmentId === assessmentId || a.id === assessmentId);
+    if (studentAssess && studentAssess.remarks) {
+      return studentAssess.remarks;
+    }
+    return null;
+  };
+
+  // ===== GET GRADED BY =====
+  const getGradedBy = (assessmentId) => {
+    const submission = mySubmissions.find(s => s.assessmentId === assessmentId);
+    if (submission && submission.gradedBy) {
+      return submission.gradedBy;
+    }
+    const studentAssess = myAssessments.find(a => a.assessmentId === assessmentId || a.id === assessmentId);
+    if (studentAssess && studentAssess.gradedBy) {
+      return studentAssess.gradedBy;
+    }
+    return null;
+  };
+
+  // ===== HANDLE DOWNLOAD FILE =====
+  const handleDownloadFile = (item) => {
+    if (!item) {
       notify(
         isArabic ? 'لا يوجد ملف للتحميل' : 'No file to download',
         'warning'
@@ -909,14 +432,36 @@ const StudentAnnouncements = () => {
     }
 
     try {
-      const fileName = item.attachmentName || 'file';
-      const fileType = item.attachmentType || 'text/plain';
-      const fileContent = item.attachment || '';
+      // Try multiple possible content sources
+      let content = item.attachment || item.content || item.fileContent || '';
+      let fileName = item.attachmentName || item.fileName || 'file';
+      let fileType = item.attachmentType || item.fileType || 'text/plain';
+
+      // If content is not found, try to get from localStorage by id
+      if (!content && item.id) {
+        try {
+          const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
+          const found = allSubmissions.find(s => s.id === item.id);
+          if (found) {
+            content = found.attachment || found.content || found.fileContent || '';
+            fileName = found.attachmentName || found.fileName || fileName;
+            fileType = found.attachmentType || found.fileType || fileType;
+          }
+        } catch (e) {}
+      }
+
+      if (!content) {
+        notify(
+          isArabic ? '❌ لا يوجد ملف للتحميل' : '❌ No file to download',
+          'warning'
+        );
+        return;
+      }
       
       const mimeType = getMimeType(fileName, fileType);
       
-      if (fileContent && typeof fileContent === 'string' && fileContent.startsWith('data:')) {
-        const base64Data = fileContent.split(',')[1] || fileContent;
+      if (content && typeof content === 'string' && content.startsWith('data:')) {
+        const base64Data = content.split(',')[1] || content;
         const byteCharacters = atob(base64Data);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
@@ -941,1363 +486,1158 @@ const StudentAnnouncements = () => {
         return;
       }
       
-      const info = `File: ${fileName}\nType: ${getFileTypeLabelHelper(fileType)}\n\nThis is a placeholder. The actual file content is stored in the system.`;
-      const blob = new Blob([info], { type: 'text/plain' });
+      const blob = new Blob([content || 'No content available'], { type: mimeType });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${fileName}.txt`;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
       notify(
-        isArabic ? '✅ تم تحميل الملف (نسخة نصية)' : '✅ File downloaded (text version)',
+        isArabic ? '✅ تم تحميل الملف بنجاح' : '✅ File downloaded successfully',
         'success'
       );
       
     } catch (err) {
-      console.error('Error downloading attachment:', err);
+      console.error('Error downloading file:', err);
       notify(
-        isArabic ? '❌ حدث خطأ أثناء التحميل' : '❌ Error downloading',
+        isArabic ? '❌ حدث خطأ أثناء التحميل' : '❌ Error downloading file',
         'error'
       );
     }
   };
 
-  // ===== RENDER NOTIFICATION CARD =====
-  const renderNotificationCard = (notification) => {
-    const isUnread = !notification.read;
-    const timeAgo = formatDistanceToNow(new Date(notification.createdAt), { 
-      addSuffix: true,
-      locale: isArabic ? ar : enUS
-    });
+  // ===== HANDLE DELETE ASSIGNMENT =====
+  const handleDeleteAssignmentClick = (assessment) => {
+    setItemToDelete(assessment);
+    setDeleteType('assignment');
+    setShowDeleteModal(true);
+  };
+
+  // ===== HANDLE DELETE SUBMISSION =====
+  const handleDeleteSubmissionClick = (submission) => {
+    setItemToDelete(submission);
+    setDeleteType('submission');
+    setShowDeleteModal(true);
+  };
+
+  // ===== CONFIRM DELETE =====
+  const confirmDelete = () => {
+    if (!itemToDelete) return;
     
-    const title = isArabic ? (notification.titleAr || notification.title) : notification.title;
-    const message = isArabic ? (notification.messageAr || notification.message) : notification.message;
-    
-    return (
-      <div 
-        key={notification.id} 
-        className={`notification-item ${isUnread ? 'unread' : 'read'}`}
-        style={{
-          background: darkMode ? '#1a1a2e' : '#ffffff',
-          border: `1px solid ${isUnread ? '#c49a6c' : darkMode ? '#2d2d44' : '#e9ecef'}`,
-          borderRadius: '12px',
-          padding: '16px 20px',
-          marginBottom: '12px',
-          transition: 'all 0.3s ease',
-          cursor: 'pointer',
-          borderLeft: isUnread ? '4px solid #c49a6c' : '4px solid transparent'
-        }}
-        onClick={() => {
-          markAsRead(notification.id);
-          if (notification.link) {
-            navigate(notification.link);
+    setDeleting(true);
+    try {
+      const studentId = getStudentId();
+      
+      if (deleteType === 'assignment') {
+        // Delete assignment from student_assessments
+        const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
+        const updatedAssessments = studentAssessments.filter(a => 
+          !(a.assessmentId === itemToDelete.assessmentId && a.studentId === studentId)
+        );
+        localStorage.setItem('student_assessments', JSON.stringify(updatedAssessments));
+        
+        // Also remove from student_assessments_by_student if exists
+        try {
+          const studentAssessmentsByStudent = JSON.parse(localStorage.getItem('student_assessments_by_student') || '{}');
+          if (studentAssessmentsByStudent[studentId]) {
+            studentAssessmentsByStudent[studentId] = studentAssessmentsByStudent[studentId].filter(a => 
+              a.assessmentId !== itemToDelete.assessmentId
+            );
+            localStorage.setItem('student_assessments_by_student', JSON.stringify(studentAssessmentsByStudent));
           }
-        }}
-      >
-        <div className="d-flex justify-content-between align-items-start">
-          <div className="d-flex align-items-start gap-3">
-            <div 
-              className="notification-icon"
-              style={{
-                background: isUnread ? 'rgba(196, 154, 108, 0.15)' : 'rgba(108, 117, 125, 0.1)',
-                borderRadius: '50%',
-                width: '40px',
-                height: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                color: isUnread ? '#c49a6c' : '#6c757d'
-              }}
-            >
-              {notification.type === 'announcement' ? <FaBullhorn /> :
-               notification.type === 'event' ? <FaCalendarAlt /> :
-               notification.type === 'exam' ? <FaCheckCircle /> :
-               notification.type === 'meeting' ? <FaUsers /> :
-               notification.type === 'assessment' ? <FaFileAlt /> :
-               notification.type === 'submission' ? <FaUpload /> :
-               <FaBell />}
-            </div>
-            <div className="flex-grow-1">
-              <div className="d-flex align-items-center gap-2 flex-wrap">
-                <h6 className="mb-0 fw-bold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                  {title}
-                </h6>
-                {isUnread && (
-                  <Badge style={{ background: '#c49a6c', color: 'white', borderRadius: '50px', fontSize: '0.6rem' }}>
-                    {isArabic ? 'جديد' : 'New'}
-                  </Badge>
-                )}
-                {notification.priority === 'high' && (
-                  <Badge style={{ background: '#e74c3c', color: 'white', borderRadius: '50px', fontSize: '0.6rem' }}>
-                    {isArabic ? 'عاجل' : 'Urgent'}
-                  </Badge>
-                )}
-                {notification.type === 'submission' && (
-                  <Badge style={{ background: '#2ecc71', color: 'white', borderRadius: '50px', fontSize: '0.55rem' }}>
-                    {isArabic ? 'تم التقديم' : 'Submitted'}
-                  </Badge>
-                )}
-              </div>
-              <p className="mb-1" style={{ color: darkMode ? '#adb5bd' : '#6c757d', fontSize: '0.9rem' }}>
-                {message}
-              </p>
-              <small style={{ color: darkMode ? '#6c757d' : '#adb5bd', fontSize: '0.7rem' }}>
-                <FaClock className="me-1" /> {timeAgo}
-                {notification.author && (
-                  <> · <FaUser className="me-1" /> {notification.author}</>
-                )}
-              </small>
-            </div>
-          </div>
-          {!notification.read && (
-            <Button 
-              variant="link" 
-              size="sm" 
-              className="p-0 text-muted"
-              onClick={(e) => {
-                e.stopPropagation();
-                markAsRead(notification.id);
-              }}
-              style={{ fontSize: '0.7rem' }}
-            >
-              {isArabic ? 'تحديد كمقروء' : 'Mark read'}
-            </Button>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // ===== RENDER ANNOUNCEMENT CARD =====
-  const renderAnnouncementCard = (item) => {
-    const typeColor = getTypeColorLocal(item.type);
-    const priorityColor = getPriorityColorLocal(item.priority);
-    const title = getTranslatedTitle(item);
-    const content = getTranslatedContent(item);
-    const timeAgo = formatDistanceToNow(new Date(item.date || item.createdAt || item.sentAt), { 
-      addSuffix: true,
-      locale: isArabic ? ar : enUS
-    });
-    const isUrgent = item.priority === 'high';
-    const isAssessment = item.type === 'assessment';
-    const isSubmitted = item.submitted || false;
-    const isGraded = item.grade !== null && item.grade !== undefined;
-    
-    // Determine card border color based on status
-    let borderColor = darkMode ? '#2d2d44' : '#e9ecef';
-    let statusBadgeColor = '#6c757d';
-    let statusText = '';
-    let statusIcon = null;
-    
-    if (isAssessment) {
-      if (isGraded) {
-        borderColor = '#2ecc71';
-        statusBadgeColor = '#2ecc71';
-        statusText = isArabic ? '✅ مصحح' : '✅ Graded';
-        statusIcon = <FaCheckCircle className="text-success" />;
-      } else if (isSubmitted) {
-        borderColor = '#f39c12';
-        statusBadgeColor = '#f39c12';
-        statusText = isArabic ? '⏳ مقدم - بانتظار التصحيح' : '⏳ Submitted - Pending Grading';
-        statusIcon = <FaClock className="text-warning" />;
+        } catch (e) {}
+        
+        // If there's a submission for this assignment, delete it too
+        const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
+        const updatedSubmissions = allSubmissions.filter(s => 
+          !(s.assessmentId === itemToDelete.assessmentId && s.studentId === studentId)
+        );
+        localStorage.setItem('school_submissions', JSON.stringify(updatedSubmissions));
+        
+        // Remove from local state
+        setMyAssessments(prev => prev.filter(a => a.assessmentId !== itemToDelete.assessmentId));
+        setFilteredAssessments(prev => prev.filter(a => a.assessmentId !== itemToDelete.assessmentId));
+        setMySubmissions(prev => prev.filter(s => s.assessmentId !== itemToDelete.assessmentId));
+        setFilteredSubmissions(prev => prev.filter(s => s.assessmentId !== itemToDelete.assessmentId));
+        
+        notify(
+          isArabic ? `✅ تم حذف التقييم "${itemToDelete.title}" بنجاح` : `✅ Assessment "${itemToDelete.title}" deleted successfully`,
+          'success'
+        );
+        
       } else {
-        borderColor = '#4a9eff';
-        statusBadgeColor = '#4a9eff';
-        statusText = isArabic ? '📝 غير مقدم' : '📝 Not Submitted';
-        statusIcon = <FaFileAlt className="text-primary" />;
+        // Delete submission
+        const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
+        const updatedSubmissions = allSubmissions.filter(s => s.id !== itemToDelete.id);
+        localStorage.setItem('school_submissions', JSON.stringify(updatedSubmissions));
+        
+        // Update student_assessments status back to pending
+        const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
+        const assessIndex = studentAssessments.findIndex(a => 
+          a.assessmentId === itemToDelete.assessmentId && a.studentId === studentId
+        );
+        if (assessIndex !== -1) {
+          studentAssessments[assessIndex].status = 'pending';
+          studentAssessments[assessIndex].submittedAt = null;
+          studentAssessments[assessIndex].grade = null;
+          studentAssessments[assessIndex].remarks = null;
+          localStorage.setItem('student_assessments', JSON.stringify(studentAssessments));
+        }
+        
+        // Also remove any admin notifications related to this submission
+        const adminNotifications = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
+        const updatedAdminNotifs = adminNotifications.filter(n => n.submissionId !== itemToDelete.id);
+        localStorage.setItem('admin_notifications', JSON.stringify(updatedAdminNotifs));
+        
+        // Remove from admin seen submissions
+        const seenSubmissions = JSON.parse(localStorage.getItem('admin_seen_submissions') || '[]');
+        const updatedSeen = seenSubmissions.filter(s => s.submissionId !== itemToDelete.id);
+        localStorage.setItem('admin_seen_submissions', JSON.stringify(updatedSeen));
+        
+        // Remove from local state
+        setMySubmissions(prev => prev.filter(s => s.id !== itemToDelete.id));
+        setFilteredSubmissions(prev => prev.filter(s => s.id !== itemToDelete.id));
+        
+        // Update the assessment status in local state
+        setMyAssessments(prev => prev.map(a => {
+          if (a.assessmentId === itemToDelete.assessmentId) {
+            return { ...a, status: 'pending', hasSubmitted: false, submissionData: null, grade: null, remarks: null, isGraded: false };
+          }
+          return a;
+        }));
+        setFilteredAssessments(prev => prev.map(a => {
+          if (a.assessmentId === itemToDelete.assessmentId) {
+            return { ...a, status: 'pending', hasSubmitted: false, submissionData: null, grade: null, remarks: null, isGraded: false };
+          }
+          return a;
+        }));
+        
+        notify(
+          isArabic ? '✅ تم حذف التقديم بنجاح' : '✅ Submission deleted successfully',
+          'success'
+        );
       }
+      
+      setShowDeleteModal(false);
+      setItemToDelete(null);
+      setDeleting(false);
+      loadData();
+      
+      window.dispatchEvent(new CustomEvent('submissionChanged', { 
+        detail: { action: 'delete', id: itemToDelete.id || itemToDelete.assessmentId }
+      }));
+      
+    } catch (err) {
+      console.error('Error deleting:', err);
+      notify(
+        isArabic ? '❌ حدث خطأ أثناء الحذف' : '❌ Error deleting',
+        'error'
+      );
+      setDeleting(false);
     }
-    
-    return (
-      <Col key={item.id} xs={12} md={6} lg={4}>
-        <div 
-          className="announcement-card h-100"
-          style={{
-            background: darkMode ? '#1a1a2e' : '#ffffff',
-            border: `2px solid ${isUrgent ? '#e74c3c' : borderColor}`,
-            borderRadius: '16px',
-            padding: '20px',
-            transition: 'all 0.3s ease',
-            cursor: 'pointer',
-            height: '100%',
-            position: 'relative',
-            overflow: 'hidden'
-          }}
-          onClick={() => viewAnnouncement(item)}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'translateY(-4px)';
-            e.currentTarget.style.boxShadow = '0 12px 40px rgba(0,0,0,0.1)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
-        >
-          {/* Delete Button */}
-          <Button
-            variant="danger"
-            size="sm"
-            className="delete-btn"
-            onClick={(e) => handleDeleteClick(item, e)}
-            style={{
-              position: 'absolute',
-              top: '8px',
-              right: isArabic ? 'auto' : '8px',
-              left: isArabic ? '8px' : 'auto',
-              zIndex: 20,
-              borderRadius: '50%',
-              width: '32px',
-              height: '32px',
-              padding: '0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: 0.5,
-              transition: 'all 0.3s ease',
-              background: darkMode 
-                ? 'rgba(220, 53, 69, 0.2)' 
-                : 'rgba(220, 53, 69, 0.1)',
-              border: 'none',
-              color: '#dc3545',
-              fontSize: '0.8rem',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#dc3545';
-              e.currentTarget.style.color = 'white';
-              e.currentTarget.style.transform = 'scale(1.1)';
-              e.currentTarget.style.opacity = '1';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = darkMode 
-                ? 'rgba(220, 53, 69, 0.2)' 
-                : 'rgba(220, 53, 69, 0.1)';
-              e.currentTarget.style.color = '#dc3545';
-              e.currentTarget.style.transform = 'scale(1)';
-              e.currentTarget.style.opacity = '0.5';
-            }}
-            title={isArabic ? 'حذف' : 'Delete'}
-          >
-            <FaTrash size={14} />
-          </Button>
-
-          {isUrgent && (
-            <div 
-              className="urgent-badge"
-              style={{
-                position: 'absolute',
-                top: '0',
-                right: isArabic ? 'auto' : '0',
-                left: isArabic ? '0' : 'auto',
-                background: '#e74c3c',
-                color: 'white',
-                padding: '4px 16px',
-                fontSize: '0.65rem',
-                fontWeight: 'bold',
-                borderRadius: '0 0 8px 8px'
-              }}
-            >
-              ⚡ {isArabic ? 'عاجل' : 'URGENT'}
-            </div>
-          )}
-          
-          {/* Assessment Status Badge - VISIBLE INDICATOR */}
-          {isAssessment && (
-            <div 
-              className="assessment-status-badge"
-              style={{
-                position: 'absolute',
-                top: '0',
-                right: isArabic ? 'auto' : '0',
-                left: isArabic ? '0' : 'auto',
-                background: isGraded ? '#2ecc71' : isSubmitted ? '#f39c12' : '#4a9eff',
-                color: 'white',
-                padding: '4px 16px',
-                fontSize: '0.65rem',
-                fontWeight: 'bold',
-                borderRadius: '0 0 8px 8px'
-              }}
-            >
-              {isGraded ? '✓ ' + (isArabic ? 'مصحح' : 'Graded') : 
-               isSubmitted ? (isArabic ? '✓ مقدم' : '✓ Submitted') : 
-               (isArabic ? '✗ غير مقدم' : '✗ Not Submitted')}
-            </div>
-          )}
-          
-          <div className="d-flex justify-content-between align-items-start mb-2">
-            <div className="d-flex align-items-center gap-2">
-              <div 
-                className="type-icon"
-                style={{
-                  background: `${typeColor}20`,
-                  borderRadius: '50%',
-                  width: '36px',
-                  height: '36px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: typeColor
-                }}
-              >
-                {getTypeIconLocal(item.type)}
-              </div>
-              <Badge 
-                style={{ 
-                  background: priorityColor,
-                  color: 'white',
-                  borderRadius: '50px',
-                  fontSize: '0.6rem'
-                }}
-              >
-                {getPriorityLabelLocal(item.priority)}
-              </Badge>
-              {isAssessment && (
-                <Badge 
-                  style={{ 
-                    background: statusBadgeColor,
-                    color: 'white',
-                    borderRadius: '50px',
-                    fontSize: '0.55rem'
-                  }}
-                >
-                  {statusIcon} {isSubmitted ? (isArabic ? 'مقدم' : 'Submitted') : (isArabic ? 'غير مقدم' : 'Not Submitted')}
-                </Badge>
-              )}
-            </div>
-            <small style={{ color: darkMode ? '#6c757d' : '#adb5bd', fontSize: '0.65rem' }}>
-              <FaClock className="me-1" /> {timeAgo}
-            </small>
-          </div>
-          
-          <h5 
-            className="fw-bold mb-2"
-            style={{ 
-              color: darkMode ? '#e9ecef' : '#212529',
-              fontSize: isMobile ? '0.95rem' : '1.1rem',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-              paddingRight: isArabic ? '0' : '32px',
-              paddingLeft: isArabic ? '32px' : '0'
-            }}
-          >
-            {title}
-          </h5>
-          
-          <p 
-            className="mb-3"
-            style={{ 
-              color: darkMode ? '#adb5bd' : '#6c757d',
-              fontSize: '0.9rem',
-              display: '-webkit-box',
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden'
-            }}
-          >
-            {content}
-          </p>
-          
-          {/* Assessment specific info */}
-          {isAssessment && (
-            <div className="assessment-info mb-2">
-              <div className="d-flex gap-3 flex-wrap">
-                <small style={{ color: darkMode ? '#6c757d' : '#adb5bd', fontSize: '0.65rem' }}>
-                  <FaChalkboardTeacher className="me-1" />
-                  {item.teacherName || 'Teacher'}
-                </small>
-                {item.dueDate && (
-                  <small style={{ color: darkMode ? '#6c757d' : '#adb5bd', fontSize: '0.65rem' }}>
-                    <FaCalendarAlt className="me-1" />
-                    {isArabic ? 'تاريخ التسليم: ' : 'Due: '}
-                    {new Date(item.dueDate).toLocaleDateString()}
-                  </small>
-                )}
-                {item.totalMarks && (
-                  <small style={{ color: darkMode ? '#6c757d' : '#adb5bd', fontSize: '0.65rem' }}>
-                    <FaStar className="me-1" />
-                    {isArabic ? 'الدرجة: ' : 'Marks: '}
-                    {item.totalMarks}
-                  </small>
-                )}
-                {isGraded && (
-                  <small style={{ color: '#2ecc71', fontSize: '0.65rem', fontWeight: 'bold' }}>
-                    <FaCheckCircle className="me-1" />
-                    {isArabic ? `النتيجة: ${item.grade}/${item.totalMarks}` : `Grade: ${item.grade}/${item.totalMarks}`}
-                  </small>
-                )}
-              </div>
-            </div>
-          )}
-          
-          <div className="d-flex justify-content-between align-items-center mt-auto pt-2 border-top" style={{ borderColor: darkMode ? '#2d2d44' : '#e9ecef' }}>
-            <div className="d-flex gap-2">
-              {item.type !== 'assessment' && (
-                <>
-                  <small style={{ color: darkMode ? '#6c757d' : '#adb5bd', fontSize: '0.65rem' }}>
-                    <FaEye className="me-1" /> {formatNumber(item.views || 0)}
-                  </small>
-                  <small style={{ color: darkMode ? '#6c757d' : '#adb5bd', fontSize: '0.65rem' }}>
-                    <FaThumbsUp className="me-1" /> {formatNumber(item.likes || 0)}
-                  </small>
-                </>
-              )}
-            </div>
-            <div className="d-flex gap-1">
-              {isAssessment && !isSubmitted && (
-                <Button 
-                  variant="success" 
-                  size="sm"
-                  className="px-2"
-                  style={{ fontSize: '0.65rem', borderRadius: '8px' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSubmitAssessment(item);
-                  }}
-                >
-                  <FaUpload className="me-1" size={10} />
-                  {isArabic ? 'تقديم' : 'Submit'}
-                </Button>
-              )}
-              {isAssessment && isSubmitted && !isGraded && (
-                <Badge bg="warning" className="px-2 py-1 d-flex align-items-center gap-1" style={{ fontSize: '0.6rem' }}>
-                  <FaClock size={10} />
-                  {isArabic ? 'بانتظار التصحيح' : 'Pending Grading'}
-                </Badge>
-              )}
-              {isAssessment && isGraded && (
-                <Badge bg="success" className="px-2 py-1 d-flex align-items-center gap-1" style={{ fontSize: '0.6rem' }}>
-                  <FaCheckCircle size={10} />
-                  {isArabic ? `الدرجة: ${item.grade}/${item.totalMarks}` : `Grade: ${item.grade}/${item.totalMarks}`}
-                </Badge>
-              )}
-              <Button 
-                variant="link" 
-                size="sm" 
-                className="p-0 text-decoration-none"
-                style={{ color: '#c49a6c', fontSize: '0.75rem' }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  viewAnnouncement(item);
-                }}
-              >
-                {isArabic ? 'اقرأ المزيد' : 'Read More'} <FaArrowRight className="ms-1" size={10} />
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Col>
-    );
   };
 
-  // ===== LOADING STATE =====
+  // ===== HANDLE SUBMIT ASSESSMENT =====
+  const handleSubmitClick = (assessment) => {
+    setSelectedAssessment(assessment);
+    setSubmissionText('');
+    setSubmissionFile(null);
+    setSubmissionFilePreview(null);
+    setShowSubmitModal(true);
+  };
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        notify(
+          isArabic ? 'حجم الملف كبير جداً. الحد الأقصى هو 10 ميجابايت' : 'File size is too large. Maximum is 10MB',
+          'error'
+        );
+        return;
+      }
+      setSubmissionFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSubmissionFilePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const confirmSubmit = () => {
+    if (!selectedAssessment) return;
+    
+    setSubmitting(true);
+    try {
+      const studentId = getStudentId();
+      const studentName = getStudentName();
+      
+      // Create submission
+      const submissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
+      
+      const newSubmission = {
+        id: `SUB_${Date.now()}`,
+        assessmentId: selectedAssessment.assessmentId || selectedAssessment.id,
+        studentId: studentId,
+        studentName: studentName,
+        teacherId: selectedAssessment.teacherId,
+        teacherName: selectedAssessment.teacherName,
+        title: selectedAssessment.title,
+        subject: selectedAssessment.subject,
+        type: selectedAssessment.type,
+        className: selectedAssessment.className,
+        content: submissionText || '',
+        status: 'submitted',
+        submittedAt: new Date().toISOString(),
+        forwardedToTeacher: false,
+        forwardedAt: null,
+        fileName: submissionFile ? submissionFile.name : null,
+        fileType: submissionFile ? submissionFile.type : null,
+        attachment: submissionFilePreview || null,
+        grade: null,
+        remarks: null,
+        gradedAt: null,
+        gradedBy: null
+      };
+      
+      submissions.push(newSubmission);
+      localStorage.setItem('school_submissions', JSON.stringify(submissions));
+      
+      // Update student_assessments to reflect submission
+      const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
+      const assessIndex = studentAssessments.findIndex(a => 
+        (a.assessmentId === selectedAssessment.assessmentId || a.id === selectedAssessment.id) && 
+        a.studentId === studentId
+      );
+      if (assessIndex !== -1) {
+        studentAssessments[assessIndex].status = 'submitted';
+        studentAssessments[assessIndex].submittedAt = new Date().toISOString();
+        localStorage.setItem('student_assessments', JSON.stringify(studentAssessments));
+      }
+      
+      // Create notification for teacher
+      const teacherNotifications = JSON.parse(localStorage.getItem('teacher_notifications') || '[]');
+      teacherNotifications.push({
+        id: `TEACH_NOTIF_${Date.now()}`,
+        type: 'new_submission',
+        title: isArabic ? `📝 تقديم جديد من طالب` : `📝 New submission from student`,
+        message: isArabic 
+          ? `الطالب ${studentName} قدم تقييم "${selectedAssessment.title}"`
+          : `Student ${studentName} submitted "${selectedAssessment.title}"`,
+        studentId: studentId,
+        studentName: studentName,
+        assessmentId: selectedAssessment.assessmentId || selectedAssessment.id,
+        assessmentTitle: selectedAssessment.title,
+        submissionId: newSubmission.id,
+        read: false,
+        createdAt: new Date().toISOString(),
+        link: `/dashboard/teacher/assessments`
+      });
+      localStorage.setItem('teacher_notifications', JSON.stringify(teacherNotifications));
+      
+      // Also create notification for admin (so admin can see submission)
+      const adminNotifications = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
+      adminNotifications.push({
+        id: `ADMIN_NOTIF_${Date.now()}`,
+        type: 'student_submission',
+        title: isArabic ? `📝 تقديم جديد من طالب` : `📝 New student submission`,
+        message: isArabic 
+          ? `الطالب ${studentName} قدم تقييم "${selectedAssessment.title}" للمعلم ${selectedAssessment.teacherName}`
+          : `Student ${studentName} submitted "${selectedAssessment.title}" to teacher ${selectedAssessment.teacherName}`,
+        studentId: studentId,
+        studentName: studentName,
+        teacherId: selectedAssessment.teacherId,
+        teacherName: selectedAssessment.teacherName,
+        assessmentId: selectedAssessment.assessmentId || selectedAssessment.id,
+        assessmentTitle: selectedAssessment.title,
+        submissionId: newSubmission.id,
+        read: false,
+        createdAt: new Date().toISOString(),
+        link: `/dashboard/admin/assessments`
+      });
+      localStorage.setItem('admin_notifications', JSON.stringify(adminNotifications));
+      
+      // Update admin seen submissions
+      const seenSubmissions = JSON.parse(localStorage.getItem('admin_seen_submissions') || '[]');
+      seenSubmissions.push({
+        submissionId: newSubmission.id,
+        seenAt: new Date().toISOString()
+      });
+      localStorage.setItem('admin_seen_submissions', JSON.stringify(seenSubmissions));
+      
+      notify(
+        isArabic ? '✅ تم تقديم التقييم بنجاح' : '✅ Assessment submitted successfully',
+        'success'
+      );
+      
+      setShowSubmitModal(false);
+      setSubmitting(false);
+      loadData();
+      
+      window.dispatchEvent(new CustomEvent('submissionChanged', { 
+        detail: { submission: newSubmission }
+      }));
+      window.dispatchEvent(new CustomEvent('notificationAdded', { 
+        detail: { type: 'new_submission', submission: newSubmission }
+      }));
+      window.dispatchEvent(new CustomEvent('studentSubmission', { 
+        detail: { submission: newSubmission }
+      }));
+      
+    } catch (err) {
+      console.error('Error submitting assessment:', err);
+      notify(
+        isArabic ? '❌ حدث خطأ أثناء التقديم' : '❌ Error submitting assessment',
+        'error'
+      );
+      setSubmitting(false);
+    }
+  };
+
+  // ===== FORMAT DATE =====
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    } catch {
+      return dateString;
+    }
+  };
+
+  // ===== GET STATUS SUMMARY =====
+  const getStats = () => {
+    const total = myAssessments.length;
+    const pending = myAssessments.filter(a => a.status === 'pending' || a.status === 'sent_to_students').length;
+    const submitted = mySubmissions.filter(s => s.status === 'submitted' || s.status === 'pending').length;
+    const graded = mySubmissions.filter(s => s.status === 'graded' || (s.grade !== null && s.grade !== undefined)).length;
+    
+    return { total, pending, submitted, graded };
+  };
+
+  // ===== RENDER LOADING =====
   if (loading) {
     return (
-      <div className="text-center py-5" dir={isArabic ? 'rtl' : 'ltr'}>
+      <div className="text-center py-5">
         <div className="spinner-border text-primary" role="status" style={{ width: '3rem', height: '3rem' }}>
           <span className="visually-hidden">Loading...</span>
         </div>
         <p className="mt-3 text-muted" style={arabicFontStyle}>
-          {isArabic ? 'جاري تحميل الإعلانات...' : 'Loading announcements...'}
+          {isArabic ? 'جاري تحميل التقييمات...' : 'Loading assessments...'}
         </p>
       </div>
     );
   }
 
-  // ===== FILTERED ASSESSMENTS BY STATUS =====
-  const pendingAssessments = teacherAssessments.filter(a => !a.submitted && !a.grade);
-  const submittedAssessments = teacherAssessments.filter(a => a.submitted && !a.grade);
-  const gradedAssessments = teacherAssessments.filter(a => a.grade !== null && a.grade !== undefined);
+  const stats = getStats();
 
   return (
     <div className="student-announcements" dir={isArabic ? 'rtl' : 'ltr'}>
-      {/* Audio for notifications */}
-      <audio ref={notificationSound} style={{ display: 'none' }}>
-        <source src="/notification.mp3" type="audio/mpeg" />
-      </audio>
-
-      {/* Page Header */}
-      <div className="page-header d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
-        <div>
-          <h4 className="fw-bold mb-1" style={{ ...arabicFontStyle, color: '#c49a6c', fontSize: isArabic ? 'clamp(1.1rem, 1.8vw, 1.5rem)' : 'clamp(1rem, 1.6vw, 1.4rem)' }}>
-            <FaBell className="me-2" /> 
-            {isArabic ? 'الإعلانات والإشعارات' : 'Announcements & Notifications'}
-          </h4>
-          <p className="text-muted mb-0" style={{ ...arabicFontStyle, fontSize: isArabic ? 'clamp(0.9rem, 1.1vw, 1.05rem)' : 'clamp(0.85rem, 1vw, 1rem)' }}>
+      {/* ===== PAGE HEADER ===== */}
+      <div className="d-flex flex-wrap flex-sm-nowrap justify-content-between align-items-center gap-2 gap-md-3 mb-3 mb-md-4">
+        <div className="flex-grow-1 min-width-0">
+          <div className="d-flex align-items-center gap-2">
+            <h4 className="fw-bold mb-0 mb-sm-1" style={{ 
+              ...arabicFontStyle, 
+              color: '#4a9eff', 
+              fontSize: isArabic ? 'clamp(1rem, 2vw, 1.5rem)' : 'clamp(0.95rem, 1.8vw, 1.4rem)' 
+            }}>
+              <FaFileAlt className="me-2" /> 
+              {isArabic ? 'تقييماتي' : 'My Assessments'}
+            </h4>
+          </div>
+          <p className="text-muted mb-0 d-none d-sm-block" style={{ 
+            ...arabicFontStyle, 
+            fontSize: isArabic ? 'clamp(0.8rem, 1vw, 0.95rem)' : 'clamp(0.75rem, 0.9vw, 0.9rem)' 
+          }}>
             {isArabic 
-              ? `ابق على اطلاع بآخر الإعلانات والتقييمات (${formatNumber(totalItems)} عنصر)`
-              : `Stay updated with the latest announcements and assessments (${formatNumber(totalItems)} items)`}
+              ? `عرض وإدارة التقييمات والتقديمات الخاصة بك`
+              : `View and manage your assessments and submissions`}
           </p>
         </div>
-        <div className="d-flex gap-2 flex-wrap">
-          {unreadCount > 0 && (
-            <Badge 
-              style={{ 
-                background: '#c49a6c', 
-                color: 'white', 
-                borderRadius: '50px',
-                padding: '8px 16px',
-                fontSize: '0.8rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}
-            >
-              <FaBell className={unreadCount > 0 ? 'animate-pulse' : ''} />
-              {isArabic ? `${formatNumber(unreadCount)} إشعار جديد` : `${formatNumber(unreadCount)} new notification${unreadCount > 1 ? 's' : ''}`}
-            </Badge>
-          )}
+        <div className="d-flex gap-1 gap-sm-2 flex-wrap flex-shrink-0">
           <Button 
             variant="outline-primary" 
             size="sm" 
-            onClick={loadData}
-            style={{ ...arabicFontStyle, borderRadius: '12px' }}
+            onClick={handleRefresh}
+            disabled={refreshing}
+            style={{ 
+              ...arabicFontStyle, 
+              borderRadius: '12px',
+              fontSize: isArabic ? 'clamp(0.65rem, 0.8vw, 0.85rem)' : 'clamp(0.6rem, 0.75vw, 0.8rem)',
+              padding: isMobile ? '4px 8px' : '4px 12px'
+            }}
           >
-            <FaSync className="me-1" /> {isArabic ? 'تحديث' : 'Refresh'}
+            <FaSync className={refreshing ? 'spinning' : ''} /> 
+            <span className="d-none d-sm-inline">{isArabic ? 'تحديث' : 'Refresh'}</span>
           </Button>
         </div>
       </div>
 
-      {/* Assessment Status Summary Cards */}
-      {teacherAssessments.length > 0 && (
-        <Row className="g-2 g-md-3 mb-4">
-          <Col xs={6} sm={4} md={3}>
-            <div className="stat-summary-card" style={{
-              background: darkMode ? '#1a1a2e' : '#ffffff',
-              border: '2px solid #4a9eff',
-              borderRadius: '12px',
-              padding: '12px 16px',
-              textAlign: 'center'
-            }}>
-              <div className="stat-number" style={{ fontSize: '1.5rem', fontWeight: '700', color: '#4a9eff' }}>
-                {formatNumber(pendingAssessments.length)}
-              </div>
-              <div className="stat-label" style={{ fontSize: '0.65rem', color: '#6c757d' }}>
-                {isArabic ? 'غير مقدم' : 'Not Submitted'}
-              </div>
+      {/* ===== STATS SUMMARY ===== */}
+      <Row className="g-2 g-sm-3 mb-3 mb-md-4">
+        <Col xs={6} sm={3}>
+          <div className="stat-card-mini" style={{ 
+            background: darkMode ? '#1a1a2e' : '#ffffff',
+            border: `1px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`,
+            borderRadius: '12px',
+            padding: '12px 16px',
+            textAlign: 'center'
+          }}>
+            <div className="stat-number-mini" style={{ fontSize: '1.5rem', fontWeight: '700', color: '#4a9eff' }}>
+              {formatNumber(stats.total)}
             </div>
-          </Col>
-          <Col xs={6} sm={4} md={3}>
-            <div className="stat-summary-card" style={{
-              background: darkMode ? '#1a1a2e' : '#ffffff',
-              border: '2px solid #f39c12',
-              borderRadius: '12px',
-              padding: '12px 16px',
-              textAlign: 'center'
-            }}>
-              <div className="stat-number" style={{ fontSize: '1.5rem', fontWeight: '700', color: '#f39c12' }}>
-                {formatNumber(submittedAssessments.length)}
-              </div>
-              <div className="stat-label" style={{ fontSize: '0.65rem', color: '#6c757d' }}>
-                {isArabic ? 'مقدم - بانتظار التصحيح' : 'Submitted - Pending'}
-              </div>
+            <div className="stat-label-mini" style={{ fontSize: '0.7rem', color: '#6c757d' }}>
+              {isArabic ? 'إجمالي التقييمات' : 'Total Assessments'}
             </div>
-          </Col>
-          <Col xs={6} sm={4} md={3}>
-            <div className="stat-summary-card" style={{
-              background: darkMode ? '#1a1a2e' : '#ffffff',
-              border: '2px solid #2ecc71',
-              borderRadius: '12px',
-              padding: '12px 16px',
-              textAlign: 'center'
-            }}>
-              <div className="stat-number" style={{ fontSize: '1.5rem', fontWeight: '700', color: '#2ecc71' }}>
-                {formatNumber(gradedAssessments.length)}
-              </div>
-              <div className="stat-label" style={{ fontSize: '0.65rem', color: '#6c757d' }}>
-                {isArabic ? 'مصحح' : 'Graded'}
-              </div>
+          </div>
+        </Col>
+        <Col xs={6} sm={3}>
+          <div className="stat-card-mini" style={{ 
+            background: darkMode ? '#1a1a2e' : '#ffffff',
+            border: `1px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`,
+            borderRadius: '12px',
+            padding: '12px 16px',
+            textAlign: 'center'
+          }}>
+            <div className="stat-number-mini" style={{ fontSize: '1.5rem', fontWeight: '700', color: '#f39c12' }}>
+              {formatNumber(stats.pending)}
             </div>
-          </Col>
-          <Col xs={6} sm={4} md={3}>
-            <div className="stat-summary-card" style={{
-              background: darkMode ? '#1a1a2e' : '#ffffff',
-              border: '2px solid #9b59b6',
-              borderRadius: '12px',
-              padding: '12px 16px',
-              textAlign: 'center'
-            }}>
-              <div className="stat-number" style={{ fontSize: '1.5rem', fontWeight: '700', color: '#9b59b6' }}>
-                {formatNumber(teacherAssessments.length)}
-              </div>
-              <div className="stat-label" style={{ fontSize: '0.65rem', color: '#6c757d' }}>
-                {isArabic ? 'الإجمالي' : 'Total'}
-              </div>
+            <div className="stat-label-mini" style={{ fontSize: '0.7rem', color: '#6c757d' }}>
+              {isArabic ? 'بانتظار التقديم' : 'Pending Submission'}
             </div>
-          </Col>
-        </Row>
+          </div>
+        </Col>
+        <Col xs={6} sm={3}>
+          <div className="stat-card-mini" style={{ 
+            background: darkMode ? '#1a1a2e' : '#ffffff',
+            border: `1px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`,
+            borderRadius: '12px',
+            padding: '12px 16px',
+            textAlign: 'center'
+          }}>
+            <div className="stat-number-mini" style={{ fontSize: '1.5rem', fontWeight: '700', color: '#2ecc71' }}>
+              {formatNumber(stats.submitted)}
+            </div>
+            <div className="stat-label-mini" style={{ fontSize: '0.7rem', color: '#6c757d' }}>
+              {isArabic ? 'تم التقديم' : 'Submitted'}
+            </div>
+          </div>
+        </Col>
+        <Col xs={6} sm={3}>
+          <div className="stat-card-mini" style={{ 
+            background: darkMode ? '#1a1a2e' : '#ffffff',
+            border: `1px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`,
+            borderRadius: '12px',
+            padding: '12px 16px',
+            textAlign: 'center'
+          }}>
+            <div className="stat-number-mini" style={{ fontSize: '1.5rem', fontWeight: '700', color: '#9b59b6' }}>
+              {formatNumber(stats.graded)}
+            </div>
+            <div className="stat-label-mini" style={{ fontSize: '0.7rem', color: '#6c757d' }}>
+              {isArabic ? 'مصحح' : 'Graded'}
+            </div>
+          </div>
+        </Col>
+      </Row>
+
+      {/* ===== SEARCH AND FILTERS ===== */}
+      <Card className="modern-card mb-4" style={{ background: darkMode ? '#1a1a2e' : '#ffffff', borderColor: darkMode ? '#2d2d44' : '#e9ecef' }}>
+        <Card.Body className="p-3 p-md-4">
+          <Row className="g-2 g-md-3">
+            <Col xs={12} md={8}>
+              <div className="position-relative">
+                <FaSearch className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
+                <Form.Control
+                  type="text"
+                  placeholder={isArabic ? 'بحث عن تقييم، معلم، مادة...' : 'Search assessments, teachers, subjects...'}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="ps-5"
+                  style={{
+                    ...arabicFontStyle,
+                    background: darkMode ? '#2d2d44' : 'white',
+                    color: darkMode ? '#e9ecef' : '#212529',
+                    borderRadius: '12px',
+                    borderColor: darkMode ? '#2d2d44' : '#e9ecef',
+                  }}
+                />
+              </div>
+            </Col>
+            <Col xs={6} md={3}>
+              <Form.Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                style={{
+                  ...arabicFontStyle,
+                  background: darkMode ? '#2d2d44' : 'white',
+                  color: darkMode ? '#e9ecef' : '#212529',
+                  borderRadius: '12px',
+                  borderColor: darkMode ? '#2d2d44' : '#e9ecef',
+                }}
+              >
+                <option value="all">{isArabic ? 'جميع الحالات' : 'All Status'}</option>
+                <option value="pending">{isArabic ? 'بانتظار' : 'Pending'}</option>
+                <option value="sent_to_students">{isArabic ? 'مرسل' : 'Sent'}</option>
+                <option value="submitted">{isArabic ? 'مقدم' : 'Submitted'}</option>
+                <option value="graded">{isArabic ? 'مصحح' : 'Graded'}</option>
+                <option value="closed">{isArabic ? 'مغلق' : 'Closed'}</option>
+              </Form.Select>
+            </Col>
+            <Col xs={6} md={1}>
+              <Button 
+                variant="outline-secondary" 
+                size="sm" 
+                className="w-100"
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('all');
+                }}
+                style={{ ...arabicFontStyle, borderRadius: '12px' }}
+              >
+                <FaFilter className="me-1" /> {isArabic ? 'مسح' : 'Clear'}
+              </Button>
+            </Col>
+          </Row>
+        </Card.Body>
+      </Card>
+
+      {/* ===== ASSESSMENTS LIST ===== */}
+      {filteredAssessments.length === 0 ? (
+        <div className="text-center py-5">
+          <FaFileAlt size={48} className="text-muted opacity-25 mb-3" />
+          <h5 style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+            {isArabic ? 'لا توجد تقييمات' : 'No assessments found'}
+          </h5>
+          <p className="text-muted" style={arabicFontStyle}>
+            {isArabic 
+              ? 'لم يتم إرسال أي تقييمات إليك بعد' 
+              : 'No assessments have been sent to you yet'}
+          </p>
+        </div>
+      ) : (
+        <div className="table-responsive">
+          <Table hover className="assessment-table" style={arabicFontStyle}>
+            <thead style={{ background: darkMode ? '#0d1117' : '#f8f9fa' }}>
+              <tr>
+                <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'المعلم' : 'Teacher'}</th>
+                <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'العنوان' : 'Title'}</th>
+                <th style={{ color: darkMode ? '#e9ecef' : '#212529' }} className="d-none d-md-table-cell">{isArabic ? 'النوع' : 'Type'}</th>
+                <th style={{ color: darkMode ? '#e9ecef' : '#212529' }} className="d-none d-sm-table-cell">{isArabic ? 'المادة' : 'Subject'}</th>
+                <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'الحالة' : 'Status'}</th>
+                <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'تقييمك' : 'Your Grade'}</th>
+                <th style={{ color: darkMode ? '#e9ecef' : '#212529' }} className="text-center">{isArabic ? 'إجراءات' : 'Actions'}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredAssessments.map((assessment) => {
+                const submitted = hasSubmitted(assessment.assessmentId || assessment.id);
+                const grade = getSubmissionGrade(assessment.assessmentId || assessment.id);
+                const remarks = getSubmissionRemarks(assessment.assessmentId || assessment.id);
+                const isGraded = grade !== null && grade !== undefined;
+                const status = assessment.status || 'pending';
+                const submission = mySubmissions.find(s => s.assessmentId === assessment.assessmentId || s.assessmentId === assessment.id);
+                const showDelete = submitted && submission;
+                const gradedBy = getGradedBy(assessment.assessmentId || assessment.id);
+                
+                return (
+                  <tr key={assessment.id || assessment.assessmentId}>
+                    <td>
+                      <div className="d-flex align-items-center gap-2">
+                        <FaChalkboardTeacher className="text-primary" />
+                        <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                          {assessment.teacherName || 'Unknown'}
+                        </span>
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {assessment.title || 'Untitled'}
+                      </div>
+                      {assessment.attachmentName && (
+                        <Badge bg="info" style={{ fontSize: '0.6rem' }}>
+                          <FaFile className="me-1" size={10} />
+                          {assessment.attachmentName}
+                        </Badge>
+                      )}
+                    </td>
+                    <td className="d-none d-md-table-cell">{getTypeLabel(assessment.type)}</td>
+                    <td className="d-none d-sm-table-cell">{assessment.subject || 'N/A'}</td>
+                    <td>
+                      <Badge bg={getStatusBadge(status)}>
+                        {getStatusLabel(status)}
+                      </Badge>
+                      {submitted && (
+                        <Badge bg={isGraded ? 'success' : 'info'} className="ms-1" style={{ fontSize: '0.6rem' }}>
+                          {isGraded ? '✅' : '📤'} {isGraded ? (isArabic ? 'مصحح' : 'Graded') : (isArabic ? 'مقدم' : 'Submitted')}
+                        </Badge>
+                      )}
+                    </td>
+                    <td>
+                      {isGraded ? (
+                        <div>
+                          <span className="fw-bold" style={{ color: '#2ecc71' }}>
+                            {formatNumber(grade)}
+                          </span>
+                          {remarks && (
+                            <div className="text-muted small" style={{ fontSize: '0.65rem', marginTop: '2px' }}>
+                              <FaComment className="me-1" size={10} />
+                              <span>{remarks}</span>
+                            </div>
+                          )}
+                          {gradedBy && (
+                            <div className="text-muted small" style={{ fontSize: '0.55rem' }}>
+                              {isArabic ? 'بواسطة: ' : 'By: '}{gradedBy}
+                            </div>
+                          )}
+                        </div>
+                      ) : submitted ? (
+                        <Badge bg="info" style={{ fontSize: '0.7rem' }}>
+                          <FaClock className="me-1" size={10} />
+                          {isArabic ? 'بانتظار التصحيح' : 'Pending Grading'}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted" style={{ fontSize: '0.7rem' }}>
+                          {isArabic ? 'لم يتم التقديم' : 'Not Submitted'}
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      <div className="d-flex gap-1 justify-content-center flex-wrap">
+                        <Button 
+                          variant="outline-primary" 
+                          size="sm"
+                          className="action-btn"
+                          onClick={() => {
+                            setSelectedItem(assessment);
+                            setSelectedItemType('assessment');
+                            setShowViewModal(true);
+                          }}
+                          title={isArabic ? 'عرض التفاصيل' : 'View Details'}
+                        >
+                          <FaEye size={14} />
+                        </Button>
+                        {assessment.attachmentName && (
+                          <Button 
+                            variant="outline-info" 
+                            size="sm"
+                            className="action-btn"
+                            onClick={() => handleDownloadFile(assessment)}
+                            title={isArabic ? 'تحميل' : 'Download'}
+                          >
+                            <FaDownload size={14} />
+                          </Button>
+                        )}
+                        {!submitted && status !== 'closed' && status !== 'graded' && (
+                          <Button 
+                            variant="outline-success" 
+                            size="sm"
+                            className="action-btn"
+                            onClick={() => handleSubmitClick(assessment)}
+                            title={isArabic ? 'تقديم' : 'Submit'}
+                          >
+                            <FaPaperPlane size={14} />
+                          </Button>
+                        )}
+                        {/* Delete Assignment Button - Always visible for all assignments */}
+                        <Button 
+                          variant="outline-danger" 
+                          size="sm"
+                          className="action-btn"
+                          onClick={() => handleDeleteAssignmentClick(assessment)}
+                          title={isArabic ? 'حذف التقييم' : 'Delete Assessment'}
+                        >
+                          <FaTrash size={14} />
+                        </Button>
+                        {/* Delete Submission Button - only if submitted */}
+                        {showDelete && (
+                          <Button 
+                            variant="outline-danger" 
+                            size="sm"
+                            className="action-btn"
+                            onClick={() => handleDeleteSubmissionClick(submission)}
+                            title={isArabic ? 'حذف التقديم' : 'Delete Submission'}
+                          >
+                            <FaTimes size={14} />
+                          </Button>
+                        )}
+                        {submitted && (
+                          <Badge bg={isGraded ? 'success' : 'warning'} style={{ fontSize: '0.6rem', padding: '4px 8px' }}>
+                            {isGraded ? (
+                              <><FaCheckCircle className="me-1" size={10} /> {formatNumber(grade)}</>
+                            ) : (
+                              <><FaClock className="me-1" size={10} /> {isArabic ? 'قيد المراجعة' : 'In Review'}</>
+                            )}
+                          </Badge>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </Table>
+        </div>
       )}
 
-      {/* Tabs */}
-      <Tab.Container activeKey={activeTab} onSelect={(k) => setActiveTab(k)}>
-        <Nav variant="tabs" className="mb-4" style={{ borderBottom: `2px solid ${darkMode ? '#2d2d44' : '#e9ecef'}` }}>
-          <Nav.Item>
-            <Nav.Link 
-              eventKey="assessments" 
-              style={{ 
-                color: activeTab === 'assessments' ? '#4a9eff' : darkMode ? '#adb5bd' : '#6c757d',
-                fontWeight: activeTab === 'assessments' ? 'bold' : 'normal',
-                borderBottom: activeTab === 'assessments' ? '2px solid #4a9eff' : 'none',
-                ...arabicFontStyle,
-                position: 'relative'
-              }}
-            >
-              <FaFileAlt className="me-2" /> 
-              {isArabic ? 'تقييماتي' : 'My Assessments'}
-              {teacherAssessments.filter(a => !a.submitted && !a.grade).length > 0 && (
-                <Badge className="ms-2" style={{ background: '#4a9eff', color: 'white', borderRadius: '50px' }}>
-                  {formatNumber(teacherAssessments.filter(a => !a.submitted && !a.grade).length)}
-                </Badge>
-              )}
-            </Nav.Link>
-          </Nav.Item>
-          <Nav.Item>
-            <Nav.Link 
-              eventKey="announcements" 
-              style={{ 
-                color: activeTab === 'announcements' ? '#c49a6c' : darkMode ? '#adb5bd' : '#6c757d',
-                fontWeight: activeTab === 'announcements' ? 'bold' : 'normal',
-                borderBottom: activeTab === 'announcements' ? '2px solid #c49a6c' : 'none',
-                ...arabicFontStyle
-              }}
-            >
-              <FaBullhorn className="me-2" /> 
-              {isArabic ? 'الإعلانات' : 'Announcements'}
-              <Badge className="ms-2" style={{ background: '#c49a6c', color: 'white', borderRadius: '50px' }}>
-                {formatNumber(announcements.filter(a => a.type !== 'assessment').length)}
-              </Badge>
-            </Nav.Link>
-          </Nav.Item>
-          <Nav.Item>
-            <Nav.Link 
-              eventKey="notifications" 
-              style={{ 
-                color: activeTab === 'notifications' ? '#c49a6c' : darkMode ? '#adb5bd' : '#6c757d',
-                fontWeight: activeTab === 'notifications' ? 'bold' : 'normal',
-                borderBottom: activeTab === 'notifications' ? '2px solid #c49a6c' : 'none',
-                ...arabicFontStyle,
-                position: 'relative'
-              }}
-            >
-              <FaBell className="me-2" /> 
-              {isArabic ? 'الإشعارات' : 'Notifications'}
-              {unreadCount > 0 && (
-                <span 
-                  className="ms-2"
-                  style={{
-                    background: '#e74c3c',
-                    color: 'white',
-                    borderRadius: '50%',
-                    padding: '2px 8px',
-                    fontSize: '0.7rem',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  {formatNumber(unreadCount)}
-                </span>
-              )}
-            </Nav.Link>
-          </Nav.Item>
-        </Nav>
-
-        <Tab.Content>
-          {/* ASSESSMENTS TAB */}
-          <Tab.Pane eventKey="assessments">
-            <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-              <div className="d-flex gap-2 flex-wrap">
-                <Button
-                  variant="outline-danger"
-                  size="sm"
-                  onClick={handleDeleteAll}
-                  disabled={teacherAssessments.length === 0 || deletingAll}
-                  style={{ ...arabicFontStyle, borderRadius: '50px' }}
-                >
-                  {deletingAll ? (
-                    <>
-                      <FaSpinner className="spinning me-1" />
-                      {isArabic ? 'جاري الحذف...' : 'Deleting...'}
-                    </>
-                  ) : (
-                    <>
-                      <FaTrashAlt className="me-1" />
-                      {isArabic ? 'حذف الكل' : 'Delete All'}
-                    </>
-                  )}
-                </Button>
-              </div>
-              
-              <div className="text-muted small" style={{ ...arabicFontStyle, fontSize: '0.75rem' }}>
-                {isArabic 
-                  ? `عرض ${formatNumber(filteredAnnouncements.filter(a => a.type === 'assessment').length)} من ${formatNumber(teacherAssessments.length)} تقييم`
-                  : `Showing ${formatNumber(filteredAnnouncements.filter(a => a.type === 'assessment').length)} of ${formatNumber(teacherAssessments.length)} assessments`}
-              </div>
-            </div>
-
-            {/* Submission Filter */}
-            <div className="mb-3">
-              <div className="d-flex flex-wrap gap-2">
-                <Button
-                  variant={submissionFilter === 'all' ? 'primary' : 'outline-secondary'}
-                  size="sm"
-                  onClick={() => setSubmissionFilter('all')}
-                  style={{ ...arabicFontStyle, borderRadius: '50px' }}
-                >
-                  <FaList className="me-1" />
-                  {isArabic ? 'الكل' : 'All'}
-                  <Badge className="ms-1" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                    {formatNumber(teacherAssessments.length)}
-                  </Badge>
-                </Button>
-                <Button
-                  variant={submissionFilter === 'pending' ? 'primary' : 'outline-secondary'}
-                  size="sm"
-                  onClick={() => setSubmissionFilter('pending')}
-                  style={{ ...arabicFontStyle, borderRadius: '50px' }}
-                >
-                  <FaFileAlt className="me-1" />
-                  {isArabic ? 'غير مقدم' : 'Not Submitted'}
-                  <Badge className="ms-1" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                    {formatNumber(pendingAssessments.length)}
-                  </Badge>
-                </Button>
-                <Button
-                  variant={submissionFilter === 'submitted' ? 'primary' : 'outline-secondary'}
-                  size="sm"
-                  onClick={() => setSubmissionFilter('submitted')}
-                  style={{ ...arabicFontStyle, borderRadius: '50px' }}
-                >
-                  <FaUpload className="me-1" />
-                  {isArabic ? 'مقدم' : 'Submitted'}
-                  <Badge className="ms-1" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                    {formatNumber(submittedAssessments.length)}
-                  </Badge>
-                </Button>
-                <Button
-                  variant={submissionFilter === 'graded' ? 'primary' : 'outline-secondary'}
-                  size="sm"
-                  onClick={() => setSubmissionFilter('graded')}
-                  style={{ ...arabicFontStyle, borderRadius: '50px' }}
-                >
-                  <FaCheckCircle className="me-1" />
-                  {isArabic ? 'مصحح' : 'Graded'}
-                  <Badge className="ms-1" style={{ background: 'rgba(255,255,255,0.2)' }}>
-                    {formatNumber(gradedAssessments.length)}
-                  </Badge>
-                </Button>
-              </div>
-            </div>
-
-            {/* Filter Bar */}
-            <Card className="modern-card mb-4" style={{ background: darkMode ? '#1a1a2e' : '#ffffff', borderColor: darkMode ? '#2d2d44' : '#e9ecef' }}>
-              <Card.Body>
-                <Row className="g-3">
-                  <Col xs={12} md={6}>
-                    <InputGroup>
-                      <InputGroup.Text style={{ background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529', borderRadius: '12px 0 0 12px' }}>
-                        <FaSearch className="text-muted" />
-                      </InputGroup.Text>
-                      <Form.Control
-                        type="text"
-                        placeholder={isArabic ? 'بحث في التقييمات...' : 'Search assessments...'}
-                        value={searchTerm}
-                        onChange={(e) => {
-                          setSearchTerm(e.target.value);
-                          setCurrentPage(1);
-                        }}
-                        style={{ ...arabicFontStyle, background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529' }}
-                      />
-                      {searchTerm && (
-                        <Button 
-                          variant="outline-secondary" 
-                          onClick={() => setSearchTerm('')}
-                          style={{ ...arabicFontStyle, borderRadius: '0 12px 12px 0' }}
-                        >
-                          <FaTimesCircle />
-                        </Button>
-                      )}
-                    </InputGroup>
-                  </Col>
-                  <Col xs={6} md={3}>
-                    <Form.Select
-                      value={filterType}
-                      onChange={(e) => {
-                        setFilterType(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      style={{ ...arabicFontStyle, background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529', borderRadius: '12px' }}
-                    >
-                      {typeOptions.map(c => (
-                        <option key={c.value} value={c.value}>{c.label}</option>
-                      ))}
-                    </Form.Select>
-                  </Col>
-                  <Col xs={6} md={3}>
-                    <Form.Select
-                      value={sortBy}
-                      onChange={(e) => {
-                        setSortBy(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      style={{ ...arabicFontStyle, background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529', borderRadius: '12px' }}
-                    >
-                      <option value="newest">{isArabic ? 'الأحدث' : 'Newest'}</option>
-                      <option value="oldest">{isArabic ? 'الأقدم' : 'Oldest'}</option>
-                      <option value="popular">{isArabic ? 'الأكثر مشاهدة' : 'Most Viewed'}</option>
-                    </Form.Select>
-                  </Col>
-                </Row>
-              </Card.Body>
-            </Card>
-
-            {filteredAnnouncements.filter(a => a.type === 'assessment').length === 0 ? (
-              <div className="text-center py-5">
-                <FaFileAlt size={48} className="text-muted opacity-25 mb-3" />
-                <h5 style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                  {isArabic ? 'لا توجد تقييمات' : 'No assessments'}
-                </h5>
-                <p className="text-muted" style={arabicFontStyle}>
-                  {isArabic 
-                    ? 'سوف تظهر هنا التقييمات الجديدة من المعلمين' 
-                    : 'New assessments from teachers will appear here'}
-                </p>
-              </div>
-            ) : (
-              <>
-                <Row className="g-4">
-                  {filteredAnnouncements
-                    .filter(a => a.type === 'assessment')
-                    .map(renderAnnouncementCard)}
-                </Row>
-
-                {totalPages > 1 && (
-                  <div className="d-flex flex-column flex-sm-row justify-content-between align-items-center p-3 mt-4 border-top gap-2" style={{ borderColor: darkMode ? '#2d2d44' : '#e9ecef' }}>
-                    <div className="text-muted small" style={{ ...arabicFontStyle, color: darkMode ? '#adb5bd' : '#6c757d', fontSize: isMobile ? '0.65rem' : 'inherit' }}>
-                      {isArabic 
-                        ? `عرض ${formatNumber(filteredAnnouncements.filter(a => a.type === 'assessment').length)} من ${formatNumber(teacherAssessments.length)} تقييم`
-                        : `Showing ${formatNumber(filteredAnnouncements.filter(a => a.type === 'assessment').length)} of ${formatNumber(teacherAssessments.length)} assessments`}
-                    </div>
-                    <Pagination className="mb-0" size={isMobile ? 'sm' : 'md'}>
-                      <Pagination.Prev 
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                      />
-                      {[...Array(Math.min(totalPages, isMobile ? 3 : 5))].map((_, i) => {
-                        let pageNum;
-                        if (totalPages <= (isMobile ? 3 : 5)) {
-                          pageNum = i + 1;
-                        } else if (currentPage <= (isMobile ? 2 : 3)) {
-                          pageNum = i + 1;
-                        } else if (currentPage >= totalPages - (isMobile ? 1 : 2)) {
-                          pageNum = totalPages - (isMobile ? 2 : 4) + i;
-                        } else {
-                          pageNum = currentPage - (isMobile ? 1 : 2) + i;
-                        }
-                        return (
-                          <Pagination.Item
-                            key={pageNum}
-                            active={pageNum === currentPage}
-                            onClick={() => setCurrentPage(pageNum)}
-                            style={{ color: darkMode ? '#e9ecef' : '#212529', borderRadius: '8px' }}
-                          >
-                            {formatNumber(pageNum)}
-                          </Pagination.Item>
-                        );
-                      })}
-                      <Pagination.Next 
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                      />
-                    </Pagination>
-                  </div>
-                )}
-              </>
-            )}
-          </Tab.Pane>
-
-          {/* ANNOUNCEMENTS TAB */}
-          <Tab.Pane eventKey="announcements">
-            <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
-              <div className="d-flex gap-2 flex-wrap">
-                <Button
-                  variant="outline-danger"
-                  size="sm"
-                  onClick={handleDeleteAll}
-                  disabled={announcements.filter(a => a.type !== 'assessment').length === 0 || deletingAll}
-                  style={{ ...arabicFontStyle, borderRadius: '50px' }}
-                >
-                  {deletingAll ? (
-                    <>
-                      <FaSpinner className="spinning me-1" />
-                      {isArabic ? 'جاري الحذف...' : 'Deleting...'}
-                    </>
-                  ) : (
-                    <>
-                      <FaTrashAlt className="me-1" />
-                      {isArabic ? 'حذف الكل' : 'Delete All'}
-                    </>
-                  )}
-                </Button>
-              </div>
-              
-              <div className="text-muted small" style={{ ...arabicFontStyle, fontSize: '0.75rem' }}>
-                {isArabic 
-                  ? `عرض ${formatNumber(filteredAnnouncements.filter(a => a.type !== 'assessment').length)} من ${formatNumber(announcements.filter(a => a.type !== 'assessment').length)} إعلان`
-                  : `Showing ${formatNumber(filteredAnnouncements.filter(a => a.type !== 'assessment').length)} of ${formatNumber(announcements.filter(a => a.type !== 'assessment').length)} announcements`}
-              </div>
-            </div>
-
-            <Card className="modern-card mb-4" style={{ background: darkMode ? '#1a1a2e' : '#ffffff', borderColor: darkMode ? '#2d2d44' : '#e9ecef' }}>
-              <Card.Body>
-                <Row className="g-3">
-                  <Col xs={12} md={6}>
-                    <InputGroup>
-                      <InputGroup.Text style={{ background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529', borderRadius: '12px 0 0 12px' }}>
-                        <FaSearch className="text-muted" />
-                      </InputGroup.Text>
-                      <Form.Control
-                        type="text"
-                        placeholder={isArabic ? 'بحث في الإعلانات...' : 'Search announcements...'}
-                        value={searchTerm}
-                        onChange={(e) => {
-                          setSearchTerm(e.target.value);
-                          setCurrentPage(1);
-                        }}
-                        style={{ ...arabicFontStyle, background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529' }}
-                      />
-                      {searchTerm && (
-                        <Button 
-                          variant="outline-secondary" 
-                          onClick={() => setSearchTerm('')}
-                          style={{ ...arabicFontStyle, borderRadius: '0 12px 12px 0' }}
-                        >
-                          <FaTimesCircle />
-                        </Button>
-                      )}
-                    </InputGroup>
-                  </Col>
-                  <Col xs={6} md={3}>
-                    <Form.Select
-                      value={filterPriority}
-                      onChange={(e) => {
-                        setFilterPriority(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      style={{ ...arabicFontStyle, background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529', borderRadius: '12px' }}
-                    >
-                      {priorityOptions.map(c => (
-                        <option key={c.value} value={c.value}>{c.label}</option>
-                      ))}
-                    </Form.Select>
-                  </Col>
-                  <Col xs={6} md={3}>
-                    <Form.Select
-                      value={sortBy}
-                      onChange={(e) => {
-                        setSortBy(e.target.value);
-                        setCurrentPage(1);
-                      }}
-                      style={{ ...arabicFontStyle, background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529', borderRadius: '12px' }}
-                    >
-                      <option value="newest">{isArabic ? 'الأحدث' : 'Newest'}</option>
-                      <option value="oldest">{isArabic ? 'الأقدم' : 'Oldest'}</option>
-                      <option value="popular">{isArabic ? 'الأكثر مشاهدة' : 'Most Viewed'}</option>
-                    </Form.Select>
-                  </Col>
-                </Row>
-              </Card.Body>
-            </Card>
-
-            {filteredAnnouncements.filter(a => a.type !== 'assessment').length === 0 ? (
-              <div className="text-center py-5">
-                <FaBullhorn size={48} className="text-muted opacity-25 mb-3" />
-                <h5 style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                  {isArabic ? 'لا توجد إعلانات' : 'No announcements'}
-                </h5>
-                <p className="text-muted" style={arabicFontStyle}>
-                  {isArabic 
-                    ? 'سوف تظهر هنا الإعلانات الجديدة من الإدارة والمعلمين' 
-                    : 'New announcements from administration and teachers will appear here'}
-                </p>
-              </div>
-            ) : (
-              <>
-                <Row className="g-4">
-                  {filteredAnnouncements
-                    .filter(a => a.type !== 'assessment')
-                    .map(renderAnnouncementCard)}
-                </Row>
-
-                {totalPages > 1 && (
-                  <div className="d-flex flex-column flex-sm-row justify-content-between align-items-center p-3 mt-4 border-top gap-2" style={{ borderColor: darkMode ? '#2d2d44' : '#e9ecef' }}>
-                    <div className="text-muted small" style={{ ...arabicFontStyle, color: darkMode ? '#adb5bd' : '#6c757d', fontSize: isMobile ? '0.65rem' : 'inherit' }}>
-                      {isArabic 
-                        ? `عرض ${formatNumber(filteredAnnouncements.filter(a => a.type !== 'assessment').length)} من ${formatNumber(announcements.filter(a => a.type !== 'assessment').length)} إعلان`
-                        : `Showing ${formatNumber(filteredAnnouncements.filter(a => a.type !== 'assessment').length)} of ${formatNumber(announcements.filter(a => a.type !== 'assessment').length)} announcements`}
-                    </div>
-                    <Pagination className="mb-0" size={isMobile ? 'sm' : 'md'}>
-                      <Pagination.Prev 
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                      />
-                      {[...Array(Math.min(totalPages, isMobile ? 3 : 5))].map((_, i) => {
-                        let pageNum;
-                        if (totalPages <= (isMobile ? 3 : 5)) {
-                          pageNum = i + 1;
-                        } else if (currentPage <= (isMobile ? 2 : 3)) {
-                          pageNum = i + 1;
-                        } else if (currentPage >= totalPages - (isMobile ? 1 : 2)) {
-                          pageNum = totalPages - (isMobile ? 2 : 4) + i;
-                        } else {
-                          pageNum = currentPage - (isMobile ? 1 : 2) + i;
-                        }
-                        return (
-                          <Pagination.Item
-                            key={pageNum}
-                            active={pageNum === currentPage}
-                            onClick={() => setCurrentPage(pageNum)}
-                            style={{ color: darkMode ? '#e9ecef' : '#212529', borderRadius: '8px' }}
-                          >
-                            {formatNumber(pageNum)}
-                          </Pagination.Item>
-                        );
-                      })}
-                      <Pagination.Next 
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                      />
-                    </Pagination>
-                  </div>
-                )}
-              </>
-            )}
-          </Tab.Pane>
-
-          {/* NOTIFICATIONS TAB */}
-          <Tab.Pane eventKey="notifications">
-            <div className="d-flex justify-content-between align-items-center mb-3">
-              <h5 style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
-                {isArabic ? 'الإشعارات' : 'Notifications'}
-                {unreadCount > 0 && (
-                  <Badge className="ms-2" style={{ background: '#e74c3c', color: 'white', borderRadius: '50px' }}>
-                    {formatNumber(unreadCount)} {isArabic ? 'غير مقروء' : 'unread'}
-                  </Badge>
-                )}
-              </h5>
-              <div className="d-flex gap-2">
-                {unreadCount > 0 && (
-                  <Button 
-                    variant="outline-primary" 
-                    size="sm" 
-                    onClick={markAllNotificationsAsRead}
-                    style={{ ...arabicFontStyle, borderRadius: '12px' }}
-                  >
-                    <FaCheckDouble className="me-1" /> 
-                    {isArabic ? 'تحديد الكل كمقروء' : 'Mark all as read'}
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {notifications.length === 0 ? (
-              <div className="text-center py-5">
-                <FaBell size={48} className="text-muted opacity-25 mb-3" />
-                <h5 style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                  {isArabic ? 'لا توجد إشعارات' : 'No notifications'}
-                </h5>
-                <p className="text-muted" style={arabicFontStyle}>
-                  {isArabic 
-                    ? 'ستظهر هنا الإشعارات الجديدة' 
-                    : 'New notifications will appear here'}
-                </p>
-              </div>
-            ) : (
-              <div className="notifications-list">
-                {notifications.map(renderNotificationCard)}
-              </div>
-            )}
-          </Tab.Pane>
-        </Tab.Content>
-      </Tab.Container>
-
-      {/* ===== VIEW DETAILS MODAL ===== */}
-      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} centered size="lg" className="modern-modal">
+      {/* ===== VIEW DETAILS MODAL (With Remarks) ===== */}
+      <Modal show={showViewModal} onHide={() => setShowViewModal(false)} size="lg" centered className="modern-modal">
         <Modal.Header closeButton className="border-0" style={{ background: darkMode ? '#1a1a2e' : 'white' }}>
-          <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? '1rem' : 'inherit' }}>
+          <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
             <FaEye className="me-2 text-primary" />
-            {selectedItemType === 'assessment' 
-              ? (isArabic ? 'تفاصيل التقييم' : 'Assessment Details')
-              : (isArabic ? 'تفاصيل الإعلان' : 'Announcement Details')}
+            {isArabic ? 'تفاصيل التقييم' : 'Assessment Details'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ background: darkMode ? '#0d1117' : 'white' }}>
           {selectedItem && (
             <div>
-              <div className="text-center mb-4">
-                <div 
-                  className="announcement-avatar-lg mx-auto"
-                  style={{
-                    background: `linear-gradient(135deg, ${getTypeColorLocal(selectedItem.type)}, ${getTypeColorLocal(selectedItem.type)}dd)`,
-                    width: '80px',
-                    height: '80px',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'white',
-                    fontWeight: '700',
-                    fontSize: '2rem',
-                    margin: '0 auto',
-                    boxShadow: `0 8px 30px ${getTypeColorLocal(selectedItem.type)}40`
-                  }}
-                >
-                  {getTranslatedTitle(selectedItem).charAt(0).toUpperCase()}
-                </div>
-                <h4 className="fw-bold mt-3" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                  {getTranslatedTitle(selectedItem)}
-                </h4>
-                <div className="d-flex justify-content-center gap-2 flex-wrap">
-                  <Badge style={{ background: getTypeColorLocal(selectedItem.type), color: 'white', borderRadius: '8px' }}>
-                    {getTypeIconLocal(selectedItem.type)} {getTypeLabelLocal(selectedItem.type)}
-                  </Badge>
-                  <Badge style={{ background: getPriorityColorLocal(selectedItem.priority), color: 'white', borderRadius: '8px' }}>
-                    {getPriorityLabelLocal(selectedItem.priority)}
-                  </Badge>
-                  <Badge style={{ background: '#6c757d', color: 'white', borderRadius: '8px' }}>
-                    <FaUser className="me-1" /> {selectedItem.author || selectedItem.teacherName || (isArabic ? 'المسؤول' : 'Admin')}
-                  </Badge>
-                  {selectedItem.type === 'assessment' && (
-                    <>
-                      <Badge style={{ background: '#4a9eff', color: 'white', borderRadius: '8px' }}>
-                        <FaBook className="me-1" /> {selectedItem.subject}
-                      </Badge>
-                      <Badge style={{ background: selectedItem.submitted ? '#f39c12' : '#e74c3c', color: 'white', borderRadius: '8px' }}>
-                        {selectedItem.submitted ? (isArabic ? '✓ مقدم' : '✓ Submitted') : (isArabic ? '✗ غير مقدم' : '✗ Not Submitted')}
-                      </Badge>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {/* Assessment specific info */}
-              {selectedItemType === 'assessment' && selectedItem.assessmentData && (
-                <div className="assessment-details mb-3 p-3 rounded-3" style={{
-                  background: darkMode ? '#2d2d44' : '#f8f9fa',
-                  border: `1px solid ${darkMode ? '#3d3d5c' : '#e9ecef'}`,
-                  borderRadius: '12px'
-                }}>
-                  <Row>
-                    <Col md={6}>
-                      <div className="d-flex align-items-center gap-2">
-                        <FaChalkboardTeacher className="text-primary" />
-                        <span className="text-muted">{isArabic ? 'المعلم: ' : 'Teacher: '}</span>
-                        <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                          {selectedItem.teacherName}
-                        </span>
-                      </div>
-                    </Col>
-                    <Col md={6}>
-                      <div className="d-flex align-items-center gap-2">
-                        <FaBook className="text-success" />
-                        <span className="text-muted">{isArabic ? 'المادة: ' : 'Subject: '}</span>
-                        <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                          {selectedItem.subject}
-                        </span>
-                      </div>
-                    </Col>
-                  </Row>
+              {/* Teacher Info */}
+              <div className="teacher-info p-3 rounded-3 mb-3" style={{
+                background: darkMode ? '#2d2d44' : '#f8f9fa',
+                border: `1px solid ${darkMode ? '#3d3d5c' : '#e9ecef'}`,
+                borderRadius: '12px'
+              }}>
+                <Row>
+                  <Col md={6}>
+                    <div className="d-flex align-items-center gap-2">
+                      <FaChalkboardTeacher className="text-primary" />
+                      <span className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {isArabic ? 'المعلم: ' : 'Teacher: '}
+                      </span>
+                      <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {selectedItem.teacherName || 'Unknown'}
+                      </span>
+                    </div>
+                  </Col>
+                  <Col md={6}>
+                    <div className="d-flex align-items-center gap-2">
+                      <FaBook className="text-success" />
+                      <span className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {isArabic ? 'المادة: ' : 'Subject: '}
+                      </span>
+                      <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {selectedItem.subject || 'N/A'}
+                      </span>
+                    </div>
+                  </Col>
+                </Row>
+                <Row className="mt-2">
+                  <Col md={6}>
+                    <div className="d-flex align-items-center gap-2">
+                      <FaGraduationCap className="text-info" />
+                      <span className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {isArabic ? 'الفصل: ' : 'Class: '}
+                      </span>
+                      <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {selectedItem.className || 'N/A'}
+                      </span>
+                    </div>
+                  </Col>
+                  <Col md={6}>
+                    <div className="d-flex align-items-center gap-2">
+                      <FaFileAlt className="text-primary" />
+                      <span className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {isArabic ? 'النوع: ' : 'Type: '}
+                      </span>
+                      <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {getTypeLabel(selectedItem.type)}
+                      </span>
+                    </div>
+                  </Col>
+                </Row>
+                {selectedItem.totalMarks && (
                   <Row className="mt-2">
                     <Col md={6}>
                       <div className="d-flex align-items-center gap-2">
-                        <FaUserGraduate className="text-info" />
-                        <span className="text-muted">{isArabic ? 'الفصل: ' : 'Class: '}</span>
+                        <FaStar className="text-warning" />
+                        <span className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                          {isArabic ? 'الدرجة الكلية: ' : 'Total Marks: '}
+                        </span>
                         <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                          {selectedItem.className}
+                          {selectedItem.totalMarks}
                         </span>
                       </div>
                     </Col>
                     <Col md={6}>
                       <div className="d-flex align-items-center gap-2">
-                        <FaCalendarAlt className="text-warning" />
-                        <span className="text-muted">{isArabic ? 'تاريخ التسليم: ' : 'Due Date: '}</span>
+                        <FaClock className="text-warning" />
+                        <span className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                          {isArabic ? 'تاريخ التسليم: ' : 'Due Date: '}
+                        </span>
                         <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
                           {selectedItem.dueDate ? new Date(selectedItem.dueDate).toLocaleDateString() : 'N/A'}
                         </span>
                       </div>
                     </Col>
                   </Row>
-                  <Row className="mt-2">
-                    <Col md={6}>
-                      <div className="d-flex align-items-center gap-2">
-                        <FaStar className="text-warning" />
-                        <span className="text-muted">{isArabic ? 'الدرجة الكلية: ' : 'Total Marks: '}</span>
-                        <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                          {formatNumber(selectedItem.totalMarks)}
-                        </span>
-                      </div>
-                    </Col>
-                    <Col md={6}>
-                      <div className="d-flex align-items-center gap-2">
-                        <FaClock className="text-muted" />
-                        <span className="text-muted">{isArabic ? 'الحالة: ' : 'Status: '}</span>
-                        <Badge bg={selectedItem.submitted ? 'warning' : 'secondary'}>
-                          {selectedItem.submitted ? (isArabic ? 'مقدم' : 'Submitted') : (isArabic ? 'غير مقدم' : 'Not Submitted')}
-                        </Badge>
-                      </div>
-                    </Col>
-                  </Row>
-                  {selectedItem.grade && (
-                    <Row className="mt-2">
-                      <Col md={12}>
-                        <div className="d-flex align-items-center gap-2">
-                          <FaCheckCircle className="text-success" />
-                          <span className="text-muted">{isArabic ? 'الدرجة: ' : 'Grade: '}</span>
-                          <span className="fw-bold" style={{ color: '#2ecc71', fontSize: '1.1rem' }}>
-                            {formatNumber(selectedItem.grade)} / {formatNumber(selectedItem.totalMarks)}
-                          </span>
-                        </div>
-                      </Col>
-                    </Row>
-                  )}
+                )}
+                {/* Submission info with Remarks */}
+                {selectedItemType === 'assessment' && (
+                  <>
+                    {hasSubmitted(selectedItem.assessmentId || selectedItem.id) && (
+                      <Row className="mt-2">
+                        <Col md={12}>
+                          <div className="d-flex align-items-center gap-2">
+                            <FaPaperPlane className="text-success" />
+                            <span className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                              {isArabic ? 'حالة التقديم: ' : 'Submission Status: '}
+                            </span>
+                            <Badge bg={getSubmissionGrade(selectedItem.assessmentId || selectedItem.id) !== null ? 'success' : 'info'}>
+                              {getSubmissionGrade(selectedItem.assessmentId || selectedItem.id) !== null 
+                                ? (isArabic ? '✅ مصحح' : '✅ Graded')
+                                : (isArabic ? '📤 مقدم' : '📤 Submitted')}
+                            </Badge>
+                            {getSubmissionGrade(selectedItem.assessmentId || selectedItem.id) !== null && (
+                              <span className="fw-bold" style={{ color: '#2ecc71' }}>
+                                {formatNumber(getSubmissionGrade(selectedItem.assessmentId || selectedItem.id))}
+                              </span>
+                            )}
+                          </div>
+                          {/* Display Remarks if graded */}
+                          {selectedItem.isGraded && selectedItem.remarks && (
+                            <div className="mt-2 p-2 rounded-3" style={{
+                              background: darkMode ? '#2d2d44' : '#e8f5e9',
+                              border: `1px solid ${darkMode ? '#3d3d5c' : '#c8e6c9'}`,
+                              borderRadius: '8px'
+                            }}>
+                              <div className="d-flex align-items-start gap-2">
+                                <FaComment className="text-success mt-1" />
+                                <div>
+                                  <span className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#2e7d32' }}>
+                                    {isArabic ? '📝 ملاحظات المعلم:' : '📝 Teacher\'s Remarks:'}
+                                  </span>
+                                  <p className="mb-0 mt-1" style={{ 
+                                    color: darkMode ? '#e9ecef' : '#1b5e20',
+                                    ...arabicFontStyle,
+                                    whiteSpace: 'pre-wrap'
+                                  }}>
+                                    {selectedItem.remarks}
+                                  </p>
+                                  {selectedItem.gradedBy && (
+                                    <div className="text-muted small mt-1" style={{ fontSize: '0.6rem' }}>
+                                      {isArabic ? 'بواسطة: ' : 'By: '}{selectedItem.gradedBy}
+                                      {selectedItem.gradedAt && ` • ${formatDate(selectedItem.gradedAt)}`}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </Col>
+                      </Row>
+                    )}
+                    {!hasSubmitted(selectedItem.assessmentId || selectedItem.id) && 
+                     selectedItem.status !== 'closed' && 
+                     selectedItem.status !== 'graded' && (
+                      <Row className="mt-2">
+                        <Col md={12}>
+                          <Button 
+                            variant="success" 
+                            size="sm"
+                            onClick={() => {
+                              setShowViewModal(false);
+                              handleSubmitClick(selectedItem);
+                            }}
+                            style={{ ...arabicFontStyle, borderRadius: '10px' }}
+                          >
+                            <FaPaperPlane className="me-1" /> {isArabic ? 'تقديم الآن' : 'Submit Now'}
+                          </Button>
+                        </Col>
+                      </Row>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* Description */}
+              {(selectedItem.description || selectedItem.content) && (
+                <div className="description-section mb-3">
+                  <h6 className="fw-bold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                    {isArabic ? 'الوصف:' : 'Description:'}
+                  </h6>
+                  <div className="p-3 rounded-3" style={{
+                    background: darkMode ? '#2d2d44' : '#f8f9fa',
+                    border: `1px solid ${darkMode ? '#3d3d5c' : '#e9ecef'}`,
+                    borderRadius: '12px',
+                    ...arabicFontStyle,
+                    color: darkMode ? '#e9ecef' : '#212529',
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    whiteSpace: 'pre-wrap'
+                  }}>
+                    {selectedItem.description || selectedItem.content}
+                  </div>
                 </div>
               )}
 
-              {/* Content */}
-              <div className="detail-item">
-                <p className="fw-semibold mb-0" style={{ color: darkMode ? '#e9ecef' : '#212529', whiteSpace: 'pre-wrap', fontSize: '1rem' }}>
-                  {getTranslatedContent(selectedItem)}
-                </p>
-              </div>
-
-              {/* Attachment */}
+              {/* Attachment - Complete file with download and preview */}
               {selectedItem.attachmentName && (
-                <div className="mt-3">
+                <div className="attachment-section mb-3">
                   <h6 className="fw-bold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
                     {isArabic ? 'المرفق:' : 'Attachment:'}
                   </h6>
-                  <div className="p-3 rounded-3 d-flex align-items-center gap-3" style={{
+                  <div className="p-3 rounded-3 d-flex align-items-center gap-3 flex-wrap" style={{
                     background: darkMode ? '#2d2d44' : '#f8f9fa',
                     border: `1px solid ${darkMode ? '#3d3d5c' : '#e9ecef'}`,
                     borderRadius: '12px'
                   }}>
-                    {getFileIconHelper(selectedItem.attachmentType).icon}
-                    <div>
+                    {getFileIcon(selectedItem.attachmentType).icon}
+                    <div className="flex-grow-1">
                       <div className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
                         {selectedItem.attachmentName}
                       </div>
                       <div className="text-muted small">
-                        {getFileTypeLabelHelper(selectedItem.attachmentType)}
+                        {getFileTypeLabel(selectedItem.attachmentType)} • 
+                        {selectedItem.attachmentSize ? ` ${(selectedItem.attachmentSize / 1024).toFixed(1)} KB` : ''}
                       </div>
                     </div>
                     <Button 
-                      variant="outline-primary" 
+                      variant="primary" 
                       size="sm"
-                      className="ms-auto"
-                      onClick={() => handleDownloadAttachment(selectedItem)}
+                      onClick={() => handleDownloadFile(selectedItem)}
                       style={{ ...arabicFontStyle, borderRadius: '10px' }}
                     >
                       <FaDownload className="me-1" />
-                      {isArabic ? 'تحميل' : 'Download'}
+                      {isArabic ? 'تحميل الملف' : 'Download File'}
                     </Button>
                   </div>
-                </div>
-              )}
-
-              <Row className="mt-3">
-                <Col md={6}>
-                  <div className="detail-item">
-                    <label className="text-muted small" style={arabicFontStyle}>
-                      <FaCalendarAlt className="me-1" /> {isArabic ? 'التاريخ والوقت' : 'Date & Time'}
-                    </label>
-                    <p className="fw-semibold mb-0" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                      {selectedItem.date || format(new Date(selectedItem.createdAt || selectedItem.sentAt), 'PPP')}
-                      {selectedItem.time && ` - ${selectedItem.time}`}
-                    </p>
-                  </div>
-                </Col>
-                {selectedItemType !== 'assessment' && (
-                  <Col md={6}>
-                    <div className="detail-item">
-                      <label className="text-muted small" style={arabicFontStyle}>
-                        <FaEye className="me-1" /> {isArabic ? 'المشاهدات' : 'Views'}
-                      </label>
-                      <p className="fw-semibold mb-0" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                        {formatNumber(selectedItem.views || 0)}
-                      </p>
+                  {/* File preview for images */}
+                  {selectedItem.attachment && selectedItem.attachmentType && 
+                   (selectedItem.attachmentType.includes('image') || selectedItem.attachmentType.includes('jpg') || 
+                    selectedItem.attachmentType.includes('png') || selectedItem.attachmentType.includes('jpeg')) && (
+                    <div className="mt-2 p-2 rounded-3" style={{
+                      background: darkMode ? '#2d2d44' : '#f8f9fa',
+                      border: `1px solid ${darkMode ? '#3d3d5c' : '#e9ecef'}`,
+                      borderRadius: '12px',
+                      textAlign: 'center'
+                    }}>
+                      <img 
+                        src={selectedItem.attachment} 
+                        alt="Attachment preview" 
+                        style={{ 
+                          maxWidth: '100%', 
+                          maxHeight: '300px',
+                          borderRadius: '8px',
+                          objectFit: 'contain'
+                        }} 
+                      />
                     </div>
-                  </Col>
-                )}
-              </Row>
-
-              {/* Submit button for assessments - ONLY if not submitted */}
-              {selectedItemType === 'assessment' && !selectedItem.submitted && (
-                <div className="mt-3">
-                  <Button 
-                    variant="success" 
-                    className="w-100"
-                    onClick={() => {
-                      setShowViewModal(false);
-                      handleSubmitAssessment(selectedItem);
-                    }}
-                    style={{ ...arabicFontStyle, borderRadius: '12px' }}
-                  >
-                    <FaUpload className="me-2" />
-                    {isArabic ? 'تقديم التقييم' : 'Submit Assessment'}
-                  </Button>
+                  )}
+                  {/* PDF preview */}
+                  {selectedItem.attachment && selectedItem.attachmentType && 
+                   selectedItem.attachmentType.includes('pdf') && (
+                    <div className="mt-2 p-2 rounded-3" style={{
+                      background: darkMode ? '#2d2d44' : '#f8f9fa',
+                      border: `1px solid ${darkMode ? '#3d3d5c' : '#e9ecef'}`,
+                      borderRadius: '12px'
+                    }}>
+                      <div className="text-center">
+                        <FaFilePdf size={48} className="text-danger mb-2" />
+                        <p className="text-muted small">
+                          {isArabic ? 'ملف PDF - اضغط على زر التحميل لفتحه' : 'PDF file - Click download to open'}
+                        </p>
+                        <Button 
+                          variant="danger" 
+                          size="sm"
+                          onClick={() => handleDownloadFile(selectedItem)}
+                          style={{ ...arabicFontStyle, borderRadius: '10px' }}
+                        >
+                          <FaFilePdf className="me-1" /> {isArabic ? 'فتح PDF' : 'Open PDF'}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
-              {/* Already submitted indicator */}
-              {selectedItemType === 'assessment' && selectedItem.submitted && !selectedItem.grade && (
-                <div className="mt-3 p-3 rounded-3" style={{
-                  background: 'rgba(243, 156, 18, 0.1)',
-                  border: '1px solid #f39c12',
-                  borderRadius: '12px',
-                  textAlign: 'center'
+              {/* Student's own submission file (if submitted) */}
+              {selectedItemType === 'assessment' && selectedItem.submissionData && (
+                <div className="my-submission-section mb-3">
+                  <h6 className="fw-bold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                    <FaPaperPlane className="me-2 text-success" />
+                    {isArabic ? 'تقديمي' : 'My Submission'}
+                    {selectedItem.submissionData && (
+                      <Button 
+                        variant="outline-danger" 
+                        size="sm"
+                        className="ms-2"
+                        onClick={() => handleDeleteSubmissionClick(selectedItem.submissionData)}
+                        title={isArabic ? 'حذف التقديم' : 'Delete Submission'}
+                        style={{ ...arabicFontStyle, borderRadius: '8px' }}
+                      >
+                        <FaTrash size={12} className="me-1" /> {isArabic ? 'حذف' : 'Delete'}
+                      </Button>
+                    )}
+                  </h6>
+                  <div className="p-3 rounded-3" style={{
+                    background: darkMode ? '#2d2d44' : '#f8f9fa',
+                    border: `1px solid ${darkMode ? '#3d3d5c' : '#e9ecef'}`,
+                    borderRadius: '12px'
+                  }}>
+                    {selectedItem.submissionData.content && (
+                      <div className="mb-2 p-2 rounded-3" style={{
+                        background: darkMode ? '#1a1a2e' : '#ffffff',
+                        border: `1px solid ${darkMode ? '#3d3d5c' : '#e9ecef'}`,
+                        borderRadius: '8px',
+                        ...arabicFontStyle,
+                        color: darkMode ? '#e9ecef' : '#212529',
+                        maxHeight: '100px',
+                        overflowY: 'auto',
+                        whiteSpace: 'pre-wrap'
+                      }}>
+                        {selectedItem.submissionData.content}
+                      </div>
+                    )}
+                    {(selectedItem.submissionData.fileName || selectedItem.submissionData.attachmentName) && (
+                      <div className="d-flex align-items-center gap-2 mt-2">
+                        {getFileIcon(selectedItem.submissionData.fileType || selectedItem.submissionData.attachmentType).icon}
+                        <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                          {selectedItem.submissionData.fileName || selectedItem.submissionData.attachmentName}
+                        </span>
+                        <Button 
+                          variant="outline-primary" 
+                          size="sm"
+                          className="ms-auto"
+                          onClick={() => handleDownloadFile(selectedItem.submissionData)}
+                          style={{ ...arabicFontStyle, borderRadius: '8px' }}
+                        >
+                          <FaDownload size={12} className="me-1" /> {isArabic ? 'تحميل' : 'Download'}
+                        </Button>
+                      </div>
+                    )}
+                    {selectedItem.submissionData.attachment && 
+                     selectedItem.submissionData.fileType && 
+                     (selectedItem.submissionData.fileType.includes('image') || 
+                      selectedItem.submissionData.fileType.includes('jpg') || 
+                      selectedItem.submissionData.fileType.includes('png')) && (
+                      <div className="mt-2 text-center">
+                        <img 
+                          src={selectedItem.submissionData.attachment} 
+                          alt="Submission preview" 
+                          style={{ 
+                            maxWidth: '100%', 
+                            maxHeight: '200px',
+                            borderRadius: '8px',
+                            objectFit: 'contain'
+                          }} 
+                        />
+                      </div>
+                    )}
+                    {selectedItem.submissionData.submittedAt && (
+                      <div className="mt-2 text-muted small">
+                        {isArabic ? 'تاريخ التقديم: ' : 'Submitted at: '}
+                        {formatDate(selectedItem.submissionData.submittedAt)}
+                      </div>
+                    )}
+                    {selectedItem.isGraded && (
+                      <div>
+                        <div className="mt-2">
+                          <Badge bg="success">
+                            <FaCheckCircle className="me-1" size={12} />
+                            {isArabic ? 'الدرجة: ' : 'Grade: '}{formatNumber(selectedItem.grade)}
+                          </Badge>
+                        </div>
+                        {/* Show Remarks in submission section */}
+                        {selectedItem.remarks && (
+                          <div className="mt-2 p-2 rounded-3" style={{
+                            background: darkMode ? '#2d2d44' : '#e8f5e9',
+                            border: `1px solid ${darkMode ? '#3d3d5c' : '#c8e6c9'}`,
+                            borderRadius: '8px'
+                          }}>
+                            <div className="d-flex align-items-start gap-2">
+                              <FaComment className="text-success mt-1" />
+                              <div>
+                                <span className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#2e7d32' }}>
+                                  {isArabic ? '📝 ملاحظات المعلم:' : '📝 Teacher\'s Remarks:'}
+                                </span>
+                                <p className="mb-0 mt-1" style={{ 
+                                  color: darkMode ? '#e9ecef' : '#1b5e20',
+                                  ...arabicFontStyle,
+                                  whiteSpace: 'pre-wrap'
+                                }}>
+                                  {selectedItem.remarks}
+                                </p>
+                                {selectedItem.gradedBy && (
+                                  <div className="text-muted small mt-1" style={{ fontSize: '0.6rem' }}>
+                                    {isArabic ? 'بواسطة: ' : 'By: '}{selectedItem.gradedBy}
+                                    {selectedItem.gradedAt && ` • ${formatDate(selectedItem.gradedAt)}`}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {!selectedItem.isGraded && selectedItem.hasSubmitted && (
+                      <div className="mt-2">
+                        <Badge bg="warning">
+                          <FaClock className="me-1" size={12} />
+                          {isArabic ? 'بانتظار التصحيح' : 'Pending Grading'}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Status Info */}
+              {selectedItem.status && (
+                <div className="status-info mt-3 p-3 rounded-3" style={{
+                  background: selectedItem.status === 'published' || selectedItem.status === 'sent_to_students' ? '#d4edda' : 
+                             selectedItem.status === 'closed' ? '#e2e3e5' : 
+                             selectedItem.status === 'graded' ? '#d4edda' :
+                             '#fff3cd',
+                  border: `1px solid ${selectedItem.status === 'published' || selectedItem.status === 'sent_to_students' || selectedItem.status === 'graded' ? '#c3e6cb' : 
+                             selectedItem.status === 'closed' ? '#d6d8db' : 
+                             '#ffeaa7'}`,
+                  borderRadius: '12px'
                 }}>
-                  <FaCheckCircle className="text-warning me-2" />
-                  <span className="fw-semibold" style={{ color: '#f39c12' }}>
-                    {isArabic ? '✅ تم تقديم هذا التقييم بالفعل، في انتظار المراجعة' : '✅ This assessment has been submitted, waiting for review'}
-                  </span>
+                  <div className="d-flex align-items-center gap-2">
+                    <Badge bg={getStatusBadge(selectedItem.status)}>
+                      {getStatusLabel(selectedItem.status)}
+                    </Badge>
+                    <span className="fw-semibold" style={{ 
+                      color: selectedItem.status === 'published' || selectedItem.status === 'sent_to_students' ? '#155724' : 
+                             selectedItem.status === 'closed' ? '#383d41' : 
+                             selectedItem.status === 'graded' ? '#155724' :
+                             '#856404'
+                    }}>
+                      {selectedItem.status === 'published' || selectedItem.status === 'sent_to_students' ? 
+                        (isArabic ? '✅ هذا التقييم متاح لك' : '✅ This assessment is available to you') :
+                       selectedItem.status === 'closed' ? 
+                        (isArabic ? '🔒 هذا التقييم مغلق' : '🔒 This assessment is closed') :
+                       selectedItem.status === 'graded' ? 
+                        (isArabic ? '✅ تم تصحيح هذا التقييم' : '✅ This assessment has been graded') :
+                       (isArabic ? '📋 الحالة: ' : 'Status: ') + getStatusLabel(selectedItem.status)}
+                    </span>
+                  </div>
+                  {selectedItem.sentAt && (
+                    <div className="mt-1 text-muted small">
+                      {isArabic ? 'تاريخ الإرسال: ' : 'Sent at: '}
+                      {formatDate(selectedItem.sentAt)}
+                    </div>
+                  )}
+                  {selectedItem.dueDate && (
+                    <div className="mt-1 text-muted small">
+                      {isArabic ? 'تاريخ التسليم: ' : 'Due Date: '}
+                      {new Date(selectedItem.dueDate).toLocaleDateString()}
+                    </div>
+                  )}
+                  {selectedItem.isGraded && selectedItem.gradedAt && (
+                    <div className="mt-1 text-muted small">
+                      {isArabic ? 'تاريخ التصحيح: ' : 'Graded at: '}
+                      {formatDate(selectedItem.gradedAt)}
+                    </div>
+                  )}
                 </div>
               )}
-
-              {/* Graded indicator */}
-              {selectedItemType === 'assessment' && selectedItem.grade && (
-                <div className="mt-3 p-3 rounded-3" style={{
-                  background: 'rgba(46, 204, 113, 0.1)',
-                  border: '1px solid #2ecc71',
-                  borderRadius: '12px',
-                  textAlign: 'center'
-                }}>
-                  <FaCheckCircle className="text-success me-2" />
-                  <span className="fw-semibold" style={{ color: '#2ecc71' }}>
-                    {isArabic 
-                      ? `✅ تم تصحيح التقييم: ${selectedItem.grade}/${selectedItem.totalMarks}` 
-                      : `✅ Assessment graded: ${selectedItem.grade}/${selectedItem.totalMarks}`}
-                  </span>
-                </div>
-              )}
-
-              {/* Delete button in modal */}
-              <div className="mt-3 d-flex justify-content-end">
-                <Button 
-                  variant="danger" 
-                  size="sm"
-                  onClick={() => {
-                    setShowViewModal(false);
-                    handleDeleteClick(selectedItem, { stopPropagation: () => {} });
-                  }}
-                  style={{ ...arabicFontStyle, borderRadius: '12px' }}
-                >
-                  <FaTrash className="me-1" /> 
-                  {isArabic ? 'حذف هذا العنصر' : 'Delete this item'}
-                </Button>
-              </div>
             </div>
           )}
         </Modal.Body>
@@ -2305,115 +1645,221 @@ const StudentAnnouncements = () => {
           <Button variant="secondary" onClick={() => setShowViewModal(false)} style={{ ...arabicFontStyle, borderRadius: '12px' }}>
             {isArabic ? 'إغلاق' : 'Close'}
           </Button>
+          {selectedItem && selectedItemType === 'assessment' && 
+           !hasSubmitted(selectedItem.assessmentId || selectedItem.id) && 
+           selectedItem.status !== 'closed' && 
+           selectedItem.status !== 'graded' && (
+            <Button 
+              variant="success" 
+              onClick={() => {
+                setShowViewModal(false);
+                handleSubmitClick(selectedItem);
+              }}
+              style={{ ...arabicFontStyle, borderRadius: '12px' }}
+            >
+              <FaPaperPlane className="me-1" /> {isArabic ? 'تقديم' : 'Submit'}
+            </Button>
+          )}
+          {selectedItem && selectedItemType === 'assessment' && selectedItem.attachmentName && (
+            <Button 
+              variant="primary" 
+              onClick={() => handleDownloadFile(selectedItem)}
+              style={{ ...arabicFontStyle, borderRadius: '12px' }}
+            >
+              <FaDownload className="me-1" /> {isArabic ? 'تحميل' : 'Download'}
+            </Button>
+          )}
+          {selectedItem && selectedItemType === 'assessment' && (
+            <Button 
+              variant="outline-danger" 
+              onClick={() => {
+                setShowViewModal(false);
+                handleDeleteAssignmentClick(selectedItem);
+              }}
+              style={{ ...arabicFontStyle, borderRadius: '12px' }}
+            >
+              <FaTrash className="me-1" /> {isArabic ? 'حذف التقييم' : 'Delete Assessment'}
+            </Button>
+          )}
+          {selectedItem && selectedItemType === 'assessment' && selectedItem.submissionData && (
+            <Button 
+              variant="outline-danger" 
+              onClick={() => {
+                setShowViewModal(false);
+                handleDeleteSubmissionClick(selectedItem.submissionData);
+              }}
+              style={{ ...arabicFontStyle, borderRadius: '12px' }}
+            >
+              <FaTimes className="me-1" /> {isArabic ? 'حذف التقديم' : 'Delete Submission'}
+            </Button>
+          )}
         </Modal.Footer>
       </Modal>
 
       {/* ===== SUBMIT ASSESSMENT MODAL ===== */}
-      <Modal show={showSubmitModal} onHide={() => setShowSubmitModal(false)} centered size="lg" className="modern-modal">
+      <Modal show={showSubmitModal} onHide={() => setShowSubmitModal(false)} size="lg" centered className="modern-modal">
         <Modal.Header closeButton className="border-0" style={{ background: darkMode ? '#1a1a2e' : 'white' }}>
-          <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? '1rem' : 'inherit' }}>
-            <FaUpload className="me-2 text-success" />
+          <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
+            <FaPaperPlane className="me-2 text-success" />
             {isArabic ? 'تقديم التقييم' : 'Submit Assessment'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ background: darkMode ? '#0d1117' : 'white' }}>
           {selectedAssessment && (
             <div>
-              <div className="assessment-info p-3 rounded-3 mb-3" style={{
+              <div className="p-3 rounded-3 mb-3" style={{
                 background: darkMode ? '#2d2d44' : '#f8f9fa',
                 border: `1px solid ${darkMode ? '#3d3d5c' : '#e9ecef'}`,
                 borderRadius: '12px'
               }}>
-                <h6 className="fw-bold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                  {selectedAssessment.title}
-                </h6>
-                <div className="d-flex gap-3 flex-wrap mt-1">
-                  <small className="text-muted">
-                    <FaChalkboardTeacher className="me-1" />
-                    {selectedAssessment.teacherName}
-                  </small>
-                  <small className="text-muted">
-                    <FaBook className="me-1" />
-                    {selectedAssessment.subject}
-                  </small>
-                  <small className="text-muted">
-                    <FaCalendarAlt className="me-1" />
-                    {selectedAssessment.dueDate ? new Date(selectedAssessment.dueDate).toLocaleDateString() : 'N/A'}
-                  </small>
-                </div>
+                <Row>
+                  <Col md={6}>
+                    <div className="d-flex align-items-center gap-2">
+                      <FaFileAlt className="text-primary" />
+                      <span className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {isArabic ? 'التقييم: ' : 'Assessment: '}
+                      </span>
+                      <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {selectedAssessment.title}
+                      </span>
+                    </div>
+                  </Col>
+                  <Col md={6}>
+                    <div className="d-flex align-items-center gap-2">
+                      <FaChalkboardTeacher className="text-primary" />
+                      <span className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {isArabic ? 'المعلم: ' : 'Teacher: '}
+                      </span>
+                      <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {selectedAssessment.teacherName}
+                      </span>
+                    </div>
+                  </Col>
+                </Row>
+                <Row className="mt-2">
+                  <Col md={6}>
+                    <div className="d-flex align-items-center gap-2">
+                      <FaBook className="text-success" />
+                      <span className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {isArabic ? 'المادة: ' : 'Subject: '}
+                      </span>
+                      <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {selectedAssessment.subject}
+                      </span>
+                    </div>
+                  </Col>
+                  <Col md={6}>
+                    <div className="d-flex align-items-center gap-2">
+                      <FaStar className="text-warning" />
+                      <span className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {isArabic ? 'الدرجة الكلية: ' : 'Total Marks: '}
+                      </span>
+                      <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                        {selectedAssessment.totalMarks || 20}
+                      </span>
+                    </div>
+                  </Col>
+                </Row>
               </div>
 
               <Form>
                 <Form.Group className="mb-3">
                   <Form.Label style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
-                    {isArabic ? 'نص التقديم' : 'Submission Text'}
+                    {isArabic ? 'نص التقديم (اختياري)' : 'Submission Text (Optional)'}
                   </Form.Label>
                   <Form.Control
                     as="textarea"
                     rows={4}
                     value={submissionText}
                     onChange={(e) => setSubmissionText(e.target.value)}
-                    placeholder={isArabic ? 'اكتب إجابتك هنا...' : 'Write your answer here...'}
+                    placeholder={isArabic ? 'اكتب تقديمك هنا...' : 'Write your submission here...'}
                     style={{
                       ...arabicFontStyle,
                       background: darkMode ? '#2d2d44' : 'white',
                       color: darkMode ? '#e9ecef' : '#212529',
-                      borderRadius: '12px'
+                      borderRadius: '12px',
+                      borderColor: darkMode ? '#3d3d5c' : '#e9ecef',
                     }}
                   />
                 </Form.Group>
 
                 <Form.Group className="mb-3">
                   <Form.Label style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
-                    <FaFile className="me-2" />
                     {isArabic ? 'رفع ملف (اختياري)' : 'Upload File (Optional)'}
                   </Form.Label>
                   <Form.Control
                     type="file"
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file) {
-                        setSubmissionFile(file);
-                      }
-                    }}
+                    onChange={handleFileChange}
                     style={{
                       ...arabicFontStyle,
                       background: darkMode ? '#2d2d44' : 'white',
                       color: darkMode ? '#e9ecef' : '#212529',
-                      borderRadius: '12px'
+                      borderRadius: '12px',
+                      borderColor: darkMode ? '#3d3d5c' : '#e9ecef',
                     }}
                   />
-                  {submissionFile && (
+                  {submissionFilePreview && submissionFile && (
                     <div className="mt-2 p-2 rounded-3" style={{
                       background: darkMode ? '#2d2d44' : '#f8f9fa',
                       border: `1px solid ${darkMode ? '#3d3d5c' : '#e9ecef'}`,
                       borderRadius: '8px'
                     }}>
-                      <FaFile className="me-2" />
-                      <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                        {submissionFile.name} ({(submissionFile.size / 1024).toFixed(1)} KB)
-                      </span>
+                      <div className="d-flex align-items-center gap-2">
+                        {getFileIcon(submissionFile.type).icon}
+                        <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                          {submissionFile.name}
+                        </span>
+                        <span className="text-muted small ms-auto">
+                          {(submissionFile.size / 1024).toFixed(1)} KB
+                        </span>
+                      </div>
+                      {submissionFile.type && submissionFile.type.includes('image') && (
+                        <div className="mt-2 text-center">
+                          <img 
+                            src={submissionFilePreview} 
+                            alt="Preview" 
+                            style={{ 
+                              maxWidth: '100%', 
+                              maxHeight: '200px',
+                              borderRadius: '8px',
+                              objectFit: 'contain'
+                            }} 
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                 </Form.Group>
               </Form>
+
+              <p
+                className="text-muted text-center mt-2"
+                style={{
+                  ...arabicFontStyle,
+                  fontSize: 'clamp(0.8rem, 0.9vw, 0.9rem)',
+                }}
+              >
+                {isArabic
+                  ? 'سيتم إرسال تقديمك مباشرة إلى المعلم وسيتمكن الإدارة من مراقبته'
+                  : 'Your submission will be sent directly to the teacher and admin can monitor it'}
+              </p>
             </div>
           )}
         </Modal.Body>
         <Modal.Footer className="border-0" style={{ background: darkMode ? '#1a1a2e' : 'white' }}>
-          <Button variant="secondary" onClick={() => setShowSubmitModal(false)} style={{ ...arabicFontStyle, borderRadius: '12px' }}>
-            {isArabic ? 'إلغاء' : 'Cancel'}
+          <Button variant="secondary" onClick={() => setShowSubmitModal(false)} disabled={submitting} style={{ ...arabicFontStyle, borderRadius: '12px' }}>
+            <FaTimes className="me-1" /> {isArabic ? 'إلغاء' : 'Cancel'}
           </Button>
-          <Button variant="success" onClick={handleSubmissionSubmit} disabled={submitting} style={{ ...arabicFontStyle, borderRadius: '12px' }}>
+          <Button variant="success" onClick={confirmSubmit} disabled={submitting} style={{ ...arabicFontStyle, borderRadius: '12px' }}>
             {submitting ? (
               <>
                 <FaSpinner className="spinning me-2" />
-                {isArabic ? 'جاري الإرسال...' : 'Submitting...'}
+                {isArabic ? 'جاري التقديم...' : 'Submitting...'}
               </>
             ) : (
               <>
-                <FaPaperPlane className="me-2" />
-                {isArabic ? 'تقديم' : 'Submit'}
+                <FaPaperPlane className="me-1" /> 
+                {isArabic ? 'تأكيد التقديم' : 'Submit'}
               </>
             )}
           </Button>
@@ -2421,11 +1867,13 @@ const StudentAnnouncements = () => {
       </Modal>
 
       {/* ===== DELETE CONFIRMATION MODAL ===== */}
-      <Modal show={showDeleteModal} onHide={handleDeleteCancel} centered className="modern-modal">
+      <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered className="modern-modal">
         <Modal.Header closeButton className="border-0" style={{ background: darkMode ? '#1a1a2e' : 'white' }}>
-          <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? '1rem' : 'inherit' }}>
+          <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
             <FaExclamationTriangle className="me-2 text-danger" />
-            {isArabic ? 'تأكيد الحذف' : 'Confirm Delete'}
+            {deleteType === 'assignment' 
+              ? (isArabic ? 'تأكيد حذف التقييم' : 'Confirm Delete Assessment')
+              : (isArabic ? 'تأكيد حذف التقديم' : 'Confirm Delete Submission')}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ background: darkMode ? '#0d1117' : 'white' }}>
@@ -2439,7 +1887,7 @@ const StudentAnnouncements = () => {
                 justifyContent: 'center',
               }}
             >
-              <FaTrashAlt size={28} className="text-danger" />
+              <FaTrash size={28} className="text-danger" />
             </div>
           </div>
           <p
@@ -2450,35 +1898,90 @@ const StudentAnnouncements = () => {
               color: darkMode ? '#e9ecef' : '#212529',
             }}
           >
-            {isArabic
-              ? `هل أنت متأكد من حذف "${getTranslatedTitle(itemToDelete)}"؟`
-              : `Are you sure you want to delete "${getTranslatedTitle(itemToDelete)}"?`}
+            {deleteType === 'assignment'
+              ? (isArabic
+                ? `هل أنت متأكد من حذف التقييم "${itemToDelete?.title || 'Untitled'}"؟`
+                : `Are you sure you want to delete the assessment "${itemToDelete?.title || 'Untitled'}"?`)
+              : (isArabic
+                ? `هل أنت متأكد من حذف تقديمك؟`
+                : `Are you sure you want to delete your submission?`)}
           </p>
-          {itemToDelete?.type === 'assessment' && (
-            <div className="mt-2 p-2 rounded-3" style={{
+          {itemToDelete && (
+            <div className="p-3 rounded-3" style={{
               background: darkMode ? '#2d2d44' : '#f8f9fa',
               border: `1px solid ${darkMode ? '#3d3d5c' : '#e9ecef'}`,
-              borderRadius: '8px'
+              borderRadius: '12px'
             }}>
               <div className="d-flex align-items-center gap-2">
                 <FaFileAlt className="text-info" />
-                <span className="text-muted small">
-                  {isArabic ? 'التقييم: ' : 'Assessment: '}
-                  <strong>{itemToDelete.subject}</strong>
+                <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                  {itemToDelete.title || 'Untitled'}
                 </span>
               </div>
-              <div className="d-flex align-items-center gap-2">
-                <FaChalkboardTeacher className="text-primary" size={12} />
-                <span className="text-muted small">
-                  {isArabic ? 'المعلم: ' : 'Teacher: '}
-                  {itemToDelete.teacherName}
-                </span>
-              </div>
-              <div className="d-flex align-items-center gap-2">
-                <Badge bg={itemToDelete.submitted ? 'warning' : 'secondary'} style={{ fontSize: '0.55rem' }}>
-                  {itemToDelete.submitted ? (isArabic ? 'مقدم' : 'Submitted') : (isArabic ? 'غير مقدم' : 'Not Submitted')}
-                </Badge>
-              </div>
+              {itemToDelete.teacherName && (
+                <div className="mt-1 d-flex align-items-center gap-2">
+                  <FaChalkboardTeacher className="text-primary" size={12} />
+                  <span className="text-muted small">
+                    {isArabic ? 'المعلم: ' : 'Teacher: '}
+                    {itemToDelete.teacherName}
+                  </span>
+                </div>
+              )}
+              {itemToDelete.subject && (
+                <div className="mt-1 d-flex align-items-center gap-2">
+                  <FaBook className="text-success" size={12} />
+                  <span className="text-muted small">
+                    {isArabic ? 'المادة: ' : 'Subject: '}
+                    {itemToDelete.subject}
+                  </span>
+                </div>
+              )}
+              {itemToDelete.fileName && (
+                <div className="mt-1 d-flex align-items-center gap-2">
+                  <FaFile className="text-info" size={12} />
+                  <span className="text-muted small">
+                    {isArabic ? 'الملف: ' : 'File: '}
+                    {itemToDelete.fileName}
+                  </span>
+                </div>
+              )}
+              {itemToDelete.submittedAt && (
+                <div className="mt-1 d-flex align-items-center gap-2">
+                  <FaClock className="text-warning" size={12} />
+                  <span className="text-muted small">
+                    {isArabic ? 'تاريخ التقديم: ' : 'Submitted: '}
+                    {formatDate(itemToDelete.submittedAt)}
+                  </span>
+                </div>
+              )}
+              {itemToDelete.grade && deleteType === 'submission' && (
+                <div className="mt-1 d-flex align-items-center gap-2">
+                  <FaCheckCircle className="text-success" size={12} />
+                  <span className="text-muted small">
+                    {isArabic ? 'الدرجة: ' : 'Grade: '}
+                    {formatNumber(itemToDelete.grade)}
+                  </span>
+                </div>
+              )}
+              {itemToDelete.remarks && deleteType === 'submission' && (
+                <div className="mt-1 d-flex align-items-center gap-2">
+                  <FaComment className="text-info" size={12} />
+                  <span className="text-muted small">
+                    {isArabic ? 'ملاحظات: ' : 'Remarks: '}
+                    {itemToDelete.remarks}
+                  </span>
+                </div>
+              )}
+              {deleteType === 'assignment' && (
+                <div className="mt-2">
+                  <Badge bg="warning" style={{ fontSize: '0.7rem' }}>
+                    <FaInfoCircle className="me-1" size={10} />
+                    {isArabic 
+                      ? 'سيتم حذف هذا التقييم نهائياً من حسابك' 
+                      : 'This assessment will be permanently deleted from your account'}
+                  </Badge>
+                </div>
+              )}
             </div>
           )}
           <p
@@ -2488,16 +1991,20 @@ const StudentAnnouncements = () => {
               fontSize: 'clamp(0.8rem, 0.9vw, 0.9rem)',
             }}
           >
-            {isArabic
-              ? 'هذا الإجراء لا يمكن التراجع عنه وسيتم حذف العنصر نهائياً'
-              : 'This action cannot be undone and the item will be permanently deleted'}
+            {deleteType === 'assignment'
+              ? (isArabic
+                ? 'سيتم حذف هذا التقييم وجميع بياناته المرتبطة نهائياً'
+                : 'This assessment and all associated data will be permanently deleted')
+              : (isArabic
+                ? 'هذا الإجراء لا يمكن التراجع عنه وسيتم حذف التقديم نهائياً'
+                : 'This action cannot be undone and the submission will be permanently deleted')}
           </p>
         </Modal.Body>
         <Modal.Footer className="border-0" style={{ background: darkMode ? '#1a1a2e' : 'white' }}>
-          <Button variant="secondary" onClick={handleDeleteCancel} disabled={deleting} style={{ ...arabicFontStyle, borderRadius: '12px' }}>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)} disabled={deleting} style={{ ...arabicFontStyle, borderRadius: '12px' }}>
             <FaTimes className="me-1" /> {isArabic ? 'إلغاء' : 'Cancel'}
           </Button>
-          <Button variant="danger" onClick={handleDeleteConfirm} disabled={deleting} style={{ ...arabicFontStyle, borderRadius: '12px' }}>
+          <Button variant="danger" onClick={confirmDelete} disabled={deleting} style={{ ...arabicFontStyle, borderRadius: '12px' }}>
             {deleting ? (
               <>
                 <FaSpinner className="spinning me-2" />
@@ -2505,7 +2012,10 @@ const StudentAnnouncements = () => {
               </>
             ) : (
               <>
-                <FaTrash className="me-1" /> {isArabic ? 'تأكيد الحذف' : 'Confirm Delete'}
+                <FaTrash className="me-1" /> 
+                {deleteType === 'assignment' 
+                  ? (isArabic ? 'تأكيد حذف التقييم' : 'Confirm Delete')
+                  : (isArabic ? 'تأكيد حذف التقديم' : 'Confirm Delete')}
               </>
             )}
           </Button>
@@ -2515,6 +2025,16 @@ const StudentAnnouncements = () => {
       <style>{`
         .student-announcements {
           padding: 0;
+          max-width: 100vw;
+          overflow-x: hidden;
+        }
+
+        .student-announcements * {
+          box-sizing: border-box;
+        }
+
+        .min-width-0 {
+          min-width: 0;
         }
 
         .spinning {
@@ -2526,25 +2046,27 @@ const StudentAnnouncements = () => {
           to { transform: rotate(360deg); }
         }
 
-        .animate-pulse {
-          animation: pulse 1.5s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
+        @keyframes pulse-warning {
+          0% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.6;
+            transform: scale(0.95);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
         }
 
         .modern-card {
-          background: ${darkMode ? '#1a1a2e' : '#ffffff'};
-          border: 1px solid ${darkMode ? '#2d2d44' : '#e9ecef'};
-          border-radius: 16px;
-          overflow: hidden;
+          border-radius: 16px !important;
+          border: 1px solid ${darkMode ? '#2d2d44' : '#e9ecef'} !important;
           transition: all 0.3s ease;
-        }
-
-        .modern-card:hover {
-          box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+          overflow: hidden;
+          background: ${darkMode ? '#1a1a2e' : '#ffffff'} !important;
         }
 
         .modern-modal .modal-content {
@@ -2554,121 +2076,83 @@ const StudentAnnouncements = () => {
           overflow: hidden;
         }
 
-        .notification-item {
+        .stat-card-mini {
           transition: all 0.3s ease;
         }
 
-        .notification-item:hover {
-          transform: translateX(4px);
-          box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-
-        .notification-item.unread {
-          background: ${darkMode ? 'rgba(196, 154, 108, 0.05)' : 'rgba(196, 154, 108, 0.03)'};
-        }
-
-        .announcement-card {
-          transition: all 0.3s ease;
-        }
-
-        .announcement-card:hover {
-          transform: translateY(-4px);
-          box-shadow: 0 12px 40px rgba(0,0,0,0.1);
-        }
-
-        .announcement-card:hover .delete-btn {
-          opacity: 1 !important;
-        }
-
-        .delete-btn {
-          transition: all 0.3s ease;
-        }
-
-        .detail-item {
-          padding: 8px 0;
-        }
-
-        .detail-item label {
-          display: block;
-          font-size: 0.7rem;
-          color: #6c757d;
-          margin-bottom: 2px;
-          font-weight: 500;
-        }
-
-        .detail-item p {
-          font-size: 0.95rem;
-          margin-bottom: 0;
-        }
-
-        .announcement-avatar-lg {
-          width: 100px;
-          height: 100px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: white;
-          font-weight: 700;
-          font-size: 2.5rem;
-          margin: 0 auto;
-          transition: transform 0.3s ease;
-        }
-
-        .announcement-avatar-lg:hover {
-          transform: scale(1.05);
-        }
-
-        .nav-tabs .nav-link {
-          border: none;
-          padding: 12px 20px;
-          transition: all 0.3s ease;
-        }
-
-        .nav-tabs .nav-link:hover {
-          background: transparent;
-          color: #c49a6c;
-        }
-
-        .nav-tabs .nav-link.active {
-          background: transparent;
-          border: none;
-          color: #c49a6c;
-        }
-
-        .stat-summary-card {
-          transition: all 0.3s ease;
-        }
-
-        .stat-summary-card:hover {
+        .stat-card-mini:hover {
           transform: translateY(-2px);
-          box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+          box-shadow: 0 4px 20px rgba(0,0,0,0.06);
         }
 
-        @media (max-width: 768px) {
-          .page-header {
-            flex-direction: column;
-            align-items: stretch !important;
-          }
-          .announcement-card {
-            padding: 16px !important;
-          }
-          .nav-tabs .nav-link {
-            padding: 10px 12px;
-            font-size: 0.85rem;
-          }
+        .assessment-table th,
+        .assessment-table td {
+          vertical-align: middle;
         }
 
+        .assessment-table tbody tr {
+          transition: background-color 0.2s;
+        }
+
+        .assessment-table tbody tr:hover {
+          background-color: rgba(0,0,0,0.02);
+        }
+
+        .action-btn {
+          padding: 2px 6px !important;
+          min-width: 26px;
+          min-height: 26px;
+          font-size: clamp(0.5rem, 0.6vw, 0.7rem) !important;
+          border-radius: 6px !important;
+        }
+
+        /* ===== RTL FIXES ===== */
+        [dir="rtl"] .me-1 {
+          margin-right: 0 !important;
+          margin-left: 0.25rem !important;
+        }
+        [dir="rtl"] .me-2 {
+          margin-right: 0 !important;
+          margin-left: 0.5rem !important;
+        }
+        [dir="rtl"] .ms-1 {
+          margin-left: 0 !important;
+          margin-right: 0.25rem !important;
+        }
+        [dir="rtl"] .ms-2 {
+          margin-left: 0 !important;
+          margin-right: 0.5rem !important;
+        }
+        [dir="rtl"] .ps-5 {
+          padding-left: 1rem !important;
+          padding-right: 3rem !important;
+        }
+        [dir="rtl"] .start-0 {
+          left: auto !important;
+          right: 0 !important;
+        }
+
+        /* ===== RESPONSIVE ===== */
         @media (max-width: 576px) {
-          .announcement-card h5 {
-            font-size: 0.9rem !important;
+          .stat-card-mini {
+            padding: 8px 12px !important;
           }
-          .announcement-card p {
-            font-size: 0.8rem !important;
+          .stat-number-mini {
+            font-size: 1.2rem !important;
           }
-          .nav-tabs .nav-link {
-            padding: 8px 10px;
-            font-size: 0.75rem;
+          .stat-label-mini {
+            font-size: 0.6rem !important;
+          }
+          .assessment-table {
+            font-size: 0.75rem !important;
+          }
+          .action-btn {
+            padding: 1px 4px !important;
+            min-width: 20px !important;
+            min-height: 20px !important;
+          }
+          .action-btn svg {
+            font-size: 10px !important;
           }
           .modern-modal .modal-header {
             padding: 12px 16px 0 !important;
@@ -2679,54 +2163,6 @@ const StudentAnnouncements = () => {
           .modern-modal .modal-footer {
             padding: 8px 16px 16px !important;
           }
-          .delete-btn {
-            width: 28px !important;
-            height: 28px !important;
-            font-size: 0.6rem !important;
-            top: 6px !important;
-            right: 6px !important;
-          }
-          .delete-btn svg {
-            font-size: 12px !important;
-          }
-          .dashboard-wrapper.rtl .delete-btn {
-            right: auto !important;
-            left: 6px !important;
-          }
-          .stat-summary-card {
-            padding: 8px 12px !important;
-          }
-          .stat-number {
-            font-size: 1.2rem !important;
-          }
-          .stat-label {
-            font-size: 0.55rem !important;
-          }
-        }
-
-        [dir="rtl"] .me-1 {
-          margin-right: 0 !important;
-          margin-left: 0.25rem !important;
-        }
-
-        [dir="rtl"] .me-2 {
-          margin-right: 0 !important;
-          margin-left: 0.5rem !important;
-        }
-
-        [dir="rtl"] .ms-1 {
-          margin-left: 0 !important;
-          margin-right: 0.25rem !important;
-        }
-
-        [dir="rtl"] .ms-2 {
-          margin-left: 0 !important;
-          margin-right: 0.5rem !important;
-        }
-
-        [dir="rtl"] .ms-3 {
-          margin-left: 0 !important;
-          margin-right: 1rem !important;
         }
       `}</style>
     </div>

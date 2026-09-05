@@ -47,6 +47,125 @@ const saveToStorage = (key, data) => {
 };
 
 // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
+// ===== CLASS NAME LOCALIZATION =====
+// ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
+
+/**
+ * Get the localized class names based on language
+ * @param {string} language - 'ar' or 'en'
+ * @returns {Object} Class names mapping
+ */
+const getClassNamesMap = (language = 'en') => {
+  const isArabic = language === 'ar';
+  
+  if (isArabic) {
+    return {
+      kindergarten: ['الاستئناس', 'التمهيدي الأول -أ-', 'التمهيدي الأول -ب-', 'التمهيدي الثاني -أ-', 'التمهيدي الثاني -ب-'],
+      primary: ['الأول -أ-', 'الأول -ب-', 'الثاني -أ-', 'الثاني -ب-', 'الثالث -أ-', 'الثالث -ب-', 'الرابع -أ-', 'الرابع -ب-', 'الخامس -أ-', 'الخامس -ب-', 'السادس -أ-', 'السادس -ب-'],
+      secondary: ['الأولى إعدادي -أ-', 'الأولى إعدادي -ب-', 'الثانية إعدادي -أ-', 'الثانية إعدادي -ب-', 'الثالثة إعدادي -أ-', 'الثالثة إعدادي -ب-'],
+      high_school: ['جذع مشترك علمي', 'الأولى باكالوريا علوم تجريبية', 'الثانية باكالوريا علوم فيزيائية']
+    };
+  } else {
+    return {
+      kindergarten: ['Introductory', 'Preparatory 1 -A-', 'Preparatory 1 -B-', 'Preparatory 2 -A-', 'Preparatory 2 -B-'],
+      primary: ['1 -A-', '1 -B-', '2 -A-', '2 -B-', '3 -A-', '3 -B-', '4 -A-', '4 -B-', '5 -A-', '5 -B-', '6 -A-', '6 -B-'],
+      secondary: ['Secondary 1 -A-', 'Secondary 1 -B-', 'Secondary 2 -A-', 'Secondary 2 -B-', 'Secondary 3 -A-', 'Secondary 3 -B-'],
+      high_school: ['Common Core Science', '1st Baccalaureate Experimental Sciences', '2nd Baccalaureate Physical Sciences']
+    };
+  }
+};
+
+/**
+ * Get the localized name for a class
+ * @param {string} className - The class name to localize
+ * @param {string} level - The class level
+ * @param {string} language - 'ar' or 'en'
+ * @returns {string} Localized class name
+ */
+const getLocalizedClassName = (className, level, language = 'en') => {
+  const isArabic = language === 'ar';
+  
+  // If not Arabic, return as is (or convert to English if needed)
+  if (!isArabic) {
+    // Check if the name is in Arabic and need to convert to English
+    if (/[\u0600-\u06FF]/.test(className)) {
+      // Try to find the English equivalent
+      const classNamesMap = getClassNamesMap('en');
+      const levelNames = classNamesMap[level] || [];
+      
+      // Check if any Arabic name matches
+      const arabicNamesMap = getClassNamesMap('ar');
+      const arabicLevelNames = arabicNamesMap[level] || [];
+      
+      for (let i = 0; i < arabicLevelNames.length; i++) {
+        if (arabicLevelNames[i] === className && levelNames[i]) {
+          return levelNames[i];
+        }
+      }
+    }
+    return className;
+  }
+  
+  // If already in Arabic, return as is
+  if (/[\u0600-\u06FF]/.test(className)) return className;
+  
+  const classNamesMap = getClassNamesMap('ar');
+  const levelNames = classNamesMap[level] || [];
+  
+  // Try to find a match
+  for (const arabicName of levelNames) {
+    // Check if the class name matches any pattern
+    const cleanClassName = className.replace(/\s*-\s*/g, '-').toLowerCase();
+    const cleanArabicName = arabicName.replace(/\s*-\s*/g, '-').toLowerCase();
+    
+    // Check for exact match or partial match
+    if (cleanClassName === cleanArabicName || 
+        cleanClassName.includes(cleanArabicName) || 
+        cleanArabicName.includes(cleanClassName)) {
+      return arabicName;
+    }
+    
+    // Check for number-based matching (e.g., "1 -A-" matches "الأول -أ-")
+    const numberMatch = className.match(/(\d+)\s*-?\s*([A-Z])/i);
+    if (numberMatch) {
+      const num = parseInt(numberMatch[1]);
+      const letter = numberMatch[2].toUpperCase();
+      
+      // Check if the Arabic name contains the right number and letter
+      const arabicNumber = arabicName.includes('الأول') ? '1' : 
+                          arabicName.includes('الثاني') ? '2' : 
+                          arabicName.includes('الثالث') ? '3' : 
+                          arabicName.includes('الرابع') ? '4' : 
+                          arabicName.includes('الخامس') ? '5' : 
+                          arabicName.includes('السادس') ? '6' : 
+                          arabicName.includes('الأولى') ? '1' :
+                          arabicName.includes('الثانية') ? '2' :
+                          arabicName.includes('الثالثة') ? '3' : null;
+      
+      if (arabicNumber && parseInt(arabicNumber) === num && arabicName.includes(`-${letter}-`)) {
+        return arabicName;
+      }
+    }
+  }
+  
+  // If no match found, return the original
+  return className;
+};
+
+/**
+ * Get the current language from localStorage
+ * @returns {string} 'ar' or 'en'
+ */
+const getCurrentLanguage = () => {
+  try {
+    const lang = localStorage.getItem('language') || 'en';
+    return lang === 'ar' ? 'ar' : 'en';
+  } catch (error) {
+    return 'en';
+  }
+};
+
+// ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
 // ===== GET CURRENT TEACHER =====
 // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
 
@@ -204,14 +323,20 @@ const logoutTeacher = () => {
 // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
 
 /**
- * Get all assigned classes for a teacher
+ * Get all assigned classes for a teacher with localized names
  * @param {string} teacherId - The teacher's ID
  * @param {Array} allClasses - Optional: all classes from localStorage
- * @returns {Array} Array of class objects
+ * @param {string} language - Optional: language code ('ar' or 'en')
+ * @returns {Array} Array of class objects with localized names
  */
-const getAssignedClasses = (teacherId, allClasses = null) => {
+const getAssignedClasses = (teacherId, allClasses = null, language = null) => {
   try {
     console.log(`📚 Getting assigned classes for teacher: ${teacherId}`);
+    
+    // Get current language if not provided
+    if (!language) {
+      language = getCurrentLanguage();
+    }
     
     // Get the teacher from users
     const users = getFromStorage('school_users');
@@ -248,17 +373,23 @@ const getAssignedClasses = (teacherId, allClasses = null) => {
     console.log(`📚 All class IDs:`, classes.map(c => c.id));
     console.log(`📚 All class names:`, classes.map(c => c.name));
     
-    // Filter classes by matching IDs
-    const assignedClasses = classes.filter(cls => {
-      const isAssigned = assignedClassIds.includes(cls.id);
-      if (isAssigned) {
-        console.log(`✅ Found assigned class: ${cls.id} (${cls.name})`);
-      }
-      return isAssigned;
-    });
+    // Filter classes by matching IDs and localize names
+    const assignedClasses = classes
+      .filter(cls => assignedClassIds.includes(cls.id))
+      .map(cls => {
+        // Localize the class name
+        const localizedName = getLocalizedClassName(cls.name, cls.level, language);
+        console.log(`🔄 Localizing class: "${cls.name}" -> "${localizedName}" (${language})`);
+        
+        return {
+          ...cls,
+          name: localizedName,
+          originalName: cls.name, // Keep original for reference
+        };
+      });
     
     console.log(`📚 Filtered assigned classes: ${assignedClasses.length}`);
-    console.log(`📚 Assigned class names:`, assignedClasses.map(c => c.name));
+    console.log(`📚 Assigned class names (localized):`, assignedClasses.map(c => c.name));
     
     return assignedClasses;
   } catch (error) {
@@ -322,11 +453,17 @@ const getAssignedStudents = (teacherId, assignedClasses = null) => {
 /**
  * Get a teacher by ID with all their assigned data
  * @param {string} teacherId - The teacher's ID
+ * @param {string} language - Optional: language code ('ar' or 'en')
  * @returns {Object} Teacher object with assigned classes and students
  */
-const getTeacherWithData = (teacherId) => {
+const getTeacherWithData = (teacherId, language = null) => {
   try {
     console.log(`📚 Getting teacher with data: ${teacherId}`);
+    
+    // Get current language if not provided
+    if (!language) {
+      language = getCurrentLanguage();
+    }
     
     // Get the teacher from users
     const users = getFromStorage('school_users');
@@ -337,8 +474,8 @@ const getTeacherWithData = (teacherId) => {
       return null;
     }
     
-    // Get assigned classes
-    const assignedClasses = getAssignedClasses(teacherId);
+    // Get assigned classes with localization
+    const assignedClasses = getAssignedClasses(teacherId, null, language);
     
     // Get assigned students
     const assignedStudents = getAssignedStudents(teacherId, assignedClasses);
@@ -376,11 +513,17 @@ const getTeacherWithData = (teacherId) => {
 /**
  * Get teacher dashboard statistics
  * @param {string} teacherId - The teacher's ID
+ * @param {string} language - Optional: language code ('ar' or 'en')
  * @returns {Object} Statistics object
  */
-const getDashboardStats = (teacherId) => {
+const getDashboardStats = (teacherId, language = null) => {
   try {
     console.log(`📊 Getting dashboard stats for teacher: ${teacherId || 'current'}`);
+    
+    // Get current language if not provided
+    if (!language) {
+      language = getCurrentLanguage();
+    }
     
     // If no teacherId provided, get current teacher
     if (!teacherId) {
@@ -399,7 +542,7 @@ const getDashboardStats = (teacherId) => {
       teacherId = currentTeacher.id;
     }
     
-    const teacherWithData = getTeacherWithData(teacherId);
+    const teacherWithData = getTeacherWithData(teacherId, language);
     
     if (!teacherWithData) {
       return {
@@ -708,6 +851,28 @@ const removeListener = (listener) => {
 };
 
 // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
+// ===== GET LOCALIZED CLASSES =====
+// ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
+
+/**
+ * Get all classes with localized names
+ * @param {Array} classes - Array of class objects
+ * @param {string} language - Optional: language code ('ar' or 'en')
+ * @returns {Array} Array of class objects with localized names
+ */
+const getLocalizedClasses = (classes, language = null) => {
+  if (!language) {
+    language = getCurrentLanguage();
+  }
+  
+  return classes.map(cls => ({
+    ...cls,
+    name: getLocalizedClassName(cls.name, cls.level, language),
+    originalName: cls.name,
+  }));
+};
+
+// ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
 // ===== EXPORT FUNCTIONS =====
 // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
 
@@ -725,6 +890,12 @@ export const teacherService = {
   getTodayAttendance,
   updateTeacherClasses,
   notifyTeacherAboutNewClass,
+  
+  // Localization functions
+  getLocalizedClassName,
+  getLocalizedClasses,
+  getCurrentLanguage,
+  getClassNamesMap,
   
   // Listener functions
   addListener,
@@ -745,8 +916,8 @@ export const teacherService = {
     return getAssignedStudents(teacherId);
   },
   
-  getTeacherClasses: (teacherId) => {
-    return getAssignedClasses(teacherId);
+  getTeacherClasses: (teacherId, language = null) => {
+    return getAssignedClasses(teacherId, null, language);
   },
   
   hasAssignedClasses: (teacherId) => {
@@ -759,8 +930,8 @@ export const teacherService = {
     return classes.map(c => c.id);
   },
   
-  getTeacherClassNames: (teacherId) => {
-    const classes = getAssignedClasses(teacherId);
+  getTeacherClassNames: (teacherId, language = null) => {
+    const classes = getAssignedClasses(teacherId, null, language);
     return classes.map(c => c.name);
   },
 };
