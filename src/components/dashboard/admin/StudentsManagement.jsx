@@ -30,6 +30,7 @@ import {
   FaMapMarkerAlt,
   FaCheckCircle,
   FaTimesCircle,
+  FaTimes,
   FaSync,
   FaDownload,
   FaPrint,
@@ -39,6 +40,7 @@ import {
   FaSpinner,
   FaUserGraduate,
   FaCalendarAlt,
+  FaCamera,
   FaIdCard,
   FaUser,
   FaSchool,
@@ -140,6 +142,7 @@ const StudentsManagement = () => {
     parentPhone: "",
     parentEmail: "",
     status: "active",
+    profilePhoto: "",
   });
 
   const [editFormData, setEditFormData] = useState({
@@ -160,6 +163,7 @@ const StudentsManagement = () => {
     parentPhone: "",
     parentEmail: "",
     status: "active",
+    profilePhoto: "",
   });
 
   const locale = isArabic ? ar : enUS;
@@ -239,6 +243,8 @@ const StudentsManagement = () => {
         parentName: userData.parentName || '',
         parentPhone: userData.parentPhone || '',
         parentEmail: userData.parentEmail || '',
+        avatar: userData.avatar || userData.profilePhoto || '',
+        profilePhoto: userData.profilePhoto || userData.avatar || '',
         lastLogin: null,
         createdAt: userData.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -282,6 +288,8 @@ const StudentsManagement = () => {
         parentEmail: userToSave.parentEmail,
         status: userToSave.status,
         password: userToSave.password,
+        avatar: userToSave.avatar,
+        profilePhoto: userToSave.profilePhoto,
         createdAt: userToSave.createdAt,
         updatedAt: userToSave.updatedAt,
       };
@@ -595,6 +603,8 @@ const StudentsManagement = () => {
         parentEmail: formData.parentEmail || "",
         status: "active",
         role: "student",
+        avatar: formData.profilePhoto || "",
+        profilePhoto: formData.profilePhoto || "",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -667,6 +677,7 @@ const StudentsManagement = () => {
       parentPhone: "",
       parentEmail: "",
       status: "active",
+      profilePhoto: "",
     });
   };
 
@@ -691,6 +702,7 @@ const StudentsManagement = () => {
       parentPhone: student.parentPhone || "",
       parentEmail: student.parentEmail || "",
       status: student.status || "active",
+      profilePhoto: student.profilePhoto || student.avatar || null,
     });
     setShowEditModal(true);
   };
@@ -729,6 +741,8 @@ const StudentsManagement = () => {
         parentPhone: editFormData.parentPhone,
         parentEmail: editFormData.parentEmail,
         status: editFormData.status,
+        avatar: editFormData.profilePhoto || "",
+        profilePhoto: editFormData.profilePhoto || "",
         updatedAt: new Date().toISOString(),
       };
 
@@ -1261,8 +1275,17 @@ const StudentsManagement = () => {
                               fontWeight: "700",
                               fontSize: isMobile ? "0.6rem" : "0.85rem",
                               flexShrink: 0,
+                              overflow: "hidden",
                             }}>
-                              {(student.firstName || student.name || "U").charAt(0).toUpperCase()}
+                              {student.avatar ? (
+                                <img
+                                  src={student.avatar}
+                                  alt=""
+                                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                />
+                              ) : (
+                                (student.firstName || student.name || "U").charAt(0).toUpperCase()
+                              )}
                             </div>
                             <div>
                               <div className="fw-semibold" style={{ color: darkMode ? "#e9ecef" : "#212529" }}>
@@ -1396,6 +1419,75 @@ const StudentsManagement = () => {
         </Modal.Header>
         <Modal.Body style={{ background: darkMode ? "#0d1117" : "white" }}>
           <Form>
+            {/* ===== PROFILE PHOTO ===== */}
+            <Form.Group className="mb-4 text-center">
+              <Form.Label className="fw-semibold d-block" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529" }}>
+                {isArabic ? "الصورة الشخصية" : "Profile Photo"}
+              </Form.Label>
+              <div className="d-flex flex-column align-items-center gap-2">
+                <div
+                  style={{
+                    width: "clamp(90px, 10vw, 120px)",
+                    height: "clamp(90px, 10vw, 120px)",
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: darkMode ? "#2d2d44" : "#f1f3f5",
+                    border: `2px dashed ${darkMode ? "#4a9eff" : "#adb5bd"}`,
+                    color: darkMode ? "#adb5bd" : "#6c757d",
+                  }}
+                >
+                  {formData.profilePhoto ? (
+                    <img
+                      src={formData.profilePhoto}
+                      alt="Profile"
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    <FaUserCircle size={48} />
+                  )}
+                </div>
+                <div className="d-flex gap-2">
+                  <Form.Control
+                    type="file"
+                    accept="image/*"
+                    className="d-none"
+                    id="add-student-photo-input"
+                    onChange={(e) => {
+                      const file = e.target.files && e.target.files[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (ev) =>
+                        setFormData({ ...formData, profilePhoto: ev.target.result });
+                      reader.readAsDataURL(file);
+                      e.target.value = "";
+                    }}
+                  />
+                  <label
+                    htmlFor="add-student-photo-input"
+                    className="btn btn-sm"
+                    style={{ background: "#4a9eff", color: "#fff", borderRadius: "8px", cursor: "pointer", fontWeight: "600" }}
+                  >
+                    <FaCamera className="me-1" />
+                    {isArabic ? "اختيار صورة" : "Choose Photo"}
+                  </label>
+                  {formData.profilePhoto && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-danger"
+                      style={{ borderRadius: "8px", fontWeight: "600" }}
+                      onClick={() => setFormData({ ...formData, profilePhoto: null })}
+                    >
+                      <FaTimes className="me-1" />
+                      {isArabic ? "إزالة" : "Remove"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </Form.Group>
+
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
@@ -1795,8 +1887,17 @@ const StudentsManagement = () => {
                   justifyContent: "center",
                   fontSize: isMobile ? "2rem" : "2.5rem",
                   flexShrink: 0,
+                  overflow: "hidden",
                 }}>
-                  {(selectedStudent.firstName || selectedStudent.name || "U").charAt(0).toUpperCase()}
+                  {selectedStudent.avatar ? (
+                    <img
+                      src={selectedStudent.avatar}
+                      alt=""
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    (selectedStudent.firstName || selectedStudent.name || "U").charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div>
                   <h5 className="fw-bold mb-0" style={{ color: darkMode ? "#e9ecef" : "#212529" }}>
@@ -1973,6 +2074,75 @@ const StudentsManagement = () => {
         </Modal.Header>
         <Modal.Body style={{ background: darkMode ? "#0d1117" : "white" }}>
           <Form>
+            {/* ===== PROFILE PHOTO ===== */}
+            <Form.Group className="mb-4 text-center">
+              <Form.Label className="fw-semibold d-block" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529" }}>
+                {isArabic ? "الصورة الشخصية" : "Profile Photo"}
+              </Form.Label>
+              <div className="d-flex flex-column align-items-center gap-2">
+                <div
+                  style={{
+                    width: "clamp(90px, 10vw, 120px)",
+                    height: "clamp(90px, 10vw, 120px)",
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    background: darkMode ? "#2d2d44" : "#f1f3f5",
+                    border: `2px dashed ${darkMode ? "#4a9eff" : "#adb5bd"}`,
+                    color: darkMode ? "#adb5bd" : "#6c757d",
+                  }}
+                >
+                  {editFormData.profilePhoto ? (
+                    <img
+                      src={editFormData.profilePhoto}
+                      alt="Profile"
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  ) : (
+                    <FaUserCircle size={48} />
+                  )}
+                </div>
+                <div className="d-flex gap-2">
+                  <Form.Control
+                    type="file"
+                    accept="image/*"
+                    className="d-none"
+                    id="edit-student-photo-input"
+                    onChange={(e) => {
+                      const file = e.target.files && e.target.files[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (ev) =>
+                        setEditFormData({ ...editFormData, profilePhoto: ev.target.result });
+                      reader.readAsDataURL(file);
+                      e.target.value = "";
+                    }}
+                  />
+                  <label
+                    htmlFor="edit-student-photo-input"
+                    className="btn btn-sm"
+                    style={{ background: "#4a9eff", color: "#fff", borderRadius: "8px", cursor: "pointer", fontWeight: "600" }}
+                  >
+                    <FaCamera className="me-1" />
+                    {isArabic ? "اختيار صورة" : "Choose Photo"}
+                  </label>
+                  {editFormData.profilePhoto && (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline-danger"
+                      style={{ borderRadius: "8px", fontWeight: "600" }}
+                      onClick={() => setEditFormData({ ...editFormData, profilePhoto: null })}
+                    >
+                      <FaTimes className="me-1" />
+                      {isArabic ? "إزالة" : "Remove"}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </Form.Group>
+
             <Row>
               <Col md={6}>
                 <Form.Group className="mb-3">
