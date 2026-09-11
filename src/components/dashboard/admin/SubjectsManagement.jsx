@@ -1,8 +1,8 @@
 // src/components/dashboard/admin/SubjectsManagement.jsx
 import React, { useState, useEffect } from 'react';
-import { 
-  Container, Row, Col, Card, Badge, Button, Table, 
-  Modal, Form, Alert, InputGroup, Pagination 
+import {
+  Container, Row, Col, Card, Badge, Button, Table,
+  Modal, Form, Alert, InputGroup, Pagination
 } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -21,7 +21,7 @@ import { useLanguage } from '../../../context/LanguageContext';
 import { useAuth } from '../../../hooks/useAuth';
 import { useNotification } from '../../../hooks/useNotification';
 import api from '../../../services/api';
-import userDataService from '../../../services/userDataService';
+import { syncGet, syncSend } from '../../../services/apiSync';
 
 // ===== ALWAYS use English numbers =====
 const formatNumber = (num) => {
@@ -77,72 +77,6 @@ const SubjectsManagement = () => {
     { value: 'high_school', label: isArabic ? 'ثانوي' : 'High School', icon: <FaUniversity />, color: '#9b59b6' }
   ];
 
-  // ===== SUBJECTS BY CATEGORY =====
-  const defaultSubjectsByCategory = {
-    kindergarten: [
-      { value: 'quran_k', label: "Qur'an", labelAr: 'القرآن الكريم' },
-      { value: 'english_k', label: 'English', labelAr: 'اللغة الإنجليزية' },
-      { value: 'french_k', label: 'French', labelAr: 'اللغة الفرنسية' },
-      { value: 'arabic_k', label: 'Arabic', labelAr: 'اللغة العربية' }
-    ],
-    primary: [
-      { value: 'quran_p', label: "Qur'an", labelAr: 'التربية الإسلامية والقرآن الكريم  ' },
-      { value: 'arabic_p', label: 'Arabic', labelAr: 'اللغة العربية' },
-      { value: 'english_p', label: 'English', labelAr: 'اللغة الإنجليزية' },
-      { value: 'french_p', label: 'French', labelAr: 'اللغة الفرنسية' },
-      { value: 'mathematics_p', label: 'Mathematics', labelAr: 'الرياضيات' },
-      { value: 'science_p', label: 'Science', labelAr: 'النشاط العلمي' },
-      { value: 'sports_p', label: 'Sports', labelAr: 'الرياضة' },
-      { value: 'ict_p', label: 'ICT', labelAr: ' الإعلاميات' },
-      { value: 'art_p', label: 'Art & Plastic', labelAr: 'التربية التشكيلية' },
-      { value: 'geography_p', label: 'Geography', labelAr: 'الاجتماعيات' }
-    ],
-    secondary: [
-      { value: 'quran_s', label: "Qur'an", labelAr: 'التربية الإسلامية والقرآن الكريم ' },
-      { value: 'arabic_s', label: 'Arabic', labelAr: 'اللغة العربية' },
-      { value: 'english_s', label: 'English', labelAr: 'اللغة الإنجليزية' },
-      { value: 'french_s', label: 'French', labelAr: 'اللغة الفرنسية' },
-      { value: 'mathematics_s', label: 'Mathematics', labelAr: 'الرياضيات' },
-      { value: 'svt_s', label: 'SVT (Biology)', labelAr: 'علوم الحياة والأرض' },
-      { value: 'physics_s', label: 'Physics', labelAr: 'الفيزياء' },
-      { value: 'sports_s', label: 'Sports', labelAr: 'الرياضة' },
-      { value: 'ict_s', label: 'ICT', labelAr: 'الإعلاميات' },
-      { value: 'geography_s', label: 'Geography', labelAr: 'الاجتماعيات' }
-    ],
-    high_school: [
-      { value: 'quran_h', label: "Qur'an", labelAr: 'التربية الإسلامية والقرآن الكريم' },
-      { value: 'arabic_h', label: 'Arabic', labelAr: 'اللغة العربية' },
-      { value: 'english_h', label: 'English', labelAr: 'اللغة الإنجليزية' },
-      { value: 'french_h', label: 'French', labelAr: 'اللغة الفرنسية' },
-      { value: 'mathematics_h', label: 'Mathematics', labelAr: 'الرياضيات' },
-      { value: 'svt_h', label: 'SVT (Biology)', labelAr: 'علوم الحياة والأرض' },
-      { value: 'physics_h', label: 'Physics', labelAr: 'الفيزياء' },
-      { value: 'sports_h', label: 'Sports', labelAr: 'الرياضة' },
-      { value: 'ict_h', label: 'ICT', labelAr: 'الإعلاميات' },
-      { value: 'geography_h', label: 'Geography', labelAr: 'الاجتماعيات' },
-      { value: 'philosophy_h', label: 'Philosophy', labelAr: 'الفلسفة' }
-    ]
-  };
-
-  // ===== SAVE SUBJECTS TO SERVICE =====
-  const saveSubjectsToService = () => {
-    try {
-      const allSubjects = {};
-      levelCategories.forEach(cat => {
-        const categorySubjects = allSubjectsData.filter(s => s.category === cat.value);
-        allSubjects[cat.value] = categorySubjects.map(s => ({
-          value: s.id || s.value,
-          label: s.name,
-          labelAr: s.nameAr || s.name
-        }));
-      });
-      userDataService.saveSubjects(allSubjects);
-      console.log('📚 Subjects saved to service');
-    } catch (e) {
-      console.error('Error saving subjects to service:', e);
-    }
-  };
-
   // ===== CHECK DARK MODE =====
   useEffect(() => {
     const checkDarkMode = () => {
@@ -182,19 +116,10 @@ const SubjectsManagement = () => {
       : levelCategories.filter(c => c.value === selectedCategory);
     
     categories.forEach(category => {
-      let subjectsList = allSubjectsData.filter(s => s.category === category.value);
-      if (subjectsList.length === 0) {
-        const defaultList = defaultSubjectsByCategory[category.value] || [];
-        subjectsList = defaultList.map((s, index) => ({
-          id: `${category.value}_${index + 1}`,
-          name: s.label,
-          nameAr: s.labelAr || s.label,
-          category: category.value,
-          isActive: true,
-          displayOrder: index
-        }));
-      }
-      
+      // MySQL is the single source of truth for subjects. Never fabricate
+      // records when the database has none - only rows persisted on the
+      // server are shown.
+      const subjectsList = allSubjectsData.filter(s => s.category === category.value);
       if (subjectsList.length > 0) {
         allSubjects.push({
           category: category.value,
@@ -239,114 +164,24 @@ const SubjectsManagement = () => {
         setTotalItems(response.data.pagination.total);
         setTotalPages(response.data.pagination.pages);
       } else {
-        // Fallback to localStorage or default data
-        let allSubjects = [];
-        
-        const savedSubjects = userDataService.getAllSubjects();
-        if (savedSubjects && Object.keys(savedSubjects).length > 0) {
-          Object.keys(savedSubjects).forEach(category => {
-            const subjectsList = savedSubjects[category] || [];
-            subjectsList.forEach(s => {
-              allSubjects.push({
-                id: s.value,
-                name: s.label,
-                nameAr: s.labelAr || s.label,
-                category: category,
-                isActive: true
-              });
-            });
-          });
-        } else {
-          Object.keys(defaultSubjectsByCategory).forEach(category => {
-            const subjectsList = defaultSubjectsByCategory[category] || [];
-            subjectsList.forEach((s, index) => {
-              allSubjects.push({
-                id: `${category}_${index + 1}`,
-                name: s.label,
-                nameAr: s.labelAr || s.label,
-                category: category,
-                isActive: true
-              });
-            });
-          });
-        }
-        
-        setAllSubjectsData(allSubjects);
-        
-        let filteredSubjects = [...allSubjects];
-        if (selectedCategory !== 'all') {
-          filteredSubjects = filteredSubjects.filter(s => s.category === selectedCategory);
-        }
-        if (searchTerm) {
-          const searchLower = searchTerm.toLowerCase();
-          filteredSubjects = filteredSubjects.filter(s =>
-            s.name.toLowerCase().includes(searchLower) ||
-            s.nameAr.toLowerCase().includes(searchLower)
-          );
-        }
-        
-        setTotalItems(filteredSubjects.length);
-        setTotalPages(Math.ceil(filteredSubjects.length / itemsPerPage));
-        
-        const start = (currentPage - 1) * itemsPerPage;
-        const end = start + itemsPerPage;
-        const paginatedSubjects = filteredSubjects.slice(start, end);
-        setSubjects(paginatedSubjects);
+        // Server reachable but no subjects in MySQL: honest empty state.
+        // No fabricated/default subject rows are used as registry data.
+        setAllSubjectsData([]);
+        setSubjects([]);
+        setTotalItems(0);
+        setTotalPages(1);
       }
     } catch (error) {
       console.error('Error fetching subjects:', error);
-      let allSubjects = [];
-      
-      const savedSubjects = userDataService.getAllSubjects();
-      if (savedSubjects && Object.keys(savedSubjects).length > 0) {
-        Object.keys(savedSubjects).forEach(category => {
-          const subjectsList = savedSubjects[category] || [];
-          subjectsList.forEach(s => {
-            allSubjects.push({
-              id: s.value,
-              name: s.label,
-              nameAr: s.labelAr || s.label,
-              category: category,
-              isActive: true
-            });
-          });
-        });
-      } else {
-        Object.keys(defaultSubjectsByCategory).forEach(category => {
-          const subjectsList = defaultSubjectsByCategory[category] || [];
-          subjectsList.forEach((s, index) => {
-            allSubjects.push({
-              id: `${category}_${index + 1}`,
-              name: s.label,
-              nameAr: s.labelAr || s.label,
-              category: category,
-              isActive: true
-            });
-          });
-        });
-      }
-      
-      setAllSubjectsData(allSubjects);
-      
-      let filteredSubjects = [...allSubjects];
-      if (selectedCategory !== 'all') {
-        filteredSubjects = filteredSubjects.filter(s => s.category === selectedCategory);
-      }
-      if (searchTerm) {
-        const searchLower = searchTerm.toLowerCase();
-        filteredSubjects = filteredSubjects.filter(s =>
-          s.name.toLowerCase().includes(searchLower) ||
-          s.nameAr.toLowerCase().includes(searchLower)
-        );
-      }
-      
-      setTotalItems(filteredSubjects.length);
-      setTotalPages(Math.ceil(filteredSubjects.length / itemsPerPage));
-      
-      const start = (currentPage - 1) * itemsPerPage;
-      const end = start + itemsPerPage;
-      const paginatedSubjects = filteredSubjects.slice(start, end);
-      setSubjects(paginatedSubjects);
+      setError(
+        isArabic
+          ? 'تعذر تحميل المواد من الخادم'
+          : 'Could not load subjects from the server'
+      );
+      setAllSubjectsData([]);
+      setSubjects([]);
+      setTotalItems(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -405,17 +240,9 @@ const SubjectsManagement = () => {
         setShowAddModal(false);
         resetFormData();
         await fetchSubjects();
-        saveSubjectsToService();
       }
     } catch (error) {
       console.error('Error adding subject:', error);
-      const newSubject = {
-        id: Date.now(),
-        ...formData,
-        isActive: true
-      };
-      setAllSubjectsData([...allSubjectsData, newSubject]);
-      saveSubjectsToService();
       await fetchSubjects();
       notify(
         isArabic ? 'تم إضافة المادة بنجاح' : 'Subject added successfully',
@@ -462,20 +289,10 @@ const SubjectsManagement = () => {
         );
         setShowEditModal(false);
         await fetchSubjects();
-        saveSubjectsToService();
       }
     } catch (error) {
       console.error('Error updating subject:', error);
-      setAllSubjectsData(allSubjectsData.map(s => 
-        s.id === selectedSubject.id ? { ...s, ...editFormData } : s
-      ));
-      saveSubjectsToService();
       await fetchSubjects();
-      notify(
-        isArabic ? 'تم تحديث المادة بنجاح' : 'Subject updated successfully',
-        'success'
-      );
-      setShowEditModal(false);
     } finally {
       setProcessingAction(false);
     }
@@ -493,18 +310,10 @@ const SubjectsManagement = () => {
         );
         setShowDeleteConfirm(false);
         await fetchSubjects();
-        saveSubjectsToService();
       }
     } catch (error) {
       console.error('Error deleting subject:', error);
-      setAllSubjectsData(allSubjectsData.filter(s => s.id !== selectedSubject.id));
-      saveSubjectsToService();
       await fetchSubjects();
-      notify(
-        isArabic ? 'تم حذف المادة بنجاح' : 'Subject deleted successfully',
-        'success'
-      );
-      setShowDeleteConfirm(false);
     } finally {
       setProcessingAction(false);
     }
@@ -522,20 +331,10 @@ const SubjectsManagement = () => {
           'success'
         );
         await fetchSubjects();
-        saveSubjectsToService();
       }
     } catch (error) {
       console.error('Error toggling status:', error);
-      setAllSubjectsData(allSubjectsData.map(s => 
-        s.id === subjectId ? { ...s, isActive: newStatus } : s
-      ));
-      saveSubjectsToService();
       await fetchSubjects();
-      notify(
-        isArabic ? `تم ${newStatus ? 'تفعيل' : 'تعطيل'} المادة بنجاح` : 
-        `Subject ${newStatus ? 'activated' : 'deactivated'} successfully`,
-        'success'
-      );
     }
   };
 
