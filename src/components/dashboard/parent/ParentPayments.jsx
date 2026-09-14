@@ -1,5 +1,6 @@
 // src/components/dashboard/parent/ParentPayments.jsx
 import React, { useState, useEffect, useCallback } from 'react';
+import { syncGet, syncSend } from '../../../services/apiSync';
 import {
   Container, Row, Col, Card, Table, Badge, Button, Form, Modal,
   Alert, Spinner, ProgressBar
@@ -15,7 +16,6 @@ import {
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
 import { useAuth } from '../../../hooks/useAuth';
-import api from '../../../services/api';
 
 const ParentPayments = () => {
   const { isArabic } = useLanguage();
@@ -52,6 +52,7 @@ const ParentPayments = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [editAmount, setEditAmount] = useState('');
   const [editNote, setEditNote] = useState('');
+  const [amountOverrides, setAmountOverrides] = useState({});
 
   const arabicFontStyle = {
     fontFamily: isArabic
@@ -78,184 +79,52 @@ const ParentPayments = () => {
   }, []);
 
   // ===== LOAD CHILDREN =====
-  const loadChildren = useCallback(() => {
+  const loadChildren = useCallback(async () => {
     try {
-      const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-      const userId = currentUser?.id || user?.id || localStorage.getItem('userId');
-      
-      let allStudents = JSON.parse(localStorage.getItem('school_students') || '[]');
-      
-      if (allStudents.length === 0) {
-        const allUsers = JSON.parse(localStorage.getItem('school_users') || '[]');
-        allStudents = allUsers.filter(u => u.role === 'student');
-      }
-      
-      let parentChildren = [];
-      
-      if (userId) {
-        parentChildren = allStudents.filter(s => s.parentId === userId);
-      }
-      
-      if (parentChildren.length === 0) {
-        const parentName = currentUser?.name || user?.name || '';
-        if (parentName) {
-          parentChildren = allStudents.filter(s => s.parentName === parentName);
-        }
-      }
-      
-      if (parentChildren.length === 0) {
-        const parents = JSON.parse(localStorage.getItem('school_parents') || '[]');
-        const currentParent = parents.find(p => p.id === userId || p.email === currentUser?.email);
-        
-        if (currentParent) {
-          const childNames = currentParent.childrenNames ? 
-            currentParent.childrenNames.split(',').map(n => n.trim()) : [];
-          
-          if (childNames.length > 0) {
-            parentChildren = allStudents.filter(s => {
-              const studentName = s.name || s.firstName || '';
-              return childNames.some(childName => studentName.includes(childName) || childName.includes(studentName));
-            });
-          }
-        }
-      }
-      
-      setChildren(parentChildren);
-      
-      if (parentChildren.length > 0 && selectedChild === 'all') {
-        setSelectedChild(parentChildren[0].id);
-      }
+      const res = await syncGet('/auth/my-children');
+      const serverChildren = Array.isArray(res?.data) ? res.data : [];
+      setChildren(serverChildren);
     } catch (error) {
       console.error('Error loading children:', error);
     }
-  }, [user, selectedChild]);
+  }, []);
 
   // ===== FETCH PAYMENTS =====
   const fetchPayments = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const allPayments = JSON.parse(localStorage.getItem('school_payments') || '[]');
-      const registrations = JSON.parse(localStorage.getItem('school_registrations') || '[]');
+      const res = await syncGet('/payments', { month: selectedMonth, year: selectedYear });
+      const serverRows = Array.isArray(res?.data) ? res.data : [];
       
-      let allStudents = JSON.parse(localStorage.getItem('school_students') || '[]');
-      if (allStudents.length === 0) {
-        const allUsers = JSON.parse(localStorage.getItem('school_users') || '[]');
-        allStudents = allUsers.filter(u => u.role === 'student');
-      }
+      const paymentData = serverRows.map((p) => ({
+        id: `srv-${p._serverId ?? p.id}`,
+        _serverId: p._serverId ?? p.id,
+        studentId: p.studentId != null ? p.studentId : (p.student_id ?? null),
+        studentName: p.studentName || 'Student',
+        className: p.className || p.class_name || 'N/A',
+        month: p.month ?? selectedMonth,
+        year: p.year ?? selectedYear,
+        amount: p.amount != null ? p.amount : 250,
+        type: p.category || 'full',
+        status: p.status || 'pending',
+        receipt: p.receipt || null,
+        receiptData: p.receipt || null,
+        receiptName: p.receipt_name || p.receiptName || null,
+        hasReceipt: !!p.receipt,
+        note: p.notes || '',
+        createdAt: p.created_at || p.createdAt || new Date().toISOString(),
+        updatedAt: p.updated_at || p.updatedAt || new Date().toISOString(),
+      }));
       
-      const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-      const userId = currentUser?.id || user?.id || localStorage.getItem('userId');
-      
-      let parentChildren = [];
-      if (userId) {
-        parentChildren = allStudents.filter(s => s.parentId === userId);
-      }
-      if (parentChildren.length === 0) {
-        const parentName = currentUser?.name || user?.name || '';
-        if (parentName) {
-          parentChildren = allStudents.filter(s => s.parentName === parentName);
-        }
-      }
-      
-      if (parentChildren.length === 0) {
-        parentChildren = allStudents;
-      }
-      
-      console.log('👨‍👩‍👦 Children for payments:', parentChildren.length);
-      
-      let paymentData = [];
-      
-      parentChildren.forEach(child => {
-        const existingPayment = allPayments.find(p => 
-          p.studentId === child.id && 
-          p.month === selectedMonth && 
-          p.year === selectedYear
-        );
-        
-        const registration = registrations.find(r => r.studentId === child.id);
-        const feeAmount = registration?.fee || 250;
-        
-        if (existingPayment) {
-          paymentData.push({
-            id: existingPayment.id || `PAY${Date.now()}`,
-            studentId: child.id,
-            studentName: child.name || child.firstName || 'Student',
-            className: child.className || child.class || 'N/A',
-            month: selectedMonth,
-            year: selectedYear,
-            amount: existingPayment.amount || feeAmount,
-            type: existingPayment.type || 'full',
-            status: existingPayment.status || 'pending',
-            receipt: existingPayment.receipt || null,
-            receiptData: existingPayment.receiptData || null,
-            receiptName: existingPayment.receiptName || null,
-            receiptType: existingPayment.receiptType || null,
-            hasReceipt: !!existingPayment.receipt || !!existingPayment.receiptData,
-            note: existingPayment.note || '',
-            createdAt: existingPayment.createdAt || new Date().toISOString(),
-            updatedAt: existingPayment.updatedAt || new Date().toISOString(),
-          });
-        } else {
-          paymentData.push({
-            id: `PAY${Date.now()}_${child.id}`,
-            studentId: child.id,
-            studentName: child.name || child.firstName || 'Student',
-            className: child.className || child.class || 'N/A',
-            month: selectedMonth,
-            year: selectedYear,
-            amount: feeAmount,
-            type: 'full',
-            status: 'pending',
-            receipt: null,
-            receiptData: null,
-            receiptName: null,
-            receiptType: null,
-            hasReceipt: false,
-            note: '',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-        }
-      });
-      
-      if (selectedChild !== 'all') {
-        paymentData = paymentData.filter(p => p.studentId === selectedChild);
-      }
-      
-      console.log('💰 Payments generated:', paymentData.length);
       setPayments(paymentData);
-      
-      const existingPayments = JSON.parse(localStorage.getItem('school_payments') || '[]');
-      paymentData.forEach(p => {
-        if (p.id && !existingPayments.find(ep => ep.id === p.id)) {
-          existingPayments.push({
-            id: p.id,
-            studentId: p.studentId,
-            month: p.month,
-            year: p.year,
-            amount: p.amount,
-            type: p.type,
-            status: p.status,
-            receipt: p.receipt,
-            receiptData: p.receiptData,
-            receiptName: p.receiptName,
-            receiptType: p.receiptType,
-            note: p.note,
-            createdAt: p.createdAt,
-            updatedAt: p.updatedAt,
-          });
-        }
-      });
-      localStorage.setItem('school_payments', JSON.stringify(existingPayments));
-      
     } catch (err) {
       console.error('Error fetching payments:', err);
       setError(err.message || 'Failed to load payments');
     } finally {
       setLoading(false);
     }
-  }, [selectedMonth, selectedYear, selectedChild, user]);
+  }, [selectedMonth, selectedYear, selectedChild]);
 
   useEffect(() => {
     loadChildren();
@@ -270,18 +139,11 @@ const ParentPayments = () => {
   // ===== LISTEN FOR PAYMENT UPDATES =====
   useEffect(() => {
     const handlePaymentUpdated = () => {
-      console.log('💰 Payment updated, refreshing');
       fetchPayments();
     };
     window.addEventListener('paymentUpdated', handlePaymentUpdated);
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'school_payments') {
-        fetchPayments();
-      }
-    });
     return () => {
       window.removeEventListener('paymentUpdated', handlePaymentUpdated);
-      window.removeEventListener('storage', () => {});
     };
   }, [fetchPayments]);
 
@@ -309,7 +171,7 @@ const ParentPayments = () => {
   };
 
   // ===== HANDLE EDIT AMOUNT =====
-  const handleEditAmount = () => {
+  const handleEditAmount = async () => {
     if (!selectedPayment) return;
     
     const amount = parseFloat(editAmount);
@@ -325,18 +187,6 @@ const ParentPayments = () => {
 
     setActionLoading(true);
     try {
-      // Update payment in localStorage
-      const allPayments = JSON.parse(localStorage.getItem('school_payments') || '[]');
-      const index = allPayments.findIndex(p => p.id === selectedPayment.id);
-      
-      if (index !== -1) {
-        allPayments[index].amount = amount;
-        allPayments[index].note = editNote || '';
-        allPayments[index].updatedAt = new Date().toISOString();
-        localStorage.setItem('school_payments', JSON.stringify(allPayments));
-      }
-      
-      // Update local state
       setPayments(prev => prev.map(p => {
         if (p.id === selectedPayment.id) {
           return { ...p, amount: amount, note: editNote || '' };
@@ -344,7 +194,17 @@ const ParentPayments = () => {
         return p;
       }));
       
-      // Dispatch event
+      if (!selectedPayment._serverId) {
+        setAmountOverrides(prev => ({ ...prev, [selectedPayment.id]: amount }));
+      }
+      
+      if (selectedPayment._serverId) {
+        await syncSend('put', `/payments/${selectedPayment._serverId}`, {
+          amount: amount,
+          notes: editNote || '',
+        });
+      }
+      
       window.dispatchEvent(new CustomEvent('paymentUpdated', { 
         detail: { 
           paymentId: selectedPayment.id,
@@ -440,71 +300,28 @@ const ParentPayments = () => {
           
           setUploadProgress(70);
           
-          const allPayments = JSON.parse(localStorage.getItem('school_payments') || '[]');
-          const index = allPayments.findIndex(p => p.id === selectedPayment.id);
-          
-          if (index !== -1) {
-            allPayments[index].status = 'submitted';
-            allPayments[index].receiptData = base64String;
-            allPayments[index].receiptName = receiptFile.name;
-            allPayments[index].receiptType = receiptFile.type;
-            allPayments[index].updatedAt = new Date().toISOString();
-            allPayments[index].hasReceipt = true;
-            
-            localStorage.setItem('school_payments', JSON.stringify(allPayments));
-          } else {
-            const newPayment = {
-              id: selectedPayment.id || `PAY${Date.now()}`,
-              studentId: selectedPayment.studentId,
-              month: selectedPayment.month,
-              year: selectedPayment.year,
-              amount: selectedPayment.amount,
-              type: selectedPayment.type || 'full',
+          if (selectedPayment._serverId) {
+            await syncSend('patch', `/payments/${selectedPayment._serverId}/status`, {
               status: 'submitted',
-              receiptData: base64String,
-              receiptName: receiptFile.name,
-              receiptType: receiptFile.type,
-              hasReceipt: true,
-              note: selectedPayment.note || '',
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            };
-            allPayments.push(newPayment);
-            localStorage.setItem('school_payments', JSON.stringify(allPayments));
+              receipt: base64Data,
+              receipt_name: receiptFile.name,
+            });
+          } else {
+            await syncSend('post', '/payments', {
+              student_name: selectedPayment.studentName || 'Student',
+              student_id: selectedPayment.studentId != null ? selectedPayment.studentId : null,
+              class_name: selectedPayment.className || '',
+              amount: selectedPayment.amount != null ? selectedPayment.amount : 500,
+              month: selectedPayment.month != null ? selectedPayment.month : selectedMonth,
+              year: selectedPayment.year != null ? selectedPayment.year : selectedYear,
+              category: selectedPayment.type || 'full',
+              method: 'cash',
+              receipt: base64Data,
+              receipt_name: receiptFile.name,
+            });
           }
           
           setUploadProgress(90);
-          
-          const allStudents = JSON.parse(localStorage.getItem('school_students') || '[]');
-          const studentIndex = allStudents.findIndex(s => s.id === selectedPayment.studentId);
-          if (studentIndex !== -1) {
-            allStudents[studentIndex].paymentStatus = 'submitted';
-            allStudents[studentIndex].paymentUpdatedAt = new Date().toISOString();
-            localStorage.setItem('school_students', JSON.stringify(allStudents));
-          }
-          
-          // Create notification for admin
-          const notifications = JSON.parse(localStorage.getItem('school_notifications') || '[]');
-          const notification = {
-            id: `NOT${String(Date.now()).slice(-6)}`,
-            title: isArabic ? '📤 تم رفع إيصال دفع' : '📤 Payment Receipt Uploaded',
-            message: isArabic 
-              ? `${selectedPayment.studentName} قام برفع إيصال دفع بمبلغ ${selectedPayment.amount} MAD`
-              : `${selectedPayment.studentName} uploaded a payment receipt of ${selectedPayment.amount} MAD`,
-            type: 'payment',
-            priority: 'high',
-            read: false,
-            recipientRole: 'admin',
-            studentId: selectedPayment.studentId,
-            studentName: selectedPayment.studentName,
-            paymentId: selectedPayment.id,
-            amount: selectedPayment.amount,
-            createdAt: new Date().toISOString(),
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            link: '/dashboard/admin/payments',
-          };
-          notifications.push(notification);
-          localStorage.setItem('school_notifications', JSON.stringify(notifications));
           
           setUploadProgress(100);
           
@@ -514,15 +331,6 @@ const ParentPayments = () => {
               studentId: selectedPayment.studentId,
               status: 'submitted'
             }
-          }));
-          
-          window.dispatchEvent(new CustomEvent('notificationAdded', { 
-            detail: notification 
-          }));
-          
-          window.dispatchEvent(new StorageEvent('storage', {
-            key: 'school_payments',
-            newValue: JSON.stringify(allPayments)
           }));
           
           if (notify) {
@@ -585,13 +393,16 @@ const ParentPayments = () => {
   const downloadReceipt = async (payment) => {
     try {
       if (payment.receiptData) {
-        const byteCharacters = atob(payment.receiptData);
+        const raw = String(payment.receiptData);
+        const mime = raw.match(/^data:([^;,]+)/)?.[1] || payment.receiptType || 'application/pdf';
+        const base64Data = raw.includes(',') ? raw.split(',')[1] : raw;
+        const byteCharacters = atob(base64Data);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
           byteNumbers[i] = byteCharacters.charCodeAt(i);
         }
         const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: payment.receiptType || 'application/pdf' });
+        const blob = new Blob([byteArray], { type: mime });
         const url = URL.createObjectURL(blob);
         
         const a = document.createElement('a');
@@ -641,13 +452,16 @@ const ParentPayments = () => {
   // ===== VIEW RECEIPT =====
   const viewReceipt = (payment) => {
     if (payment.receiptData) {
-      const byteCharacters = atob(payment.receiptData);
+      const raw = String(payment.receiptData);
+      const mime = raw.match(/^data:([^;,]+)/)?.[1] || payment.receiptType || 'application/pdf';
+      const base64Data = raw.includes(',') ? raw.split(',')[1] : raw;
+      const byteCharacters = atob(base64Data);
       const byteNumbers = new Array(byteCharacters.length);
       for (let i = 0; i < byteCharacters.length; i++) {
         byteNumbers[i] = byteCharacters.charCodeAt(i);
       }
       const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: payment.receiptType || 'application/pdf' });
+      const blob = new Blob([byteArray], { type: mime });
       const url = URL.createObjectURL(blob);
       
       window.open(url, '_blank');
@@ -685,14 +499,65 @@ const ParentPayments = () => {
     return <Badge bg="primary" className="px-3 py-1 rounded-pill" style={arabicFontStyle}>{isArabic ? 'كامل' : 'Full'}</Badge>;
   };
 
+  // ===== CHILD PANELS FILTERING =====
+  const visibleChildren = children.filter(
+    (c) => selectedChild === 'all' || String(c.id) === String(selectedChild)
+  );
+
+  const getChildPayments = (child) => {
+    const childName = String(child?.name || '').trim().toLowerCase();
+    return payments.filter((p) => {
+      const pName = String(p.studentName || '').trim().toLowerCase();
+      const idMatch =
+        (child.id != null && p.studentId != null && String(p.studentId) === String(child.id)) ||
+        (child.userId != null && p.studentId != null && String(p.studentId) === String(child.userId)) ||
+        (child.student_id != null && p.studentId != null && String(p.studentId) === String(child.student_id));
+      return idMatch || (childName && pName && childName === pName);
+    });
+  };
+
+  // ===== EFFECTIVE CHILD PAYMENTS (adds a pending current-month row when none exists) =====
+  const getEffectiveChildPayments = (child) => {
+    const rows = getChildPayments(child);
+    const hasCurrentMonthRow = rows.some(
+      (p) => Number(p.month) === Number(selectedMonth) && Number(p.year) === Number(selectedYear)
+    );
+    if (hasCurrentMonthRow) {
+      return rows;
+    }
+    const lastAmount = rows.length ? (Number(rows[0].amount) || 500) : 500;
+    const localId = `local-${child.id ?? child.student_id ?? child.name}-${selectedMonth}-${selectedYear}`;
+    return [{
+      id: localId,
+      _serverId: null,
+      studentId: child.id != null ? child.id : child.student_id,
+      studentName: child.name || 'Student',
+      className: child.class_name || child.className || child.class || child.classroom || '',
+      month: selectedMonth,
+      year: selectedYear,
+      amount: amountOverrides[localId] != null ? Number(amountOverrides[localId]) : lastAmount,
+      type: rows.length ? (rows[0].type || 'full') : 'full',
+      status: 'pending',
+      hasReceipt: false,
+      receiptData: null,
+      receiptName: null,
+      note: '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      local: true,
+    }];
+  };
+
+  const viewPayments = children.flatMap((child) => getEffectiveChildPayments(child));
+
   // ===== STATS =====
   const stats = {
-    total: payments.length,
-    approved: payments.filter((p) => p.status === 'approved' || p.status === 'paid').length,
-    submitted: payments.filter((p) => p.status === 'submitted').length,
-    pending: payments.filter((p) => p.status === 'pending').length,
-    totalDue: payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0),
-    totalPaid: payments
+    total: viewPayments.length,
+    approved: viewPayments.filter((p) => p.status === 'approved' || p.status === 'paid').length,
+    submitted: viewPayments.filter((p) => p.status === 'submitted').length,
+    pending: viewPayments.filter((p) => p.status === 'pending').length,
+    totalDue: viewPayments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0),
+    totalPaid: viewPayments
       .filter((p) => p.status === 'approved' || p.status === 'paid')
       .reduce((sum, p) => sum + (Number(p.amount) || 0), 0),
   };
@@ -937,7 +802,7 @@ const ParentPayments = () => {
                 <FaMoneyBillWave className="me-2" style={{ color: '#2ecc71' }} />
                 {isArabic ? 'سجل الدفعات' : 'Payment History'}
                 <Badge bg="light" className="ms-2 text-dark" style={arabicFontStyle}>
-                  {formatNumber(payments.length)}
+{formatNumber(viewPayments.length)}
                 </Badge>
               </h6>
               <div className="d-flex gap-2 align-items-center">
@@ -953,7 +818,7 @@ const ParentPayments = () => {
               <Alert variant="danger" className="m-3" style={arabicFontStyle}>
                 {error}
               </Alert>
-            ) : payments.length === 0 ? (
+            ) : visibleChildren.length === 0 ? (
               <div className="text-center py-5">
                 <FaMoneyBillWave size={48} className="text-muted opacity-25 mb-3" />
                 <p className="text-muted" style={{ ...arabicFontStyle, fontSize: 'clamp(0.9rem, 1vw, 1.05rem)' }}>
@@ -971,150 +836,163 @@ const ParentPayments = () => {
                 </Button>
               </div>
             ) : (
-              <div className="table-responsive">
-                <Table hover className="mb-0" style={arabicFontStyle}>
-                  <thead>
-                    <tr>
-                      <th style={{ ...arabicFontStyle, fontSize: 'clamp(0.65rem, 0.75vw, 0.75rem)', textTransform: 'uppercase', letterSpacing: '0.3px', color: darkMode ? '#adb5bd' : '#6c757d', borderBottom: `2px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`, padding: '10px 16px' }}>
-                        {isArabic ? 'الطالب' : 'Student'}
-                      </th>
-                      <th style={{ ...arabicFontStyle, fontSize: 'clamp(0.65rem, 0.75vw, 0.75rem)', textTransform: 'uppercase', letterSpacing: '0.3px', color: darkMode ? '#adb5bd' : '#6c757d', borderBottom: `2px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`, padding: '10px 16px' }}>
-                        {isArabic ? 'الشهر' : 'Month'}
-                      </th>
-                      <th style={{ ...arabicFontStyle, fontSize: 'clamp(0.65rem, 0.75vw, 0.75rem)', textTransform: 'uppercase', letterSpacing: '0.3px', color: darkMode ? '#adb5bd' : '#6c757d', borderBottom: `2px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`, padding: '10px 16px' }}>
-                        {isArabic ? 'النوع' : 'Type'}
-                      </th>
-                      <th style={{ ...arabicFontStyle, fontSize: 'clamp(0.65rem, 0.75vw, 0.75rem)', textTransform: 'uppercase', letterSpacing: '0.3px', color: darkMode ? '#adb5bd' : '#6c757d', borderBottom: `2px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`, padding: '10px 16px' }}>
-                        {isArabic ? 'المبلغ' : 'Amount'}
-                      </th>
-                      <th style={{ ...arabicFontStyle, fontSize: 'clamp(0.65rem, 0.75vw, 0.75rem)', textTransform: 'uppercase', letterSpacing: '0.3px', color: darkMode ? '#adb5bd' : '#6c757d', borderBottom: `2px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`, padding: '10px 16px' }}>
-                        {isArabic ? 'الحالة' : 'Status'}
-                      </th>
-                      <th className="text-center" style={{ ...arabicFontStyle, fontSize: 'clamp(0.65rem, 0.75vw, 0.75rem)', textTransform: 'uppercase', letterSpacing: '0.3px', color: darkMode ? '#adb5bd' : '#6c757d', borderBottom: `2px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`, padding: '10px 16px' }}>
-                        {isArabic ? 'الإيصال' : 'Receipt'}
-                      </th>
-                      <th className="text-center" style={{ ...arabicFontStyle, fontSize: 'clamp(0.65rem, 0.75vw, 0.75rem)', textTransform: 'uppercase', letterSpacing: '0.3px', color: darkMode ? '#adb5bd' : '#6c757d', borderBottom: `2px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`, padding: '10px 16px' }}>
-                        {isArabic ? 'إجراء' : 'Action'}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {payments.map((p) => (
-                      <tr key={p.id ?? `${p.studentName}-${p.month}-${p.year}`}>
-                        <td>
-                          <div className="d-flex align-items-center gap-2">
-                            <div
-                              className="d-flex align-items-center justify-content-center rounded-circle"
-                              style={{ 
-                                width: 'clamp(30px, 3.5vw, 36px)', 
-                                height: 'clamp(30px, 3.5vw, 36px)', 
-                                background: 'linear-gradient(135deg, #1a5f7a, #2a7f9a)',
-                                color: 'white',
-                                fontSize: 'clamp(0.7rem, 0.8vw, 0.85rem)',
-                                fontWeight: '700',
-                                flexShrink: 0
-                              }}
-                            >
-                              {(p.studentName || 'S').charAt(0).toUpperCase()}
-                            </div>
-                            <div>
-                              <div className="fw-semibold" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', fontSize: 'clamp(0.85rem, 0.95vw, 0.95rem)' }}>
-                                {p.studentName}
-                              </div>
-                              <small className="text-muted" style={{ ...arabicFontStyle, fontSize: 'clamp(0.6rem, 0.65vw, 0.7rem)' }}>
-                                {p.className}
-                              </small>
-                            </div>
+              <div className="p-0">
+                {visibleChildren.map((child) => {
+                  const childPayments = getEffectiveChildPayments(child);
+                  const uploadable = childPayments.find((p) => p.status !== 'approved' && p.status !== 'paid');
+                  return (
+                    <div key={child.id ?? child.student_id ?? child.name} className="border-bottom" style={{ borderColor: darkMode ? '#2d2d44' : '#e9ecef' }}>
+                      <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 p-3" style={{ borderBottom: `1px solid ${darkMode ? '#2d2d44' : '#e9ecef'}` }}>
+                        <div className="d-flex align-items-center gap-2" style={{ minWidth: 0 }}>
+                          <div
+                            className="d-flex align-items-center justify-content-center rounded-circle"
+                            style={{ 
+                              width: 'clamp(34px, 3.5vw, 40px)', 
+                              height: 'clamp(34px, 3.5vw, 40px)', 
+                              background: 'linear-gradient(135deg, #1a5f7a, #2a7f9a)',
+                              color: 'white',
+                              fontSize: 'clamp(0.8rem, 0.9vw, 0.95rem)',
+                              fontWeight: '700',
+                              flexShrink: 0
+                            }}
+                          >
+                            {(child.name || 'S').charAt(0).toUpperCase()}
                           </div>
-                        </td>
-                        <td style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                          <div style={{ fontSize: 'clamp(0.85rem, 0.95vw, 0.95rem)' }}>{getMonthName(p.month)}</div>
-                          <small className="text-muted" style={{ fontSize: 'clamp(0.6rem, 0.65vw, 0.7rem)' }}>{p.year}</small>
-                        </td>
-                        <td>{getTypeBadge(p.type || 'full')}</td>
-                        <td>
-                          <strong style={{ color: darkMode ? '#e9ecef' : '#212529', fontSize: 'clamp(0.9rem, 1vw, 1.05rem)' }}>
-                            {p.amount != null ? `${formatNumber(p.amount)} MAD` : '-'}
-                          </strong>
-                        </td>
-                        <td>{getStatusBadge(p.status)}</td>
-                        <td className="text-center">
-                          {(p.receiptData || p.receipt || p.hasReceipt) ? (
-                            <div className="d-flex justify-content-center gap-1">
-                              <Button 
-                                variant="outline-primary" 
-                                size="sm" 
-                                onClick={() => viewReceipt(p)}
-                                title={isArabic ? 'عرض الإيصال' : 'View Receipt'}
-                                style={{ 
-                                  borderRadius: '8px',
-                                  padding: '2px 8px',
-                                  fontSize: 'clamp(0.6rem, 0.7vw, 0.7rem)'
-                                }}
-                              >
-                                <FaEye size={12} />
-                              </Button>
-                              <Button 
-                                variant="outline-secondary" 
-                                size="sm" 
-                                onClick={() => downloadReceipt(p)}
-                                title={isArabic ? 'تنزيل الإيصال' : 'Download Receipt'}
-                                style={{ 
-                                  borderRadius: '8px',
-                                  padding: '2px 8px',
-                                  fontSize: 'clamp(0.6rem, 0.7vw, 0.7rem)'
-                                }}
-                              >
-                                <FaDownload size={12} />
-                              </Button>
+                          <div style={{ minWidth: 0 }}>
+                            <div className="fw-semibold" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', fontSize: 'clamp(0.9rem, 1vw, 1.05rem)' }}>
+                              {child.name || 'Student'}
                             </div>
-                          ) : (
-                            <span className="text-muted" style={{ fontSize: 'clamp(0.6rem, 0.7vw, 0.75rem)' }}>-</span>
-                          )}
-                        </td>
-                        <td className="text-center">
-                          <div className="d-flex justify-content-center gap-1 flex-wrap">
-                            {/* Edit Button - Always visible */}
-                            <Button
-                              variant="outline-warning"
-                              size="sm"
-                              onClick={() => openEditModal(p)}
-                              title={isArabic ? 'تعديل المبلغ' : 'Edit Amount'}
-                              style={{ 
-                                borderRadius: '8px',
-                                padding: '2px 8px',
-                                fontSize: 'clamp(0.6rem, 0.7vw, 0.7rem)',
-                                borderColor: '#f39c12',
-                                color: '#f39c12'
-                              }}
-                            >
-                              <FaEdit size={12} />
-                            </Button>
-                            
-                            {/* Upload Button - Only for pending/submitted */}
-                            {p.status !== 'approved' && p.status !== 'paid' && (
-                              <Button
-                                variant="success"
-                                size="sm"
-                                onClick={() => openUploadModal(p)}
-                                style={{ 
-                                  borderRadius: '8px',
-                                  padding: '2px 8px',
-                                  fontSize: 'clamp(0.6rem, 0.7vw, 0.7rem)',
-                                  backgroundColor: '#2ecc71',
-                                  borderColor: '#2ecc71',
-                                  color: 'white'
-                                }}
-                              >
-                                <FaUpload size={12} />
-                              </Button>
-                            )}
+                            <small className="text-muted" style={{ ...arabicFontStyle, fontSize: 'clamp(0.65rem, 0.7vw, 0.75rem)' }}>
+                              {child.class_name || child.className || child.class || child.classroom || ''}
+                            </small>
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
+                        </div>
+                        {uploadable && (
+                          <Button
+                            variant="success"
+                            size="sm"
+                            onClick={() => openUploadModal(uploadable)}
+                            title={isArabic ? 'رفع إيصال الدفع لهذا الطفل' : 'Upload payment receipt for this child'}
+                            style={{
+                              borderRadius: '50px',
+                              backgroundColor: '#2ecc71',
+                              borderColor: '#2ecc71',
+                              color: 'white',
+                              ...arabicFontStyle,
+                              fontSize: 'clamp(0.75rem, 0.85vw, 0.9rem)'
+                            }}
+                          >
+                            <FaUpload className="me-1" /> {isArabic ? 'رفع إيصال' : 'Upload Receipt'}
+                          </Button>
+                        )}
+                      </div>
+                      {childPayments.length === 0 ? (
+                        <div className="text-center py-4 px-3">
+                          <p className="text-muted mb-0" style={{ ...arabicFontStyle, fontSize: 'clamp(0.8rem, 0.9vw, 0.95rem)' }}>
+                            {isArabic
+                              ? `لا توجد دفعات مسجلة لـ ${child.name || 'هذا الطفل'} في ${getMonthName(selectedMonth)} ${selectedYear}`
+                              : `No payments recorded for ${child.name || 'this child'} in ${getMonthName(selectedMonth)} ${selectedYear}`}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="table-responsive">
+                          <Table hover className="mb-0" style={arabicFontStyle}>
+                            <thead>
+                              <tr>
+                                <th style={{ ...arabicFontStyle, fontSize: 'clamp(0.65rem, 0.75vw, 0.75rem)', textTransform: 'uppercase', letterSpacing: '0.3px', color: darkMode ? '#adb5bd' : '#6c757d', borderBottom: `2px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`, padding: '10px 16px' }}>
+                                  {isArabic ? 'الشهر' : 'Month'}
+                                </th>
+                                <th style={{ ...arabicFontStyle, fontSize: 'clamp(0.65rem, 0.75vw, 0.75rem)', textTransform: 'uppercase', letterSpacing: '0.3px', color: darkMode ? '#adb5bd' : '#6c757d', borderBottom: `2px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`, padding: '10px 16px' }}>
+                                  {isArabic ? 'النوع' : 'Type'}
+                                </th>
+                                <th style={{ ...arabicFontStyle, fontSize: 'clamp(0.65rem, 0.75vw, 0.75rem)', textTransform: 'uppercase', letterSpacing: '0.3px', color: darkMode ? '#adb5bd' : '#6c757d', borderBottom: `2px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`, padding: '10px 16px' }}>
+                                  {isArabic ? 'المبلغ' : 'Amount'}
+                                </th>
+                                <th style={{ ...arabicFontStyle, fontSize: 'clamp(0.65rem, 0.75vw, 0.75rem)', textTransform: 'uppercase', letterSpacing: '0.3px', color: darkMode ? '#adb5bd' : '#6c757d', borderBottom: `2px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`, padding: '10px 16px' }}>
+                                  {isArabic ? 'الحالة' : 'Status'}
+                                </th>
+                                <th className="text-center" style={{ ...arabicFontStyle, fontSize: 'clamp(0.65rem, 0.75vw, 0.75rem)', textTransform: 'uppercase', letterSpacing: '0.3px', color: darkMode ? '#adb5bd' : '#6c757d', borderBottom: `2px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`, padding: '10px 16px' }}>
+                                  {isArabic ? 'الإيصال' : 'Receipt'}
+                                </th>
+                                <th className="text-center" style={{ ...arabicFontStyle, fontSize: 'clamp(0.65rem, 0.75vw, 0.75rem)', textTransform: 'uppercase', letterSpacing: '0.3px', color: darkMode ? '#adb5bd' : '#6c757d', borderBottom: `2px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`, padding: '10px 16px' }}>
+                                  {isArabic ? 'إجراء' : 'Action'}
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {childPayments.map((p) => (
+                                <tr key={p.id ?? `${p.studentName}-${p.month}-${p.year}`}>
+                                  <td style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                                    <div style={{ fontSize: 'clamp(0.85rem, 0.95vw, 0.95rem)' }}>{getMonthName(p.month)}</div>
+                                    <small className="text-muted" style={{ fontSize: 'clamp(0.6rem, 0.65vw, 0.7rem)' }}>{p.year}</small>
+                                  </td>
+                                  <td>{getTypeBadge(p.type || 'full')}</td>
+                                  <td>
+                                    <strong style={{ color: darkMode ? '#e9ecef' : '#212529', fontSize: 'clamp(0.9rem, 1vw, 1.05rem)' }}>
+                                      {p.amount != null ? `${formatNumber(p.amount)} MAD` : '-'}
+                                    </strong>
+                                  </td>
+                                  <td>{getStatusBadge(p.status)}</td>
+                                  <td className="text-center">
+                                    {(p.receiptData || p.receipt || p.hasReceipt) ? (
+                                      <div className="d-flex justify-content-center gap-1">
+                                        <Button 
+                                          variant="outline-primary" 
+                                          size="sm" 
+                                          onClick={() => viewReceipt(p)}
+                                          title={isArabic ? 'عرض الإيصال' : 'View Receipt'}
+                                          style={{ 
+                                            borderRadius: '8px',
+                                            padding: '2px 8px',
+                                            fontSize: 'clamp(0.6rem, 0.7vw, 0.7rem)'
+                                          }}
+                                        >
+                                          <FaEye size={12} />
+                                        </Button>
+                                        <Button 
+                                          variant="outline-secondary" 
+                                          size="sm" 
+                                          onClick={() => downloadReceipt(p)}
+                                          title={isArabic ? 'تنزيل الإيصال' : 'Download Receipt'}
+                                          style={{ 
+                                            borderRadius: '8px',
+                                            padding: '2px 8px',
+                                            fontSize: 'clamp(0.6rem, 0.7vw, 0.7rem)'
+                                          }}
+                                        >
+                                          <FaDownload size={12} />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <span className="text-muted" style={{ fontSize: 'clamp(0.6rem, 0.7vw, 0.75rem)' }}>-</span>
+                                    )}
+                                  </td>
+                                  <td className="text-center">
+                                    <Button
+                                      variant="outline-warning"
+                                      size="sm"
+                                      onClick={() => openEditModal(p)}
+                                      title={isArabic ? 'تعديل المبلغ' : 'Edit Amount'}
+                                      style={{ 
+                                        borderRadius: '8px',
+                                        padding: '2px 8px',
+                                        fontSize: 'clamp(0.6rem, 0.7vw, 0.7rem)',
+                                        borderColor: '#f39c12',
+                                        color: '#f39c12'
+                                      }}
+                                    >
+                                      <FaEdit size={12} />
+                                    </Button>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </Table>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </Card.Body>
@@ -1122,7 +1000,7 @@ const ParentPayments = () => {
             <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
               <span className="text-muted small" style={arabicFontStyle}>
                 {isArabic ? 'إجمالي الدفعات: ' : 'Total Payments: '}
-                <strong>{formatNumber(payments.length)}</strong>
+                <strong>{formatNumber(viewPayments.length)}</strong>
               </span>
               <span className="text-muted small" style={arabicFontStyle}>
                 {isArabic ? 'المبلغ الإجمالي: ' : 'Total Amount: '}

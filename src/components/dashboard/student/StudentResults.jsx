@@ -20,7 +20,7 @@ import { useLanguage } from '../../../context/LanguageContext';
 import { getTranslation } from '../../../utils/translations';
 import { useNotification } from '../../../hooks/useNotification';
 import { useAuth } from '../../../hooks/useAuth';
-import userDataService from '../../../services/userDataService';
+import { syncGet } from '../../../services/apiSync';
 
 // ===== ARABIC FONT STYLE =====
 const getArabicFontStyle = (isArabic) => ({
@@ -171,111 +171,70 @@ const StudentResults = () => {
   };
 
   // ===== LOAD SUBJECTS FOR STUDENT'S LEVEL =====
-  const loadSubjectsForLevel = (level) => {
-    try {
-      const allSubjects = JSON.parse(localStorage.getItem('school_subjects') || '[]');
-      
-      if (allSubjects.length === 0) {
-        const serviceSubjects = userDataService.getAllSubjects();
-        if (serviceSubjects && Object.keys(serviceSubjects).length > 0) {
-          const subjectsList = [];
-          Object.keys(serviceSubjects).forEach(cat => {
-            serviceSubjects[cat].forEach(s => {
-              subjectsList.push({
-                id: s.value,
-                name: s.label,
-                nameAr: s.labelAr || s.label,
-                category: cat,
-                isActive: true
-              });
-            });
-          });
-          setSubjects(subjectsList);
-          const levelSubjects = subjectsList.filter(s => s.category === level);
-          setStudentSubjects(levelSubjects);
-          return levelSubjects;
-        }
-        return [];
-      }
-      
-      setSubjects(allSubjects);
-      const levelSubjects = allSubjects.filter(s => s.category === level);
-      setStudentSubjects(levelSubjects);
-      return levelSubjects;
-    } catch (error) {
-      console.error('Error loading subjects:', error);
+  const loadSubjectsForLevel = (allSubjects, level) => {
+    if (allSubjects.length === 0) {
+      setSubjects([]);
+      setStudentSubjects([]);
       return [];
     }
+    setSubjects(allSubjects);
+    const levelSubjects = allSubjects.filter(s => s.category === level);
+    setStudentSubjects(levelSubjects);
+    return levelSubjects;
   };
 
   // ===== LOAD RESULTS =====
-  const loadResults = () => {
+  const loadResults = async () => {
     try {
       setLoading(true);
       setError(null);
 
       console.log('🔄 Loading student results...');
       
-      // Get current user
-      let currentUser = null;
-      const currentUserStr = localStorage.getItem('currentUser');
-      if (currentUserStr) {
-        try {
-          currentUser = JSON.parse(currentUserStr);
-        } catch (e) {
-          console.error('Error parsing currentUser:', e);
-        }
-      }
-      
-      if (!currentUser && user) {
-        currentUser = user;
-      }
-      
-      if (!currentUser) {
-        const users = JSON.parse(localStorage.getItem('school_users') || '[]');
-        const studentUser = users.find(u => u.role === 'student');
-        if (studentUser) {
-          currentUser = studentUser;
-          localStorage.setItem('currentUser', JSON.stringify(studentUser));
-        }
-      }
-      
-      if (!currentUser) {
-        const students = JSON.parse(localStorage.getItem('school_students') || '[]');
-        if (students.length > 0) {
-          const student = students[0];
-          currentUser = {
-            id: student.id,
-            name: student.name || student.firstName || 'Student',
-            email: student.email || 'student@school.com',
-            role: 'student',
-            studentId: student.id,
-            classId: student.classId || student.class,
-            ...student
-          };
-          localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        }
-      }
-      
-      if (!currentUser) {
+      // Get current user from auth context
+      if (!user) {
         setError(isArabic ? 'لم يتم العثور على المستخدم' : 'User not found');
         setLoading(false);
         return;
       }
 
-      // Get student data
-      const allStudents = JSON.parse(localStorage.getItem('school_students') || '[]');
-      let student = allStudents.find(s => s.id === currentUser.id || s.id === currentUser.studentId);
-      if (!student && currentUser.email) {
-        student = allStudents.find(s => s.email === currentUser.email);
+      // Fetch student profile from /students to get class info
+      let student = null;
+      try {
+        const studentsRes = await syncGet('/students');
+        const rows = Array.isArray(studentsRes?.data) ? studentsRes.data : [];
+        // students endpoint returns { id: students.id, userId: users.id, code, name, email, class_code, classId, className, level }
+        student = rows.find(s => s.userId === user.id || s.id === user.id);
+        if (!student && user.email) {
+          student = rows.find(s => s.email === user.email);
+        }
+        if (!student && user.name) {
+          student = rows.find(s => s.name === user.name);
+        }
+        if (!student && rows.length > 0) {
+          // Fallback: first student record
+          student = rows[0];
+        }
+      } catch (e) {
+        console.warn('⚠️ Could not load students list:', e);
       }
-      if (!student && currentUser.name) {
-        student = allStudents.find(s => s.name === currentUser.name || s.firstName === currentUser.name);
+
+      // Fallback: map from auth user directly if available
+      if (!student && user) {
+        if (user.className || user.class_name || user.class_code || user.level) {
+          student = {
+            id: user.id,
+            userId: user.id,
+            name: user.name || 'Student',
+            email: user.email,
+            class_code: user.class_code || user.classCode || '',
+            classId: user.classId || user.class_id || null,
+            className: user.className || user.class_name || '',
+            level: user.level || '',
+          };
+        }
       }
-      if (!student && allStudents.length > 0) {
-        student = allStudents[0];
-      }
-      
+
       if (!student) {
         setError(isArabic ? 'لم يتم العثور على بيانات الطالب' : 'Student data not found');
         setLoading(false);
@@ -285,46 +244,78 @@ const StudentResults = () => {
       setStudentData(student);
       
       // Get student level
-      const studentLevel = student.level || student.educationLevel || 'primary';
-      
-      // Load subjects for student's level
-      const levelSubjects = loadSubjectsForLevel(studentLevel);
+      const studentLevel = student.level || student.educationLevel || '';
+
+      // Fetch subjects, assessments and submissions from the server
+      const [subjectsRes, assessmentsRes, submissionsRes] = await Promise.all([
+        syncGet('/subjects'),
+        syncGet('/assessments'),
+        syncGet('/submissions'),
+      ]);
+
+      const allSubjectsRows = Array.isArray(subjectsRes?.data) ? subjectsRes.data : [];
+      // /subjects returns { data: [...], allData: [...] } – allData is unpaginated
+      const allSubjects = allSubjectsRows.length > 0 ? allSubjectsRows : (Array.isArray(subjectsRes?.allData) ? subjectsRes.allData : []);
+      const assessments = Array.isArray(assessmentsRes?.data) ? assessmentsRes.data : [];
+      const submissions = Array.isArray(submissionsRes?.data) ? submissionsRes.data : [];
+
+      console.log('📚 Subjects from server:', allSubjects.length);
+      console.log('📝 Assessments from server:', assessments.length);
+      console.log('📤 Submissions from server:', submissions.length);
+
+      // Filter subjects for student's level
+      const levelSubjects = loadSubjectsForLevel(allSubjects, studentLevel);
       console.log('📚 Subjects for level:', levelSubjects.length);
 
-      // ===== Load exam results from student_results =====
-      const studentResults = JSON.parse(localStorage.getItem('student_results') || '[]');
-      const myExamResults = studentResults.filter(r => r.studentId === student.id || r.studentId === currentUser.id);
-      
-      console.log('📝 Exam results from student_results:', myExamResults.length);
+      // Build submissions lookup keyed by assessmentId
+      const submissionsByAssessment = {};
+      submissions.forEach(s => {
+        const key = String(s.assessmentId || s.assessment_id);
+        if (!submissionsByAssessment[key]) submissionsByAssessment[key] = s;
+      });
 
-      // ===== Create results for each subject =====
+      // Build results from subjects matched against server submissions
       const resultsData = levelSubjects.map(subject => {
-        // Find exam result for this subject
-        const examResult = myExamResults.find(r => r.subject === subject.name);
+        // Find assessments for this subject
+        const subjectAssessments = assessments.filter(a => a.subject === subject.name);
         
-        // If there's an exam result, use it
-        if (examResult) {
+        // Find the best graded submission across all assessments for this subject
+        let bestSubmission = null;
+        let bestAssessment = null;
+        for (const a of subjectAssessments) {
+          const sub = submissionsByAssessment[String(a.id || a._serverId)];
+          if (sub && (sub.status === 'graded' || sub.score != null) && sub.score != null) {
+            if (!bestSubmission || Number(sub.score) > Number(bestSubmission.score)) {
+              bestSubmission = sub;
+              bestAssessment = a;
+            }
+          }
+        }
+
+        if (bestSubmission && bestAssessment) {
+          const totalMarks = bestAssessment.totalMarks || 20;
+          const score = Number(bestSubmission.score);
           return {
-            id: examResult.id || `exam_${Date.now()}`,
+            id: bestSubmission._serverId || bestSubmission.id,
             subject: subject.name,
             subjectAr: subject.nameAr || subject.name,
-            semester: examResult.semester || 'First Semester',
-            score: examResult.score ?? null,
-            maxMarks: examResult.totalMarks || 20,
-            grade: examResult.grade || (examResult.score !== null ? getGradeFromScore(examResult.score, examResult.totalMarks || 20) : null),
-            status: examResult.score !== null && examResult.score !== undefined ? 'graded' : 'pending',
-            date: examResult.date || examResult.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
-            teacher: examResult.teacherName || examResult.teacher || 'Teacher',
-            remarks: examResult.remarks || '',
+            semester: 'First Semester',
+            score,
+            maxMarks: totalMarks,
+            grade: getGradeFromScore(score, totalMarks),
+            status: 'graded',
+            date: bestSubmission.submittedAt ? bestSubmission.submittedAt.split('T')[0] : '',
+            teacher: bestAssessment.teacherName || 'Teacher',
+            remarks: bestSubmission.comment || bestSubmission.feedback || '',
             isExam: true,
-            assessmentTitle: examResult.assessmentTitle || 'Exam',
-            percentage: examResult.percentage || (examResult.score !== null ? ((examResult.score / (examResult.totalMarks || 20)) * 100).toFixed(1) : null),
-            academicYear: examResult.academicYear || new Date().getFullYear().toString(),
-            examId: examResult.assessmentId || examResult.id,
+            assessmentTitle: bestAssessment.title || 'Exam',
+            percentage: ((score / totalMarks) * 100).toFixed(1),
+            academicYear: new Date().getFullYear().toString(),
+            examId: bestAssessment.id || bestAssessment._serverId || bestSubmission.assessmentId,
           };
         }
 
-        // No exam result for this subject
+        // No graded submission for this subject
         return {
           id: `subject_${subject.id}`,
           subject: subject.name,
@@ -358,7 +349,7 @@ const StudentResults = () => {
     loadResults();
 
     const handleStorageChange = (e) => {
-      if (e.key === "student_results" || e.key === "school_assessments") {
+      if (e.key === "school_assessments") {
         console.log("🔄 Data changed, refreshing results");
         loadResults();
       }
@@ -377,10 +368,23 @@ const StudentResults = () => {
     };
     window.addEventListener("resultsUpdated", handleResultsUpdated);
 
+    // Auto-refresh grades from the server (DB-backed): poll while the tab is
+    // visible so a freshly graded submission appears without a manual reload.
+    const refreshFromServer = () => {
+      if (document.visibilityState === "visible") {
+        loadResults();
+      }
+    };
+    const handleVisible = () => refreshFromServer();
+    document.addEventListener("visibilitychange", handleVisible);
+    const pollTimer = setInterval(refreshFromServer, 30000);
+
     return () => {
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("assessmentChanged", handleAssessmentChanged);
       window.removeEventListener("resultsUpdated", handleResultsUpdated);
+      document.removeEventListener("visibilitychange", handleVisible);
+      clearInterval(pollTimer);
     };
   }, []);
 
@@ -625,7 +629,7 @@ const StudentResults = () => {
   }
 
   // ===== GET STUDENT LEVEL =====
-  const studentLevel = studentData?.level || studentData?.educationLevel || 'primary';
+  const studentLevel = studentData?.level || studentData?.educationLevel || '';
   const levelDisplay = getLevelDisplay(studentLevel);
   const levelColor = getLevelColor(studentLevel);
   const levelIcon = getLevelIcon(studentLevel);

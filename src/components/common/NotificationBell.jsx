@@ -41,7 +41,7 @@ const NotificationBell = () => {
 
   // Get user role for role-specific notifications
   const getUserRole = () => {
-    return user?.role || localStorage.getItem('role') || 'admin';
+    return user?.role || 'admin';
   };
 
   const userRole = getUserRole();
@@ -60,10 +60,10 @@ const NotificationBell = () => {
   // Get role-specific notification types
   const getNotificationTypes = () => {
     const types = {
-      admin: ['registration', 'system', 'announcement', 'reminder'],
+      admin: ['registration', 'payment', 'system', 'announcement', 'reminder'],
       teacher: ['assignment', 'submission', 'schedule', 'announcement'],
-      parent: ['grade', 'attendance', 'announcement'],
-      student: ['grade', 'announcement']
+      parent: ['grade', 'attendance', 'announcement', 'payment'],
+      student: ['grade', 'announcement', 'payment']
     };
     return types[userRole] || ['announcement'];
   };
@@ -113,7 +113,8 @@ const NotificationBell = () => {
       attendance: <FaCalendarCheck />,
       schedule: <FaClock />,
       system: <FaInfoCircle />,
-      reminder: <FaBell />
+      reminder: <FaBell />,
+      payment: <FaFileAlt />
     };
     return icons[type] || <FaInfoCircle />;
   };
@@ -129,7 +130,8 @@ const NotificationBell = () => {
       attendance: '#1abc9c',
       schedule: '#e74c3c',
       system: '#4a9eff',
-      reminder: '#f39c12'
+      reminder: '#f39c12',
+      payment: '#2ecc71'
     };
     return colors[type] || '#6c757d';
   };

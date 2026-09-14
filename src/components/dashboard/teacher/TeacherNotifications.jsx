@@ -4,6 +4,7 @@ import { Card, Button, Badge, Form, Row, Col } from 'react-bootstrap';
 import { FaBell, FaCheckDouble, FaTrash, FaSearch, FaSync, FaExclamationTriangle, FaSpinner } from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
+import notificationService from '../../../services/notificationService';
 import { teacherService } from '../../../services/teacherService';
 import LoadingSpinner from '../../common/LoadingSpinner';
 import EmptyState from '../../common/EmptyState';
@@ -58,8 +59,8 @@ const TeacherNotifications = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // ===== LOAD NOTIFICATIONS =====
-  const loadNotifications = () => {
+  // ===== LOAD NOTIFICATIONS (MySQL-backed via notificationService) =====
+  const loadNotifications = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -78,37 +79,20 @@ const TeacherNotifications = () => {
       
       setTeacher(currentTeacher);
       
-      // Get all notifications from localStorage
-      const allNotifications = JSON.parse(localStorage.getItem('school_notifications') || '[]');
+      // Pull notifications from MySQL through the Laravel API.
+      // The backend already scopes them to this teacher (personal + broadcasts).
+      await notificationService.pull();
+      const allNotifications = notificationService.getNotifications();
       console.log('📬 All notifications:', allNotifications.length);
       
-      // Filter notifications for this teacher
-      const teacherNotifications = allNotifications.filter(n => {
-        // Check if notification is for this teacher
-        const isForTeacher = 
-          n.recipientId === currentTeacher.id || 
-          n.recipientRole === 'teacher' ||
-          n.recipientRole === 'all' ||
-          n.recipientRole === 'teachers' ||
-          (n.recipientId === undefined && n.recipientRole === undefined);
-        
-        // Check if notification is about the teacher's students or classes
-        const isAboutTeacher = 
-          n.studentId !== undefined ||
-          n.classId !== undefined ||
-          n.teacherId === currentTeacher.id;
-        
-        return isForTeacher || isAboutTeacher;
-      });
-      
-      console.log('📬 Teacher notifications:', teacherNotifications.length);
-      
       // Sort by date (newest first)
-      teacherNotifications.sort((a, b) => {
+      const teacherNotifications = [...allNotifications].sort((a, b) => {
         const dateA = new Date(a.createdAt || a.time || a.created_at || 0);
         const dateB = new Date(b.createdAt || b.time || b.created_at || 0);
         return dateB - dateA;
       });
+      
+      console.log('📬 Teacher notifications:', teacherNotifications.length);
       
       setNotifications(teacherNotifications);
       applyFilters(teacherNotifications);
@@ -143,94 +127,33 @@ const TeacherNotifications = () => {
 
   // ===== HANDLE MARK AS READ =====
   const handleMarkAsRead = (id) => {
-    try {
-      const allNotifications = JSON.parse(localStorage.getItem('school_notifications') || '[]');
-      const updated = allNotifications.map(n => 
-        n.id === id ? { ...n, read: true } : n
-      );
-      localStorage.setItem('school_notifications', JSON.stringify(updated));
-      
-      // Update local state
-      const teacherNotifs = updated.filter(n => 
-        n.recipientId === teacher?.id || 
-        n.recipientRole === 'teacher' ||
-        n.recipientRole === 'all' ||
-        n.recipientRole === 'teachers'
-      );
-      setNotifications(teacherNotifs);
-      applyFilters(teacherNotifs);
-      
-      notify(
-        isArabic ? 'تم تحديد الإشعار كمقروء' : 'Notification marked as read',
-        'info'
-      );
-    } catch (err) {
-      console.error('Error marking notification as read:', err);
-      setError(err.message);
-    }
+    notificationService.markAsRead(id);
+    setNotifications([...notificationService.getNotifications()]);
+    notify(
+      isArabic ? 'تم تحديد الإشعار كمقروء' : 'Notification marked as read',
+      'info'
+    );
   };
 
   // ===== HANDLE MARK ALL AS READ =====
   const handleMarkAllAsRead = () => {
-    try {
-      const allNotifications = JSON.parse(localStorage.getItem('school_notifications') || '[]');
-      const updated = allNotifications.map(n => {
-        // Only mark notifications for this teacher as read
-        const isForTeacher = 
-          n.recipientId === teacher?.id || 
-          n.recipientRole === 'teacher' ||
-          n.recipientRole === 'all' ||
-          n.recipientRole === 'teachers';
-        return isForTeacher ? { ...n, read: true } : n;
-      });
-      localStorage.setItem('school_notifications', JSON.stringify(updated));
-      
-      // Update local state
-      const teacherNotifs = updated.filter(n => 
-        n.recipientId === teacher?.id || 
-        n.recipientRole === 'teacher' ||
-        n.recipientRole === 'all' ||
-        n.recipientRole === 'teachers'
-      );
-      setNotifications(teacherNotifs);
-      applyFilters(teacherNotifs);
-      
-      notify(
-        isArabic ? 'تم تحديد جميع الإشعارات كمقروءة' : 'All notifications marked as read',
-        'success'
-      );
-    } catch (err) {
-      console.error('Error marking all as read:', err);
-      setError(err.message);
-    }
+    notificationService.markAllAsRead();
+    setNotifications([...notificationService.getNotifications()]);
+    notify(
+      isArabic ? 'تم تحديد جميع الإشعارات كمقروءة' : 'All notifications marked as read',
+      'success'
+    );
   };
 
   // ===== HANDLE DELETE =====
   const handleDelete = (id) => {
     if (window.confirm(isArabic ? 'هل أنت متأكد من حذف هذا الإشعار؟' : 'Are you sure you want to delete this notification?')) {
-      try {
-        const allNotifications = JSON.parse(localStorage.getItem('school_notifications') || '[]');
-        const updated = allNotifications.filter(n => n.id !== id);
-        localStorage.setItem('school_notifications', JSON.stringify(updated));
-        
-        // Update local state
-        const teacherNotifs = updated.filter(n => 
-          n.recipientId === teacher?.id || 
-          n.recipientRole === 'teacher' ||
-          n.recipientRole === 'all' ||
-          n.recipientRole === 'teachers'
-        );
-        setNotifications(teacherNotifs);
-        applyFilters(teacherNotifs);
-        
-        notify(
-          isArabic ? 'تم حذف الإشعار' : 'Notification deleted',
-          'info'
-        );
-      } catch (err) {
-        console.error('Error deleting notification:', err);
-        setError(err.message);
-      }
+      notificationService.removeNotification(id);
+      setNotifications([...notificationService.getNotifications()]);
+      notify(
+        isArabic ? 'تم حذف الإشعار' : 'Notification deleted',
+        'info'
+      );
     }
   };
 
@@ -327,14 +250,10 @@ const TeacherNotifications = () => {
   useEffect(() => {
     loadNotifications();
 
-    // Listen for storage changes
-    const handleStorageChange = (e) => {
-      if (e.key === "school_notifications") {
-        console.log("🔄 Notifications storage changed, reloading...");
-        loadNotifications();
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
+    // Keep the page in sync with the MySQL-backed notificationService.
+    const unsubscribe = notificationService.subscribe((list) => {
+      setNotifications([...(Array.isArray(list) ? list : [])]);
+    });
 
     // Listen for custom events
     const handleNotificationAdded = () => {
@@ -374,7 +293,7 @@ const TeacherNotifications = () => {
     window.addEventListener("assessmentChanged", handleAssessmentChanged);
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
+      unsubscribe();
       window.removeEventListener("notificationAdded", handleNotificationAdded);
       window.removeEventListener("usersUpdated", handleUsersUpdated);
       window.removeEventListener("studentAdded", handleStudentAdded);

@@ -1,5 +1,6 @@
-﻿// src/components/dashboard/parent/ParentAnnouncements.jsx
+// src/components/dashboard/parent/ParentAnnouncements.jsx
 import React, { useState, useEffect } from "react";
+import { syncGet } from '../../../services/apiSync';
 import {
   Container,
   Row,
@@ -84,7 +85,7 @@ const formatNumber = (num) => {
   return num.toString();
 };
 
-// ===== Map announcement from localStorage =====
+// ===== Map announcement =====
 const mapAnnouncement = (a) => ({
   id: a.id || `ANN${Date.now()}`,
   title: a.title || "Announcement",
@@ -122,6 +123,7 @@ const ParentAnnouncements = () => {
 
   const [announcements, setAnnouncements] = useState([]);
   const [filteredAnnouncements, setFilteredAnnouncements] = useState([]);
+  const [readStatusMap, setReadStatusMap] = useState({});
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -162,129 +164,46 @@ const ParentAnnouncements = () => {
   }, []);
 
   // ===== LOAD CHILDREN =====
-  const loadChildren = () => {
+  const loadChildren = async () => {
     try {
-      const currentUser = JSON.parse(
-        localStorage.getItem("currentUser") || "{}",
-      );
-      const userId =
-        currentUser?.id || user?.id || localStorage.getItem("userId");
-
-      let allStudents = JSON.parse(
-        localStorage.getItem("school_students") || "[]",
-      );
-
-      if (allStudents.length === 0) {
-        const allUsers = JSON.parse(
-          localStorage.getItem("school_users") || "[]",
-        );
-        allStudents = allUsers.filter((u) => u.role === "student");
-      }
-
-      let parentChildren = [];
-
-      if (userId) {
-        parentChildren = allStudents.filter((s) => s.parentId === userId);
-      }
-
-      if (parentChildren.length === 0) {
-        const parentName = currentUser?.name || user?.name || "";
-        if (parentName) {
-          parentChildren = allStudents.filter(
-            (s) => s.parentName === parentName,
-          );
-        }
-      }
-
-      if (parentChildren.length === 0) {
-        const parents = JSON.parse(
-          localStorage.getItem("school_parents") || "[]",
-        );
-        const currentParent = parents.find(
-          (p) => p.id === userId || p.email === currentUser?.email,
-        );
-
-        if (currentParent) {
-          const childNames = currentParent.childrenNames
-            ? currentParent.childrenNames.split(",").map((n) => n.trim())
-            : [];
-
-          if (childNames.length > 0) {
-            parentChildren = allStudents.filter((s) => {
-              const studentName = s.name || s.firstName || "";
-              return childNames.some(
-                (childName) =>
-                  studentName.includes(childName) ||
-                  childName.includes(studentName),
-              );
-            });
-          }
-        }
-      }
-
-      setChildren(parentChildren);
+      const res = await syncGet('/auth/my-children');
+      const serverChildren = Array.isArray(res?.data) ? res.data : [];
+      setChildren(serverChildren);
     } catch (error) {
       console.error("Error loading children:", error);
+      setChildren([]);
     }
   };
 
   // ===== LOAD ANNOUNCEMENTS =====
-  const loadAnnouncements = () => {
+  const loadAnnouncements = async () => {
     setLoading(true);
     try {
-      console.log("📢 Loading announcements...");
+      const res = await syncGet('/announcements/published');
+      const serverAnnouncements = Array.isArray(res?.data) ? res.data : [];
 
-      // Get notifications from localStorage
-      const allNotifications = JSON.parse(
-        localStorage.getItem("school_notifications") || "[]",
-      );
-      console.log("📢 All notifications:", allNotifications.length);
-
-      // Get current user
-      const currentUser = JSON.parse(
-        localStorage.getItem("currentUser") || "{}",
-      );
-      const userId =
-        currentUser?.id || user?.id || localStorage.getItem("userId");
-
-      // Get children IDs for filtering
-      const childIds = children.map((c) => c.id);
-
-      // Filter notifications for this parent
-      let parentNotifications = allNotifications.filter((n) => {
-        // Check if notification is for parent
-        const isForParent =
-          n.recipientRole === "parent" || n.recipientRole === "all";
-        const isForStudent = n.studentId && childIds.includes(n.studentId);
-        const isForStudentName =
-          n.studentName &&
-          children.some(
-            (c) => c.name === n.studentName || c.name?.includes(n.studentName),
-          );
-        const isForAll = !n.recipientRole || n.recipientRole === "all";
-
-        return isForParent || isForStudent || isForStudentName || isForAll;
+      const childIds = children.map((c) => String(c.id || c.student_code));
+      const filtered = serverAnnouncements.filter((a) => {
+        const target = (a.target_audience || a.targetAudience || "all").toLowerCase();
+        if (target === "all" || target === "parents") return true;
+        if (target === "students" && childIds.length > 0) return true;
+        return false;
       });
 
-      console.log(
-        "📢 Filtered notifications for parent:",
-        parentNotifications.length,
-      );
-
-      // Map to announcements format
-      const mappedAnnouncements = parentNotifications.map((n) => ({
-        id: n.id || `ANN${Date.now()}`,
-        title: n.title || "Announcement",
-        titleAr: n.titleAr || n.title || "إشعار",
-        content: n.message || n.content || "",
-        contentAr: n.messageAr || n.content || "",
-        type: n.type || "announcement",
-        priority: n.priority || "medium",
-        date: n.createdAt
-          ? new Date(n.createdAt).toLocaleDateString()
+const readStatus = readStatusMap;
+      const mappedAnnouncements = filtered.map((a) => ({
+        id: a.id,
+        title: a.title || "Announcement",
+        titleAr: a.titleAr || a.title || "إعلان",
+        content: a.content || "",
+        contentAr: a.contentAr || a.content || "",
+        type: a.type || "announcement",
+        priority: a.priority || "medium",
+        date: a.published_at || a.created_at
+          ? new Date(a.published_at || a.created_at).toLocaleDateString()
           : new Date().toLocaleDateString(),
-        time: n.createdAt
-          ? new Date(n.createdAt).toLocaleTimeString([], {
+        time: a.published_at || a.created_at
+          ? new Date(a.published_at || a.created_at).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
             })
@@ -292,24 +211,23 @@ const ParentAnnouncements = () => {
               hour: "2-digit",
               minute: "2-digit",
             }),
-        author: n.teacherName || n.author || "Admin",
-        authorAr: n.teacherName || n.author || "المسؤول",
-        image: n.image || null,
-        video: n.video || null,
-        mediaType: n.mediaType || "none",
-        views: n.views || 0,
-        likes: n.likes || 0,
-        comments: n.comments || 0,
-        targetAudience: n.targetAudience || ["all"],
-        isRead: n.read || false,
-        isImportant: n.priority === "high",
-        category: n.type || "announcement",
-        studentId: n.studentId || null,
-        studentName: n.studentName || null,
-        createdAt: n.createdAt || new Date().toISOString(),
+        author: a.author || "Admin",
+        authorAr: a.authorAr || a.author || "المسؤول",
+        image: a.image || null,
+        video: a.video || null,
+        mediaType: a.mediaType || "none",
+        views: a.views || 0,
+        likes: a.likes || 0,
+        comments: a.comments || 0,
+        targetAudience: a.target_audience || a.targetAudience || ["all"],
+        isRead: readStatus[a.id] || a.is_read || false,
+        isImportant: a.priority === "high",
+        category: a.type || "announcement",
+        studentId: a.studentId || null,
+        studentName: a.studentName || null,
+        createdAt: a.created_at || new Date().toISOString(),
       }));
 
-      // Sort by date (newest first)
       mappedAnnouncements.sort(
         (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
       );
@@ -336,22 +254,12 @@ const ParentAnnouncements = () => {
 
   // ===== LISTEN FOR STORAGE CHANGES =====
   useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === "school_notifications") {
-        console.log("🔄 Notifications updated, refreshing");
-        loadAnnouncements();
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-
     const handleNotificationAdded = () => {
-      console.log("🔔 Notification added, refreshing");
       loadAnnouncements();
     };
     window.addEventListener("notificationAdded", handleNotificationAdded);
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("notificationAdded", handleNotificationAdded);
     };
   }, []);
@@ -474,36 +382,20 @@ const ParentAnnouncements = () => {
         return a;
       }),
     );
-    // Update in localStorage
-    const allNotifications = JSON.parse(
-      localStorage.getItem("school_notifications") || "[]",
-    );
-    const notification = allNotifications.find((n) => n.id === id);
-    if (notification) {
-      notification.read = true;
-      localStorage.setItem(
-        "school_notifications",
-        JSON.stringify(allNotifications),
-      );
-    }
+    setReadStatusMap((prev) => ({ ...prev, [id]: true }));
     notify(t("Announcement marked as read"), "info");
   };
 
   // ===== HANDLE MARK ALL AS READ =====
   const handleMarkAllAsRead = () => {
     setAnnouncements((prev) => prev.map((a) => ({ ...a, isRead: true })));
-    const allNotifications = JSON.parse(
-      localStorage.getItem("school_notifications") || "[]",
-    );
-    allNotifications.forEach((n) => {
-      if (announcements.some((a) => a.id === n.id)) {
-        n.read = true;
-      }
+    setReadStatusMap((prev) => {
+      const next = { ...prev };
+      announcements.forEach((a) => {
+        next[a.id] = true;
+      });
+      return next;
     });
-    localStorage.setItem(
-      "school_notifications",
-      JSON.stringify(allNotifications),
-    );
     notify(t("All announcements marked as read"), "success");
   };
 
@@ -540,80 +432,17 @@ const ParentAnnouncements = () => {
     
     setDeleting(true);
     try {
-      // Get all notifications from localStorage
-      const allNotifications = JSON.parse(
-        localStorage.getItem("school_notifications") || "[]",
+      setAnnouncements((prev) =>
+        prev.filter((a) => a.id !== announcementToDelete.id),
       );
       
-      // Find and remove the notification
-      const notificationIndex = allNotifications.findIndex(
-        (n) => n.id === announcementToDelete.id,
+      notify(
+        isArabic ? "تم حذف الإعلان بنجاح" : "Announcement deleted successfully",
+        "success"
       );
       
-      if (notificationIndex !== -1) {
-        // Remove the notification
-        allNotifications.splice(notificationIndex, 1);
-        localStorage.setItem(
-          "school_notifications",
-          JSON.stringify(allNotifications),
-        );
-        
-        // Also check if this notification exists as an announcement in announcements list
-        const allAnnouncements = JSON.parse(
-          localStorage.getItem("announcements") || "[]",
-        );
-        const announcementIndex = allAnnouncements.findIndex(
-          (a) => a.id === announcementToDelete.id,
-        );
-        if (announcementIndex !== -1) {
-          allAnnouncements.splice(announcementIndex, 1);
-          localStorage.setItem("announcements", JSON.stringify(allAnnouncements));
-        }
-        
-        // Update local state
-        setAnnouncements((prev) =>
-          prev.filter((a) => a.id !== announcementToDelete.id),
-        );
-        
-        notify(
-          isArabic ? "تم حذف الإعلان بنجاح" : "Announcement deleted successfully",
-          "success"
-        );
-      } else {
-        // If not found in notifications, try to delete from announcements directly
-        const allAnnouncements = JSON.parse(
-          localStorage.getItem("announcements") || "[]",
-        );
-        const announcementIndex = allAnnouncements.findIndex(
-          (a) => a.id === announcementToDelete.id,
-        );
-        if (announcementIndex !== -1) {
-          allAnnouncements.splice(announcementIndex, 1);
-          localStorage.setItem("announcements", JSON.stringify(allAnnouncements));
-          
-          // Update local state
-          setAnnouncements((prev) =>
-            prev.filter((a) => a.id !== announcementToDelete.id),
-          );
-          
-          notify(
-            isArabic ? "تم حذف الإعلان بنجاح" : "Announcement deleted successfully",
-            "success"
-          );
-        } else {
-          notify(
-            isArabic ? "لم يتم العثور على الإعلان" : "Announcement not found",
-            "warning"
-          );
-        }
-      }
-      
-      // Close modal
       setShowDeleteModal(false);
       setAnnouncementToDelete(null);
-      
-      // Refresh the list
-      loadAnnouncements();
     } catch (error) {
       console.error("Error deleting announcement:", error);
       notify(

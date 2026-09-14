@@ -64,7 +64,7 @@ import {
 import { useLanguage } from "../../../context/LanguageContext";
 import { useAuth } from "../../../hooks/useAuth";
 import { useNotification } from "../../../hooks/useNotification";
-import userDataService from "../../../services/userDataService";
+import { syncGet } from '../../../services/apiSync';
 import { format, formatDistanceToNow, isValid } from "date-fns";
 import { ar, enUS } from "date-fns/locale";
 
@@ -212,31 +212,15 @@ const ParentsManagement = () => {
   };
 
   // ===== FETCH PARENTS =====
-  const fetchParents = () => {
+  const fetchParents = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      console.log('📚 Fetching parents...');
-      
-      let parentsData = JSON.parse(localStorage.getItem('school_parents') || '[]');
-      console.log('📚 Parents from school_parents:', parentsData.length);
-      
-      if (parentsData.length === 0) {
-        const allUsers = JSON.parse(localStorage.getItem('school_users') || '[]');
-        parentsData = allUsers.filter(u => u.role === 'parent');
-        console.log('📚 Parents from school_users:', parentsData.length);
-      }
-      
-      if (parentsData.length === 0) {
-        try {
-          const allUsers = userDataService.getUsers();
-          parentsData = allUsers.filter(u => u.role === 'parent');
-          console.log('📚 Parents from userDataService:', parentsData.length);
-        } catch (e) {
-          console.warn('Could not get parents from userDataService:', e);
-        }
-      }
+      let parentsData = [];
+      const res = await syncGet('/users', { role: 'parent' });
+      const rows = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.data) ? res.data.data : []);
+      parentsData = rows;
 
       const mappedParents = parentsData.map(p => {
         const firstName = p.firstName || '';
@@ -296,10 +280,8 @@ const ParentsManagement = () => {
       setParents(filtered);
       setTotalParents(filtered.length);
       setTotalPages(Math.ceil(filtered.length / 10));
-      
-      console.log('✅ Parents loaded:', filtered.length);
     } catch (error) {
-      console.error("❌ Error fetching parents:", error);
+      console.error("Error fetching parents:", error);
       setError(
         isArabic
           ? "فشل في تحميل بيانات أولياء الأمور"
@@ -318,33 +300,15 @@ const ParentsManagement = () => {
     fetchParents();
     
     const handleUsersUpdated = () => {
-      console.log('🔄 Users updated, refreshing parents...');
+      console.log('Users updated, refreshing parents...');
       fetchParents();
     };
     
     window.addEventListener('usersUpdated', handleUsersUpdated);
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'school_users' || e.key === 'school_parents') {
-        console.log('🔄 Storage changed, refreshing parents...');
-        fetchParents();
-      }
-    });
     
-    try {
-      const unsubscribe = userDataService.addListener(() => {
-        console.log('🔄 userDataService changed, refreshing parents...');
-        fetchParents();
-      });
-      return () => {
-        if (unsubscribe) unsubscribe();
-        window.removeEventListener('usersUpdated', handleUsersUpdated);
-      };
-    } catch (e) {
-      console.warn('Could not subscribe to userDataService:', e);
-      return () => {
-        window.removeEventListener('usersUpdated', handleUsersUpdated);
-      };
-    }
+    return () => {
+      window.removeEventListener('usersUpdated', handleUsersUpdated);
+    };
   }, []);
 
   // ===== SEARCH EFFECT =====

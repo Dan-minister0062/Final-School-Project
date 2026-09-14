@@ -12,26 +12,16 @@ export const useLanguage = () => {
 };
 
 export const LanguageProvider = ({ children }) => {
-  // ===== GET SAVED LANGUAGE FROM LOCALSTORAGE =====
-  // Default to 'ar' (Arabic) if no saved preference
-  const getSavedLanguage = () => {
-    const saved = localStorage.getItem('language');
-    // If saved language exists and is valid, use it
-    if (saved && (saved === 'ar' || saved === 'en')) {
-      return saved;
-    }
-    // Default to Arabic
-    return 'ar';
-  };
-
-  const [language, setLanguage] = useState(getSavedLanguage);
+  // ===== LANGUAGE STATE =====
+  // Default to 'ar' (Arabic). No browser persistence; the
+  // language is a memory-only UI preference.
+  const [language, setLanguage] = useState('ar');
   const [isChanging, setIsChanging] = useState(false);
 
   // ===== TOGGLE LANGUAGE =====
 const toggleLanguage = () => {
   const newLang = language === 'en' ? 'ar' : 'en';
   setLanguage(newLang);
-  localStorage.setItem('language', newLang);
   
   // Dispatch event for any components that need to react
   window.dispatchEvent(new CustomEvent('languageChange', { 
@@ -82,20 +72,18 @@ const toggleLanguage = () => {
     }
   }, [language]);
 
-  // ===== LISTEN FOR STORAGE CHANGES (for multi-tab support) =====
+  // ===== LISTEN FOR LANGUAGE CHANGE EVENTS =====
   useEffect(() => {
-    const handleStorageChange = (e) => {
-      if (e.key === 'language' && e.newValue) {
-        const newLang = e.newValue;
-        if (newLang === 'ar' || newLang === 'en') {
-          setLanguage(newLang);
-          updateDocumentAttributes(newLang);
-        }
+    const handleLanguageChange = (e) => {
+      const newLang = e.detail?.language;
+      if (newLang === 'ar' || newLang === 'en') {
+        setLanguage(newLang);
+        updateDocumentAttributes(newLang);
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('languageChange', handleLanguageChange);
+    return () => window.removeEventListener('languageChange', handleLanguageChange);
   }, []);
 
   // ===== TRANSLATIONS =====

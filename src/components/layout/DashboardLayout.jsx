@@ -35,7 +35,7 @@ const DashboardLayout = () => {
 
   // ===== Get user role =====
   const getUserRole = () => {
-    return user?.role || localStorage.getItem('role') || 'admin';
+    return user?.role || 'admin';
   };
 
   // ===== Get role letter for avatar =====
@@ -64,7 +64,7 @@ const DashboardLayout = () => {
 
   // ===== Check if user is admin =====
   const isAdmin = () => {
-    return getUserRole() === 'admin' || getUserRole() === 'director';
+    return getUserRole() === 'admin';
   };
 
   // ===== Get dashboard base path based on role =====
@@ -89,29 +89,13 @@ const DashboardLayout = () => {
     return `${getDashboardBasePath()}/settings`;
   };
 
-  // ===== Load notifications from localStorage =====
+  // ===== Load notifications from the DB-backed service =====
   useEffect(() => {
-    const saved = localStorage.getItem('dashboard_notifications');
-    let initialNotifications = [];
-    if (saved) {
-      try {
-        initialNotifications = JSON.parse(saved);
-        setNotifications(initialNotifications);
-      } catch (e) {
-        console.error('Error parsing notifications:', e);
-      }
-    }
-
-    const currentNotifications = notificationService.getNotifications();
-    if (currentNotifications.length > 0) {
-      setNotifications(currentNotifications);
-    } else if (initialNotifications.length > 0) {
-      setNotifications(initialNotifications);
-    }
-
-    console.log('📊 Initial notifications loaded:',
-      currentNotifications.length > 0 ? currentNotifications.length : initialNotifications.length
-    );
+    setNotifications(notificationService.getNotifications());
+    notificationService.pull().then((items) => {
+      setNotifications([...items]);
+    });
+    console.log('📊 Initial notifications loaded:', notificationService.getNotifications().length);
   }, []);
 
   // ===== Listen for notification changes =====
@@ -127,24 +111,21 @@ const DashboardLayout = () => {
       }
     });
 
-    const handleNotificationAdded = (event) => {
-      console.log('📢 Custom event received:', event.detail);
-      const saved = localStorage.getItem('dashboard_notifications');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          setNotifications([...parsed]);
-        } catch (e) {
-          console.error('Error parsing notifications:', e);
-        }
+    // Refresh while the dashboard is visible so notifications created by
+    // other users (admins, teachers) reach the bell without a manual reload.
+    const refreshFromServer = () => {
+      if (document.visibilityState === "visible") {
+        notificationService.pull().then((items) => setNotifications([...items]));
       }
     };
-
-    window.addEventListener('notificationAdded', handleNotificationAdded);
+    const handleVisible = () => refreshFromServer();
+    document.addEventListener("visibilitychange", handleVisible);
+    const pollTimer = setInterval(refreshFromServer, 45000);
 
     return () => {
       if (unsubscribe) unsubscribe();
-      window.removeEventListener('notificationAdded', handleNotificationAdded);
+      document.removeEventListener("visibilitychange", handleVisible);
+      clearInterval(pollTimer);
     };
   }, [isArabic]);
 
@@ -176,18 +157,12 @@ const DashboardLayout = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // ===== Force refresh notifications from localStorage =====
+  // ===== Force refresh notifications from the DB-backed service =====
   const refreshNotifications = () => {
-    const saved = localStorage.getItem('dashboard_notifications');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setNotifications([...parsed]);
-        console.log('🔄 Notifications refreshed:', parsed.length);
-      } catch (e) {
-        console.error('Error refreshing notifications:', e);
-      }
-    }
+    notificationService.pull().then((items) => {
+      setNotifications([...items]);
+      console.log('🔄 Notifications refreshed:', items.length);
+    });
   };
 
   useEffect(() => {
@@ -205,18 +180,9 @@ const DashboardLayout = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      setDarkMode(true);
-      document.documentElement.setAttribute('data-bs-theme', 'dark');
-    }
-  }, []);
-
   const toggleDarkMode = () => {
     const newMode = !darkMode;
     setDarkMode(newMode);
-    localStorage.setItem('theme', newMode ? 'dark' : 'light');
     if (newMode) {
       document.documentElement.setAttribute('data-bs-theme', 'dark');
     } else {
@@ -235,7 +201,7 @@ const DashboardLayout = () => {
       { path: getDashboardBasePath(), icon: <FaTachometerAlt />, label: isArabic ? 'لوحة التحكم' : 'Dashboard' },
     ];
 
-    if (role === 'admin' || role === 'director') {
+    if (role === 'admin') {
       return [
         ...baseItems,
         { path: '/dashboard/admin/users', icon: <FaUserCog />, label: isArabic ? 'المستخدمين' : 'Users' },
@@ -278,6 +244,7 @@ const DashboardLayout = () => {
       return [
         ...baseItems,
         { path: '/dashboard/student/my-results', icon: <FaAward />, label: isArabic ? 'نتائجي' : 'My Results' },
+        { path: '/dashboard/student/payments', icon: <FaMoneyBillWave />, label: isArabic ? 'المدفوعات' : 'Payments' },
         { path: '/dashboard/student/announcements', icon: <FaBullhorn />, label: isArabic ? 'الإعلانات' : 'Announcements' },
       ];
     }
@@ -409,7 +376,13 @@ const DashboardLayout = () => {
           className="user-avatar-large" 
           style={{ background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}cc)` }}
         >
-          {getRoleLetter()}
+          {user?.avatar ? (
+            <img
+              src={user.avatar}
+              alt={user?.name}
+              style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+            />
+          ) : getRoleLetter()}
         </div>
         <div className="user-info">
           <h6 className="user-name">{user?.name || 'Administrator'}</h6>
@@ -630,7 +603,13 @@ const DashboardLayout = () => {
                       className="user-avatar-sm" 
                       style={{ background: `linear-gradient(135deg, ${getRoleColor()}, ${getRoleColor()}cc)` }}
                     >
-                      {getRoleLetter()}
+                      {user?.avatar ? (
+                        <img
+                          src={user.avatar}
+                          alt={user?.name}
+                          style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                        />
+                      ) : getRoleLetter()}
                     </span>
                     <span className="d-none d-md-inline ms-2 user-dropdown-name">{user?.name || 'Admin'}</span>
                     <span className="d-none d-md-inline ms-1 user-role-badge" style={{ 

@@ -23,7 +23,7 @@ export const useNotification = () => {
   const [localUnreadCount, setLocalUnreadCount] = useState(0);
 
   const getUserRole = () => {
-    return user?.role || localStorage.getItem('role') || 'admin';
+    return user?.role || 'admin';
   };
 
   // Load notifications based on role

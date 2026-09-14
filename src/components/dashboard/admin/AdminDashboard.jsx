@@ -1,5 +1,6 @@
 // src/components/dashboard/admin/AdminDashboard.jsx
 import React, { useState, useEffect, useRef } from "react";
+import { syncGet, syncSend } from '../../../services/apiSync';
 import {
   Container,
   Row,
@@ -91,7 +92,6 @@ import { useLanguage } from "../../../context/LanguageContext";
 import { getTranslation } from "../../../utils/translations";
 import { useAuth } from "../../../hooks/useAuth";
 import { useNotification } from "../../../hooks/useNotification";
-import api from "../../../services/api";
 import { format, formatDistanceToNow } from "date-fns";
 import { ar, enUS } from "date-fns/locale";
 import {
@@ -109,9 +109,7 @@ import {
   RadialLinearScale,
 } from "chart.js";
 import { Bar, Pie, Doughnut, Line, Radar } from "react-chartjs-2";
-import userDataService from "../../../services/userDataService";
 import notificationService from "../../../services/notificationService";
-import announcementService from "../../../services/announcementService";
 
 ChartJS.register(
   CategoryScale,
@@ -139,6 +137,7 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [pendingRegistrations, setPendingRegistrations] = useState([]);
   const [pendingPayments, setPendingPayments] = useState([]);
+  const [paidStudents, setPaidStudents] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [monthlyTrend, setMonthlyTrend] = useState([]);
@@ -217,160 +216,119 @@ const AdminDashboard = () => {
     }
   };
 
-  // ===== Get registrations from localStorage =====
-  const getRegistrationsFromStorage = () => {
+  // ===== Get pending registrations from API =====
+  const getPendingRegistrationsFromAPI = async () => {
     try {
-      const stored = localStorage.getItem("registrations");
-      if (stored) {
-        const registrations = JSON.parse(stored);
-        return Array.isArray(registrations) ? registrations : [];
-      }
-      return [];
+      const res = await syncGet('/registrations', { status: 'pending' });
+      const rows = Array.isArray(res?.data) ? res.data : [];
+      return rows.map((r) => ({
+        id: r.id || r.registration_number || `reg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        student_name: r.studentName || r.full_name || `${r.first_name || ""} ${r.last_name || ""}`.trim() || "Unknown Student",
+        level: r.level || r.requested_class || r.requestedClass || "Primary",
+        parent_name: r.parentName || r.parent_name || "Unknown Parent",
+        parent_email: r.parentEmail || r.parent_email || "",
+        parent_phone: r.parentPhone || r.parent_phone || "",
+        parent_address: r.parentAddress || r.parent_address || "",
+        created_at: r.created_at || r.createdAt || new Date().toISOString(),
+        status: r.status || "pending",
+        read: r.read || false,
+        registrationId: r.id,
+        firstName: r.first_name || "",
+        lastName: r.last_name || "",
+        requestedClass: r.requested_class || r.requestedClass || r.level || "",
+        dateOfBirth: r.dob || r.dateOfBirth || "",
+        gender: r.gender || "",
+        previousSchool: r.previous_school || r.previousSchool || "",
+        ...r,
+      }));
     } catch (error) {
-      console.error("Error getting registrations from localStorage:", error);
+      console.error("Error getting pending registrations:", error);
       return [];
     }
   };
 
-  // ===== Get pending registrations from localStorage =====
-  const getPendingRegistrations = () => {
-    const registrations = getRegistrationsFromStorage();
-    const pending = registrations.filter((r) => r.status === "pending" || !r.status);
-    
-    return pending.map((r) => ({
-      id: r.id || `reg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      student_name: r.studentName || `${r.firstName || ""} ${r.lastName || ""}`.trim() || "Unknown Student",
-      level: r.level || r.levelDisplay || r.requestedClass || "Primary",
-      parent_name: r.parentName || "Unknown Parent",
-      parent_email: r.parentEmail || r.email || "",
-      parent_phone: r.parentPhone || r.phone || "",
-      parent_address: r.parentAddress || r.address || "",
-      created_at: r.submittedAt || r.created_at || new Date().toISOString(),
-      status: r.status || "pending",
-      read: r.read || false,
-      registrationId: r.id,
-      firstName: r.firstName || "",
-      lastName: r.lastName || "",
-      requestedClass: r.requestedClass || r.level || "",
-      dateOfBirth: r.dateOfBirth || "",
-      gender: r.gender || "",
-      previousSchool: r.previousSchool || "",
-      ...r,
-    }));
-  };
-
-  // ===== Get pending payments from localStorage (ENHANCED with student/parent info) =====
-  const getPendingPayments = () => {
+  // ===== Get pending payments from API =====
+  const getPendingPaymentsFromAPI = async () => {
     try {
-      const allPayments = JSON.parse(localStorage.getItem('school_payments') || '[]');
-      const pending = allPayments.filter(p => p.status === 'submitted' || p.status === 'pending');
-      
-      // Get all students from localStorage
-      const allStudents = JSON.parse(localStorage.getItem('school_students') || '[]');
-      
-      return pending.map(p => {
-        // Find the student by studentId (or fallback by name)
-        const student = allStudents.find(s => s.id === p.studentId) ||
-                        allStudents.find(s => s.name === p.studentName || s.firstName === p.studentName);
-        return {
-          id: p.id || `pay-${Date.now()}`,
-          studentId: p.studentId,
-          studentName: student?.name || student?.firstName || p.studentName || 'Unknown Student',
-          className: student?.className || student?.class || p.className || 'N/A',
-          amount: p.amount || 0,
-          month: p.month || new Date().getMonth() + 1,
-          year: p.year || new Date().getFullYear(),
-          status: p.status || 'pending',
-          receiptData: p.receiptData || null,
-          receiptName: p.receiptName || null,
-          receiptType: p.receiptType || null,
-          hasReceipt: !!p.receiptData || !!p.receipt,
-          note: p.note || '',
-          createdAt: p.createdAt || p.updatedAt || new Date().toISOString(),
-          // Parent info (from student)
-          parentName: student?.parentName || 'Unknown Parent',
-          parentEmail: student?.parentEmail || '',
-          parentPhone: student?.parentPhone || '',
-          parentAddress: student?.address || student?.parentAddress || '',
-          // Student additional info
-          studentDateOfBirth: student?.dateOfBirth || student?.dob || '',
-          studentGender: student?.gender || '',
-          studentPreviousSchool: student?.previousSchool || student?.lastSchool || '',
-          studentAddress: student?.address || '',
-          // Also keep original student object if needed
-          _student: student,
-        };
-      });
+      const res = await syncGet('/payments');
+      const rows = Array.isArray(res?.data) ? res.data : [];
+      return rows.filter(p => p.status === 'submitted' || p.status === 'pending').map(p => ({
+        id: p.id || `pay-${Date.now()}`,
+        studentId: p.student_id || p.studentId,
+        studentName: p.student_name || p.studentName || 'Unknown Student',
+        className: p.class_name || p.className || 'N/A',
+        amount: p.amount || 0,
+        month: p.month || new Date().getMonth() + 1,
+        year: p.year || new Date().getFullYear(),
+        status: p.status || 'pending',
+        receiptData: p.receipt || null,
+        receiptName: p.receipt_name || null,
+        receiptType: null,
+        hasReceipt: !!p.receipt || !!p.receipt_name,
+        note: p.notes || '',
+        createdAt: p.created_at || p.createdAt || new Date().toISOString(),
+        parentName: p.parent_name || p.parentName || 'Unknown Parent',
+        parentEmail: p.parent_email || p.parentEmail || '',
+        parentPhone: p.phone || '',
+        parentAddress: p.address || '',
+        studentDateOfBirth: p.date_of_birth || p.dateOfBirth || '',
+        studentGender: p.gender || '',
+        studentPreviousSchool: '',
+        studentAddress: p.address || '',
+        _serverId: p._serverId || p.id,
+      }));
     } catch (error) {
       console.error('Error getting pending payments:', error);
       return [];
     }
   };
 
-  // ===== Update payment status =====
-  const updatePaymentStatus = (paymentId, status) => {
+  // ===== Get paid students (approved/paid) from the DB =====
+  const getPaidStudentsFromAPI = async () => {
     try {
-      const allPayments = JSON.parse(localStorage.getItem('school_payments') || '[]');
-      const index = allPayments.findIndex(p => p.id === paymentId);
-      
-      if (index !== -1) {
-        allPayments[index].status = status;
-        allPayments[index].updatedAt = new Date().toISOString();
-        localStorage.setItem('school_payments', JSON.stringify(allPayments));
-        
-        // Also update student's payment status
-        const allStudents = JSON.parse(localStorage.getItem('school_students') || '[]');
-        const studentIndex = allStudents.findIndex(s => s.id === allPayments[index].studentId);
-        if (studentIndex !== -1) {
-          allStudents[studentIndex].paymentStatus = status === 'approved' ? 'paid' : 'pending';
-          allStudents[studentIndex].paymentUpdatedAt = new Date().toISOString();
-          localStorage.setItem('school_students', JSON.stringify(allStudents));
-        }
-        
-        window.dispatchEvent(new CustomEvent('paymentUpdated', { 
-          detail: { paymentId, status }
+      const res = await syncGet('/payments');
+      const rows = Array.isArray(res?.data) ? res.data : [];
+      return rows
+        .filter((p) => p.status === 'approved' || p.status === 'paid')
+        .map((p) => ({
+          id: p.id,
+          studentName: p.student_name || p.studentName || 'Unknown Student',
+          className: p.class_name || p.className || 'N/A',
+          amount: p.amount || 0,
+          month: p.month || new Date().getMonth() + 1,
+          year: p.year || new Date().getFullYear(),
+          approvedAt: p.paid_at || p.paidAt || p.updated_at || p.updatedAt || new Date().toISOString(),
+          parentEmail: p.parent_email || p.parentEmail || '',
+          _serverId: p._serverId || p.id,
         }));
-        
-        return true;
-      }
-      return false;
     } catch (error) {
-      console.error('Error updating payment status:', error);
-      return false;
+      console.error('Error getting paid students:', error);
+      return [];
     }
   };
 
   // ===== Get pending registrations from notifications (fallback) =====
   const getPendingRegistrationsFromNotifications = () => {
     try {
-      const registrations = getRegistrationsFromStorage();
-      const pending = registrations.filter(
-        (r) => r.status === "pending" || !r.status,
-      );
-
-      if (pending.length > 0) {
-        return pending.map((r) => ({
-          id: r.id || `reg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          student_name: r.studentName || `${r.firstName || ""} ${r.lastName || ""}`.trim() || "Unknown Student",
-          level: r.level || r.levelDisplay || r.requestedClass || "Primary",
-          parent_name: r.parentName || "Unknown Parent",
-          parent_email: r.parentEmail || r.email || "",
-          parent_phone: r.parentPhone || r.phone || "",
-          parent_address: r.parentAddress || r.address || "",
-          created_at: r.submittedAt || r.created_at || new Date().toISOString(),
-          status: r.status || "pending",
-          read: r.read || false,
-          registrationId: r.id,
-          firstName: r.firstName || "",
-          lastName: r.lastName || "",
-          requestedClass: r.requestedClass || r.level || "",
-          dateOfBirth: r.dateOfBirth || "",
-          gender: r.gender || "",
-          previousSchool: r.previousSchool || "",
-          ...r,
-        }));
+      if (
+        window.notificationService &&
+        typeof window.notificationService.getNotifications === "function"
+      ) {
+        return window.notificationService.getNotifications()
+          .filter(n => n.type === "registration" || n.type === "new_registration")
+          .slice(0, 5)
+          .map(n => ({
+            id: n.id || Date.now() + Math.random(),
+            student_name: n.metadata?.student_name || n.studentName || (isArabic ? "طالب" : "Student"),
+            level: "Primary",
+            parent_name: n.metadata?.parent_name || n.parentName || (isArabic ? "ولي أمر" : "Parent"),
+            parent_email: "",
+            parent_phone: "",
+            created_at: n.createdAt || n.created_at || new Date().toISOString(),
+            status: "pending",
+            registrationId: n.id,
+          }));
       }
-
       return [];
     } catch (error) {
       console.error("Error getting registrations:", error);
@@ -392,52 +350,7 @@ const AdminDashboard = () => {
         typeof notificationService.getNotifications === "function"
       ) {
         allNotifications = notificationService.getNotifications();
-      } else {
-        const stored = localStorage.getItem("notifications");
-        if (stored) {
-          try {
-            allNotifications = JSON.parse(stored);
-          } catch (e) {
-            console.error("Error parsing notifications:", e);
-          }
-        }
       }
-
-      // Also get registrations from localStorage for additional activities
-      const registrations = getRegistrationsFromStorage();
-      const registrationActivities = registrations.map((r) => ({
-        id: `reg-${r.id || Date.now()}`,
-        user: r.parentName || (isArabic ? "ولي أمر" : "Parent"),
-        action: isArabic
-          ? `قدم طلب تسجيل للطالب ${r.studentName || ""}`
-          : `submitted registration for student ${r.studentName || ""}`,
-        time: formatTime(r.submittedAt || r.created_at),
-        created_at: r.submittedAt || r.created_at || new Date().toISOString(),
-        type: isArabic ? "تسجيل" : "Registration",
-        icon: <FaUserPlus />,
-        color: "#f39c12",
-        link: "/dashboard/admin/registrations",
-        read: false,
-      }));
-
-      // Get payment activities
-      const allPayments = JSON.parse(localStorage.getItem('school_payments') || '[]');
-      const paymentActivities = allPayments
-        .filter(p => p.status === 'submitted')
-        .map(p => ({
-          id: `pay-${p.id || Date.now()}`,
-          user: p.studentName || (isArabic ? "طالب" : "Student"),
-          action: isArabic
-            ? `رفع إيصال دفع بمبلغ ${p.amount} MAD`
-            : `uploaded payment receipt of ${p.amount} MAD`,
-          time: formatTime(p.updatedAt || p.createdAt),
-          created_at: p.updatedAt || p.createdAt || new Date().toISOString(),
-          type: isArabic ? "دفع" : "Payment",
-          icon: <FaMoneyBillWave />,
-          color: "#2ecc71",
-          link: "/dashboard/admin/payments",
-          read: false,
-        }));
 
       const activities = allNotifications
         .filter(
@@ -506,59 +419,32 @@ const AdminDashboard = () => {
           };
         });
 
-      // Combine and sort all activities
-      const allActivities = [...registrationActivities, ...paymentActivities, ...activities];
-      allActivities.sort(
+      activities.sort(
         (a, b) => new Date(b.created_at) - new Date(a.created_at),
       );
 
-      return allActivities.slice(0, 10);
+      return activities.slice(0, 10);
     } catch (error) {
       console.error("Error getting activities from notifications:", error);
       return [];
     }
   };
 
-  const getRealUsersData = () => {
+  const getRealUsersData = async () => {
     try {
-      const allUsers = userDataService.getUsers();
-      const students = allUsers.filter((u) => u.role === "student");
+      const res = await syncGet('/users');
+      const rows = Array.isArray(res?.data) ? res.data : [];
+      const students = rows.filter((u) => u.role === "student");
       setAllStudents(students);
       return {
         students: students,
-        parents: allUsers.filter((u) => u.role === "parent"),
-        teachers: allUsers.filter((u) => u.role === "teacher"),
-        all: allUsers,
+        parents: rows.filter((u) => u.role === "parent"),
+        teachers: rows.filter((u) => u.role === "teacher"),
+        all: rows,
       };
     } catch (error) {
       console.error("Error getting users data:", error);
       return { students: [], parents: [], teachers: [], all: [] };
-    }
-  };
-
-  // ===== Update registration status in localStorage =====
-  const updateRegistrationStatus = (registrationId, status) => {
-    try {
-      const registrations = getRegistrationsFromStorage();
-      const updated = registrations.map((r) => {
-        if (r.id === registrationId) {
-          return { ...r, status, updatedAt: new Date().toISOString() };
-        }
-        return r;
-      });
-      localStorage.setItem("registrations", JSON.stringify(updated));
-
-      window.dispatchEvent(
-        new StorageEvent("storage", {
-          key: "registrations",
-          newValue: JSON.stringify(updated),
-        }),
-      );
-
-      return true;
-    } catch (error) {
-      console.error("Error updating registration status:", error);
-      return false;
     }
   };
 
@@ -567,18 +453,23 @@ const AdminDashboard = () => {
     setError(null);
 
     try {
-      const { students, parents, teachers, all: allUsers } = getRealUsersData();
+      const [dashStats, { students, parents, teachers, all: allUsers }, pendingRegs] = await Promise.all([
+        syncGet('/dashboard/stats'),
+        getRealUsersData(),
+        getPendingRegistrationsFromAPI(),
+      ]);
+
       setAllStudents(students);
 
-      // Get pending registrations
-      const pendingRegs = getPendingRegistrations();
       console.log("📊 Pending registrations:", pendingRegs.length);
       setPendingRegistrations(pendingRegs);
 
-      // Get pending payments
-      const pendingPaymentsData = getPendingPayments();
+      const pendingPaymentsData = await getPendingPaymentsFromAPI();
       console.log("💰 Pending payments:", pendingPaymentsData.length);
       setPendingPayments(pendingPaymentsData);
+
+      const paidStudentsData = await getPaidStudentsFromAPI();
+      setPaidStudents(paidStudentsData);
 
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -587,12 +478,12 @@ const AdminDashboard = () => {
       twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
       setStats({
-        total_students: students.length,
-        total_parents: parents.length,
-        total_teachers: teachers.length,
-        total_classes: 18,
-        pending_registrations: pendingRegs.length,
-        pending_payments: pendingPaymentsData.length,
+        total_students: dashStats?.students ?? students.length,
+        total_parents: dashStats?.parents ?? parents.length,
+        total_teachers: dashStats?.teachers ?? teachers.length,
+        total_classes: dashStats?.classes ?? 0,
+        pending_registrations: dashStats?.pendingRegistrations ?? pendingRegs.length,
+        pending_payments: dashStats?.pendingPayments ?? pendingPaymentsData.length,
         new_students_last_30_days: students.filter((s) => {
           const created = new Date(s.created_at || s.createdAt);
           return created >= thirtyDaysAgo;
@@ -610,7 +501,6 @@ const AdminDashboard = () => {
       const activities = getRecentActivitiesFromNotifications();
       setRecentActivities(activities);
 
-      // Class distribution
       const defaultLevels = isArabic
         ? [
             { name: "أولي", student_count: 0 },
@@ -672,18 +562,15 @@ const AdminDashboard = () => {
         last6Months.push(months[monthIndex]);
       }
 
-      const allRegistrations = getRegistrationsFromStorage();
-      const allPayments = JSON.parse(localStorage.getItem('school_payments') || '[]');
-
       const monthData = last6Months.map((month, idx) => {
         const monthNum = (currentMonth - (5 - idx) + 12) % 12;
-        const monthRegistrations = allRegistrations.filter((r) => {
-          const created = new Date(r.submittedAt || r.created_at);
+        const monthRegistrations = pendingRegs.filter((r) => {
+          const created = new Date(r.created_at);
           return created && created.getMonth() === monthNum && created.getFullYear() === new Date().getFullYear();
         });
 
-        const monthPayments = allPayments.filter((p) => {
-          const created = new Date(p.createdAt || p.updatedAt);
+        const monthPayments = pendingPaymentsData.filter((p) => {
+          const created = new Date(p.createdAt);
           return created && created.getMonth() === monthNum && created.getFullYear() === new Date().getFullYear();
         });
 
@@ -702,40 +589,17 @@ const AdminDashboard = () => {
       });
       setMonthlyTrend(monthData);
 
-      // Upcoming events from announcements
       let allAnnouncements = [];
       try {
-        if (
-          announcementService &&
-          typeof announcementService.getAnnouncements === "function"
-        ) {
-          allAnnouncements = announcementService.getAnnouncements() || [];
-        }
-
-        if (allAnnouncements.length === 0) {
-          const stored = localStorage.getItem("announcements");
-          if (stored) {
-            try {
-              allAnnouncements = JSON.parse(stored);
-            } catch (e) {
-              console.error("Error parsing announcements:", e);
-            }
-          }
-        }
+        const annRes = await syncGet('/announcements');
+        const annRows = Array.isArray(annRes?.data) ? annRes.data : [];
+        allAnnouncements = annRows;
       } catch (err) {
         console.warn("Error fetching announcements:", err);
-        try {
-          const stored = localStorage.getItem("announcements");
-          if (stored) {
-            allAnnouncements = JSON.parse(stored);
-          }
-        } catch (e) {
-          console.error("Error parsing announcements:", e);
-        }
       }
 
-      const events = (Array.isArray(allAnnouncements) ? allAnnouncements : [])
-        .filter((a) => a.status === "published")
+      const events = allAnnouncements
+        .filter((a) => a.status === "published" || a.status === "active")
         .slice(0, 4)
         .map((a, i) => ({
           id: a.id || i + 1,
@@ -777,10 +641,6 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchDashboardData();
 
-    const unsubscribeUsers = userDataService.addListener(() => {
-      fetchDashboardData();
-    });
-
     const handleNewNotification = (event) => {
       console.log("New notification received:", event?.detail);
       fetchDashboardData();
@@ -798,19 +658,6 @@ const AdminDashboard = () => {
     };
     window.addEventListener("paymentUpdated", handlePaymentUpdated);
 
-    const handleStorageChange = (event) => {
-      if (
-        event.key === "notifications" ||
-        event.key === "registration_requests" ||
-        event.key === "announcements" ||
-        event.key === "registrations" ||
-        event.key === "school_payments"
-      ) {
-        fetchDashboardData();
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-
     const handleRegistrationSubmitted = (event) => {
       console.log("📝 Registration submitted event received:", event.detail);
       setTimeout(() => fetchDashboardData(), 500);
@@ -821,14 +668,31 @@ const AdminDashboard = () => {
       fetchDashboardData();
     }, 2100000);
 
+    // Keep the Pending Payments sidebar fresh so parent-uploaded receipts
+    // appear without a page reload (the notification bell polls every ~5s).
+    const paymentsPoll = setInterval(async () => {
+      try {
+        const pending = await getPendingPaymentsFromAPI();
+        if (Array.isArray(pending)) {
+          setPendingPayments(pending);
+          setStats((prev) => ({ ...prev, pending_payments: pending.length }));
+        }
+        const paid = await getPaidStudentsFromAPI();
+        if (Array.isArray(paid)) {
+          setPaidStudents(paid);
+        }
+      } catch (e) {
+        console.error("Error polling payments:", e);
+      }
+    }, 15000);
+
     return () => {
-      if (unsubscribeUsers) unsubscribeUsers();
       window.removeEventListener("newNotification", handleNewNotification);
       window.removeEventListener("announcementsUpdated", handleAnnouncementUpdate);
       window.removeEventListener("paymentUpdated", handlePaymentUpdated);
-      window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("registrationSubmitted", handleRegistrationSubmitted);
       clearInterval(pollInterval);
+      clearInterval(paymentsPoll);
     };
   }, []);
 
@@ -848,30 +712,10 @@ const AdminDashboard = () => {
     try {
       const reg = pendingRegistrations.find((r) => r.id === id);
       if (reg) {
-        updateRegistrationStatus(reg.registrationId || reg.id, "approved");
+        const regId = reg._serverId || reg.registrationId || reg.id;
+        await syncSend('patch', `/registrations/${regId}/status`, { status: 'approved' });
+
         setPendingRegistrations((prev) => prev.filter((r) => r.id !== id));
-
-        const newStudent = {
-          id: `STU/${new Date().getFullYear()}/${String(Date.now()).slice(-6)}`,
-          name: reg.student_name,
-          firstName: reg.firstName || reg.student_name?.split(" ")[0] || "",
-          lastName: reg.lastName || reg.student_name?.split(" ").slice(1).join(" ") || "",
-          email: reg.parent_email || "",
-          role: "student",
-          phone: reg.parent_phone || "",
-          address: reg.parent_address || "",
-          status: "active",
-          level: reg.level || "primary",
-          className: reg.requestedClass || reg.level || "",
-          parentName: reg.parent_name,
-          parentEmail: reg.parent_email,
-          parentPhone: reg.parent_phone,
-          created_at: new Date().toISOString(),
-          needsProfileCompletion: true,
-        };
-
-        userDataService.addUser(newStudent);
-        setAllStudents((prev) => [...prev, newStudent]);
 
         notificationService.addNotification(
           isArabic
@@ -911,7 +755,9 @@ const AdminDashboard = () => {
     try {
       const reg = pendingRegistrations.find((r) => r.id === id);
       if (reg) {
-        updateRegistrationStatus(reg.registrationId || reg.id, "declined");
+        const regId = reg._serverId || reg.registrationId || reg.id;
+        await syncSend('patch', `/registrations/${regId}/status`, { status: 'rejected' });
+
         setPendingRegistrations((prev) => prev.filter((r) => r.id !== id));
 
         notificationService.addNotification(
@@ -957,13 +803,16 @@ const AdminDashboard = () => {
     // Create a preview URL for the receipt if it exists
     if (payment.receiptData) {
       try {
-        const byteCharacters = atob(payment.receiptData);
+        const raw = String(payment.receiptData);
+        const mime = raw.match(/^data:([^;,]+)/)?.[1] || payment.receiptType || 'application/pdf';
+        const base64Data = raw.includes(',') ? raw.split(',')[1] : raw;
+        const byteCharacters = atob(base64Data);
         const byteNumbers = new Array(byteCharacters.length);
         for (let i = 0; i < byteCharacters.length; i++) {
           byteNumbers[i] = byteCharacters.charCodeAt(i);
         }
         const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: payment.receiptType || 'application/pdf' });
+        const blob = new Blob([byteArray], { type: mime });
         const url = URL.createObjectURL(blob);
         setPaymentReceiptUrl(url);
       } catch (e) {
@@ -981,36 +830,19 @@ const AdminDashboard = () => {
     try {
       const payment = pendingPayments.find((p) => p.id === id);
       if (payment) {
-        updatePaymentStatus(payment.id, "approved");
+        const serverId = payment._serverId || id;
+        await syncSend('patch', `/payments/${serverId}/status`, { status: 'approved' });
+
         setPendingPayments((prev) => prev.filter((p) => p.id !== id));
 
-        // Create notification for parent
-        const notifications = JSON.parse(localStorage.getItem('school_notifications') || '[]');
-        const notification = {
-          id: `NOT${String(Date.now()).slice(-6)}`,
-          title: isArabic ? '✅ تم اعتماد دفعتك' : '✅ Your Payment Approved',
-          message: isArabic 
+        notificationService.addNotification(
+          isArabic ? '✅ تم اعتماد دفعتك' : '✅ Your Payment Approved',
+          isArabic 
             ? `تم اعتماد دفعتك بمبلغ ${payment.amount} MAD للطالب ${payment.studentName}`
             : `Your payment of ${payment.amount} MAD for student ${payment.studentName} has been approved`,
-          type: 'payment_approved',
-          priority: 'high',
-          read: false,
-          recipientRole: 'parent',
-          studentId: payment.studentId,
-          studentName: payment.studentName,
-          paymentId: payment.id,
-          amount: payment.amount,
-          createdAt: new Date().toISOString(),
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        };
-        notifications.push(notification);
-        localStorage.setItem('school_notifications', JSON.stringify(notifications));
-
-        // Dispatch event for parent
-        window.dispatchEvent(new CustomEvent('notificationAdded', { detail: notification }));
-        window.dispatchEvent(new CustomEvent('paymentUpdated', { 
-          detail: { paymentId: id, status: 'approved' }
-        }));
+          'payment_approved',
+          '/dashboard/admin/payments',
+        );
 
         notify(
           isArabic
@@ -1060,35 +892,19 @@ const AdminDashboard = () => {
     try {
       const payment = pendingPayments.find((p) => p.id === id);
       if (payment) {
-        updatePaymentStatus(payment.id, "rejected");
+        const serverId = payment._serverId || id;
+        await syncSend('patch', `/payments/${serverId}/status`, { status: 'rejected' });
+
         setPendingPayments((prev) => prev.filter((p) => p.id !== id));
 
-        // Create notification for parent
-        const notifications = JSON.parse(localStorage.getItem('school_notifications') || '[]');
-        const notification = {
-          id: `NOT${String(Date.now()).slice(-6)}`,
-          title: isArabic ? '❌ تم رفض دفعتك' : '❌ Your Payment Declined',
-          message: isArabic 
+        notificationService.addNotification(
+          isArabic ? '❌ تم رفض دفعتك' : '❌ Your Payment Declined',
+          isArabic 
             ? `تم رفض دفعتك بمبلغ ${payment.amount} MAD للطالب ${payment.studentName}. يرجى التواصل مع الإدارة.`
             : `Your payment of ${payment.amount} MAD for student ${payment.studentName} has been declined. Please contact administration.`,
-          type: 'payment_declined',
-          priority: 'high',
-          read: false,
-          recipientRole: 'parent',
-          studentId: payment.studentId,
-          studentName: payment.studentName,
-          paymentId: payment.id,
-          amount: payment.amount,
-          createdAt: new Date().toISOString(),
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        };
-        notifications.push(notification);
-        localStorage.setItem('school_notifications', JSON.stringify(notifications));
-
-        window.dispatchEvent(new CustomEvent('notificationAdded', { detail: notification }));
-        window.dispatchEvent(new CustomEvent('paymentUpdated', { 
-          detail: { paymentId: id, status: 'rejected' }
-        }));
+          'payment_declined',
+          '/dashboard/admin/payments',
+        );
 
         notify(
           isArabic
@@ -1333,6 +1149,15 @@ const AdminDashboard = () => {
       gradientClass: "payment-card",
       iconClass: "payment-icon",
       change: `+${pendingPayments.filter(p => new Date(p.createdAt) > new Date(Date.now() - 24 * 60 * 60 * 1000)).length || 0}`,
+      changeLabel: isArabic ? "اليوم" : "today",
+    },
+    {
+      icon: <FaCheckCircle />,
+      number: paidStudents.length || 0,
+      label: isArabic ? "طلاب دفعوا" : "Students Paid",
+      gradientClass: "payment-card",
+      iconClass: "payment-icon",
+      change: `+${paidStudents.filter(p => new Date(p.approvedAt) > new Date(Date.now() - 24 * 60 * 60 * 1000)).length || 0}`,
       changeLabel: isArabic ? "اليوم" : "today",
     },
   ];
@@ -1590,8 +1415,53 @@ const AdminDashboard = () => {
                             {payment.className} • {isArabic ? getMonthName(payment.month) : getMonthName(payment.month)} {payment.year}
                             {payment.parentName && ` • ${payment.parentName}`}
                           </small>
+                          <small className="text-muted d-block" style={{
+                            ...arabicFontStyle,
+                            fontSize: isArabic ? "clamp(0.6rem, 0.7vw, 0.75rem)" : "clamp(0.55rem, 0.65vw, 0.7rem)",
+                          }}>
+                            {payment.parentEmail && (
+                              <><FaEnvelope className="me-1" size={isMobile ? 8 : 10} />{payment.parentEmail}{payment.parentPhone ? " • " : ""}</>
+                            )}
+                            {payment.parentPhone && (
+                              <><FaPhone className="me-1" size={isMobile ? 8 : 10} />{payment.parentPhone}</>
+                            )}
+                          </small>
                         </div>
                         <div className="d-flex gap-1 flex-shrink-0">
+                          <Button
+                            variant="success"
+                            size="sm"
+                            className="p-1 px-2"
+                            style={{
+                              borderRadius: "8px",
+                              fontSize: isArabic ? "clamp(0.55rem, 0.7vw, 0.7rem)" : "clamp(0.5rem, 0.6vw, 0.65rem)",
+                              padding: isMobile ? "2px 6px" : "4px 8px",
+                              minWidth: isMobile ? "28px" : "32px",
+                              minHeight: isMobile ? "28px" : "32px",
+                            }}
+                            onClick={() => setShowPaymentApproveConfirm(payment.id)}
+                            disabled={processingAction}
+                            title={isArabic ? "اعتماد" : "Approve"}
+                          >
+                            <FaCheckCircle size={isMobile ? 10 : 12} />
+                          </Button>
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            className="p-1 px-2"
+                            style={{
+                              borderRadius: "8px",
+                              fontSize: isArabic ? "clamp(0.55rem, 0.7vw, 0.7rem)" : "clamp(0.5rem, 0.6vw, 0.65rem)",
+                              padding: isMobile ? "2px 6px" : "4px 8px",
+                              minWidth: isMobile ? "28px" : "32px",
+                              minHeight: isMobile ? "28px" : "32px",
+                            }}
+                            onClick={() => setShowPaymentDeclineConfirm(payment.id)}
+                            disabled={processingAction}
+                            title={isArabic ? "رفض" : "Decline"}
+                          >
+                            <FaTimesCircle size={isMobile ? 10 : 12} />
+                          </Button>
                           <Button
                             variant="outline-primary"
                             size="sm"

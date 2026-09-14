@@ -5,6 +5,12 @@
  * Handles all teacher-related operations including fetching assigned classes and students
  */
 
+import { getAuthIdentity } from './api';
+
+// In-memory cache (no browser persistence). Server data always comes from the
+// Laravel API in real time, so the cache only serves transient response reads.
+const memoryCache = new Map();
+
 // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
 // ===== EVENT LISTENER SYSTEM =====
 // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
@@ -28,17 +34,16 @@ const notifyListeners = (data) => {
 
 const getFromStorage = (key, defaultValue = []) => {
   try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : defaultValue;
+    return memoryCache.has(key) ? memoryCache.get(key) : defaultValue;
   } catch (error) {
-    console.error(`Error reading ${key} from storage:`, error);
+    console.error(`Error reading ${key} from cache:`, error);
     return defaultValue;
   }
 };
 
 const saveToStorage = (key, data) => {
   try {
-    localStorage.setItem(key, JSON.stringify(data));
+    memoryCache.set(key, data);
     return true;
   } catch (error) {
     console.error(`Error saving to ${key}:`, error);
@@ -153,14 +158,14 @@ const getLocalizedClassName = (className, level, language = 'en') => {
 };
 
 /**
- * Get the current language from localStorage
+ * Get the current language from the document
  * @returns {string} 'ar' or 'en'
  */
 const getCurrentLanguage = () => {
   try {
-    const lang = localStorage.getItem('language') || 'en';
+    const lang = document.documentElement.lang;
     return lang === 'ar' ? 'ar' : 'en';
-  } catch (error) {
+  } catch {
     return 'en';
   }
 };
@@ -176,79 +181,23 @@ const getCurrentLanguage = () => {
 const getCurrentTeacher = () => {
   try {
     console.log('🔍 Looking for current teacher...');
-    
-    // Try multiple ways to find the teacher
-    
-    // 1. Check localStorage for currentUser
-    const currentUserStr = localStorage.getItem('currentUser');
-    if (currentUserStr) {
-      try {
-        const currentUser = JSON.parse(currentUserStr);
-        console.log('📋 currentUser from localStorage:', currentUser);
-        
-        // Check if the user is a teacher
-        if (currentUser && currentUser.role === 'teacher') {
-          console.log('✅ Current teacher found from currentUser:', currentUser.id);
-          return currentUser;
-        }
-        
-        // If currentUser exists but is not a teacher, check if they have a teacher profile
-        if (currentUser && currentUser.id) {
-          const users = getFromStorage('school_users');
-          const user = users.find(u => u.id === currentUser.id);
-          if (user && user.role === 'teacher') {
-            console.log('✅ Teacher found from school_users via currentUser ID:', user.id);
-            return user;
-          }
-        }
-      } catch (e) {
-        console.warn('Could not parse currentUser:', e);
-      }
+
+    // The real authenticated user (from /auth/login -> MySQL session) is the
+    // source of truth and already carries role, id, assigned classes etc.
+    const authUser = getAuthIdentity();
+    if (authUser && authUser.role === 'teacher') {
+      console.log('✅ Current teacher found from auth user:', authUser.id, authUser.name);
+      return authUser;
     }
-    
-    // 2. Check for user in school_users with isLoggedIn flag
+
+    // Fall back to any teacher held in the in-memory cache.
     const users = getFromStorage('school_users');
-    console.log(`📋 Checking ${users.length} users in school_users for teacher...`);
-    
-    // First try to find by isLoggedIn flag
-    let teacher = users.find(u => u.role === 'teacher' && u.isLoggedIn === true);
+    const teacher = users.find(u => u.role === 'teacher');
     if (teacher) {
-      console.log('✅ Current teacher found from school_users (isLoggedIn):', teacher.id);
-      // Save to currentUser for future use
-      localStorage.setItem('currentUser', JSON.stringify(teacher));
+      console.log('✅ Teacher found in school_users:', teacher.id);
       return teacher;
     }
-    
-    // If not found, try to find any teacher (maybe the first one)
-    teacher = users.find(u => u.role === 'teacher');
-    if (teacher) {
-      console.log('✅ Found a teacher in school_users (first one):', teacher.id);
-      // Save to currentUser for future use
-      localStorage.setItem('currentUser', JSON.stringify(teacher));
-      return teacher;
-    }
-    
-    // 3. Check school_teachers storage
-    const teachers = getFromStorage('school_teachers');
-    console.log(`📋 Checking ${teachers.length} teachers in school_teachers...`);
-    
-    if (teachers.length > 0) {
-      // Find the first teacher
-      const firstTeacher = teachers[0];
-      console.log('✅ Found teacher in school_teachers:', firstTeacher.id);
-      
-      // Try to find the corresponding user
-      const user = users.find(u => u.id === firstTeacher.id);
-      if (user) {
-        localStorage.setItem('currentUser', JSON.stringify(user));
-        return user;
-      }
-      
-      // If no user found, return the teacher data
-      localStorage.setItem('currentUser', JSON.stringify(firstTeacher));
-      return firstTeacher;
-    }
-    
+
     console.warn('⚠️ No current teacher found after all checks');
     return null;
   } catch (error) {
@@ -258,7 +207,7 @@ const getCurrentTeacher = () => {
 };
 
 /**
- * Set the current teacher in localStorage
+ * Set the current teacher in memory
  * @param {Object} teacher - The teacher object
  */
 const setCurrentTeacher = (teacher) => {
@@ -267,21 +216,13 @@ const setCurrentTeacher = (teacher) => {
       console.warn('⚠️ No teacher provided to set as current');
       return false;
     }
-    
-    localStorage.setItem('currentUser', JSON.stringify(teacher));
+
+    saveToStorage('currentUser', teacher);
     console.log('✅ Current teacher set:', teacher.id);
-    
-    // Also update in school_users
-    const users = getFromStorage('school_users');
-    const userIndex = users.findIndex(u => u.id === teacher.id);
-    if (userIndex !== -1) {
-      users[userIndex].isLoggedIn = true;
-      saveToStorage('school_users', users);
-    }
-    
+
     // Notify listeners
     notifyListeners({ type: 'login', teacher });
-    
+
     return true;
   } catch (error) {
     console.error('❌ Error setting current teacher:', error);
@@ -294,23 +235,12 @@ const setCurrentTeacher = (teacher) => {
  */
 const logoutTeacher = () => {
   try {
-    const currentUser = getCurrentTeacher();
-    if (currentUser) {
-      // Update school_users
-      const users = getFromStorage('school_users');
-      const userIndex = users.findIndex(u => u.id === currentUser.id);
-      if (userIndex !== -1) {
-        users[userIndex].isLoggedIn = false;
-        saveToStorage('school_users', users);
-      }
-    }
-    
-    localStorage.removeItem('currentUser');
+    memoryCache.delete('currentUser');
     console.log('✅ Teacher logged out');
-    
+
     // Notify listeners
     notifyListeners({ type: 'logout' });
-    
+
     return true;
   } catch (error) {
     console.error('❌ Error logging out teacher:', error);
@@ -325,7 +255,7 @@ const logoutTeacher = () => {
 /**
  * Get all assigned classes for a teacher with localized names
  * @param {string} teacherId - The teacher's ID
- * @param {Array} allClasses - Optional: all classes from localStorage
+ * @param {Array} allClasses - Optional: all classes
  * @param {string} language - Optional: language code ('ar' or 'en')
  * @returns {Array} Array of class objects with localized names
  */
@@ -338,9 +268,20 @@ const getAssignedClasses = (teacherId, allClasses = null, language = null) => {
       language = getCurrentLanguage();
     }
     
-    // Get the teacher from users
+    // Resolve the teacher: school_users (server-mapped list) or the raw
+    // authenticated teacher payload (from /auth -> MySQL).
+    if (teacherId == null) {
+      const current = getCurrentTeacher();
+      if (current) teacherId = current.id;
+    }
     const users = getFromStorage('school_users');
-    const teacher = users.find(u => u.id === teacherId);
+    let teacher = users.find(u => u.id === teacherId || String(u._serverId) === String(teacherId));
+    if (!teacher && teacherId != null) {
+      const authUser = getFromStorage('user');
+      if (authUser && authUser.role === 'teacher' && String(authUser.id) === String(teacherId)) {
+        teacher = authUser;
+      }
+    }
     
     if (!teacher) {
       console.warn(`⚠️ Teacher not found: ${teacherId}`);
@@ -348,7 +289,7 @@ const getAssignedClasses = (teacherId, allClasses = null, language = null) => {
     }
     
     // Get assigned class IDs from teacher - check multiple possible locations
-    let assignedClassIds = teacher.assignedClasses || teacher.classes || teacher.classIds || [];
+    let assignedClassIds = teacher.assignedClasses || teacher.assigned_classes || teacher.classes || teacher.classIds || [];
     
     // If assignedClassIds is empty, try to get from school_teachers
     if (!assignedClassIds || assignedClassIds.length === 0) {
@@ -420,8 +361,19 @@ const getAssignedStudents = (teacherId, assignedClasses = null) => {
       return [];
     }
     
-    // Get all students
-    const students = getFromStorage('school_students');
+    // Get all students (MySQL-backed roster seeded from /students; fall back to
+    // the users-derived store, deduped by id).
+    const allStudents = [
+      ...getFromStorage('students_roster'),
+      ...getFromStorage('school_students'),
+    ];
+    const seen = new Set();
+    const students = allStudents.filter((s) => {
+      const id = String(s?._serverId ?? s?.id ?? s?.email ?? "");
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
     console.log(`📚 Total students: ${students.length}`);
     
     // Get class IDs from assigned classes
@@ -465,9 +417,16 @@ const getTeacherWithData = (teacherId, language = null) => {
       language = getCurrentLanguage();
     }
     
-    // Get the teacher from users
+    // Get the teacher from users (fall back to the authenticated teacher
+    // payload which carries assigned_classes/subjects straight from MySQL).
     const users = getFromStorage('school_users');
-    const teacher = users.find(u => u.id === teacherId);
+    let teacher = users.find(u => u.id === teacherId || String(u._serverId) === String(teacherId));
+    if (!teacher && teacherId != null) {
+      const authUser = getFromStorage('user');
+      if (authUser && authUser.role === 'teacher' && String(authUser.id) === String(teacherId)) {
+        teacher = authUser;
+      }
+    }
     
     if (!teacher) {
       console.warn(`⚠️ Teacher not found: ${teacherId}`);
@@ -613,8 +572,13 @@ const getTeacherAssessments = (teacherId) => {
       teacherId = currentTeacher.id;
     }
     
-    // Filter assessments by teacher ID
-    return assessments.filter(a => a.teacherId === teacherId || a.createdBy === teacherId);
+    // Filter assessments by teacher ID (tolerant of numeric/local id forms)
+    return assessments.filter(a =>
+      a.teacherId === teacherId ||
+      a.createdBy === teacherId ||
+      String(a.teacherId) === String(teacherId) ||
+      String(a.createdBy) === String(teacherId)
+    );
   } catch (error) {
     console.error('❌ Error getting teacher assessments:', error);
     return [];
@@ -641,7 +605,12 @@ const getTeacherNotifications = (teacherId) => {
       teacherId = currentTeacher.id;
     }
     
-    // Filter notifications by recipient ID or role
+    // Server-synced notifications are already scoped server-side (no
+    // recipient fields) — expose them as-is for the current teacher.
+    const hasRecipients = notifications.some(n => n.recipientId !== undefined || n.recipientRole !== undefined);
+    if (!hasRecipients) return notifications;
+
+    // Legacy local-shaped notifications: filter by recipient
     return notifications.filter(n => 
       n.recipientId === teacherId || 
       n.recipientRole === 'teacher' ||
@@ -876,6 +845,126 @@ const getLocalizedClasses = (classes, language = null) => {
 // ===== EXPORT FUNCTIONS =====
 // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
 
+/**
+ * Resolve the current teacher's user id.
+ * @returns {string|null}
+ */
+const getTeacherId = () => {
+  try {
+    const current = getCurrentTeacher();
+    return current ? current.id : null;
+  } catch (error) {
+    console.warn('⚠️ Could not resolve current teacher id:', error);
+    return null;
+  }
+};
+
+/**
+ * Check whether the current teacher has access to the given class.
+ * @param {string} classId - The class id to check
+ * @returns {boolean}
+ */
+const hasClassAccess = (classId) => {
+  try {
+    if (classId === null || classId === undefined) return false;
+
+    const current = getCurrentTeacher();
+    if (!current) return false;
+
+    const classes = getAssignedClasses(current.id);
+    if (!Array.isArray(classes)) return false;
+
+    return classes.some((c) => String(c.id) === String(classId));
+  } catch (error) {
+    console.warn('⚠️ Could not verify class access:', error);
+    return false;
+  }
+};
+
+// ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
+// ===== GET STUDENTS BY CLASS =====
+// ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
+
+/**
+ * Get students belonging to a single class.
+ * Data comes from the MySQL-backed roster (/students) + users store.
+ * @param {string} classId - Class code or id
+ * @returns {Array} Students in that class
+ */
+const getStudentsByClass = (classId) => {
+  try {
+    if (classId == null) return [];
+    const allStudents = [
+      ...getFromStorage('students_roster'),
+      ...getFromStorage('school_students'),
+    ];
+    const seen = new Set();
+    const unique = allStudents.filter((s) => {
+      const id = String(s?._serverId ?? s?.id ?? s?.email ?? "");
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+    return unique.filter((student) => {
+      const studentClassId =
+        student.classId || student.class || student.class_id || student.class_name;
+      return String(studentClassId) === String(classId);
+    });
+  } catch (error) {
+    console.error('❌ Error getting students by class:', error);
+    return [];
+  }
+};
+
+// ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
+// ===== SAVE TEACHER (create/update) =====
+// ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
+
+/**
+ * Upsert a teacher through the canonical users store. The users store
+ * persists the change to the Laravel API (POST/PUT /users), so the
+ * teacher record always ends up in MySQL - never in browser storage.
+ * @param {Object} teacherData
+ * @returns {Object|null} the stored teacher record
+ */
+const saveTeacher = (teacherData) => {
+  try {
+    if (!teacherData) return null;
+    const teacherPayload = { ...teacherData, role: 'teacher' };
+
+    const users = getFromStorage('school_users');
+    const existingIdx = users.findIndex(
+      (u) =>
+        u.id === teacherData.id ||
+        u.email === teacherData.email ||
+        String(u._serverId) === String(teacherData._serverId)
+    );
+    if (existingIdx >= 0) {
+      users[existingIdx] = { ...users[existingIdx], ...teacherPayload };
+    } else {
+      users.push(teacherPayload);
+    }
+    saveToStorage('school_users', users);
+
+    const teachers = getFromStorage('school_teachers');
+    const tIdx = teachers.findIndex(
+      (t) => t.id === teacherData.id || t.email === teacherData.email
+    );
+    if (tIdx >= 0) {
+      teachers[tIdx] = { ...teachers[tIdx], ...teacherPayload };
+    } else {
+      teachers.push(teacherPayload);
+    }
+    saveToStorage('school_teachers', teachers);
+
+    notifyListeners(teacherPayload);
+    return teacherPayload;
+  } catch (error) {
+    console.error('❌ Error saving teacher:', error);
+    return null;
+  }
+};
+
 export const teacherService = {
   // Core functions
   getCurrentTeacher,
@@ -883,6 +972,8 @@ export const teacherService = {
   logoutTeacher,
   getAssignedClasses,
   getAssignedStudents,
+  getStudentsByClass,
+  saveTeacher,
   getTeacherWithData,
   getDashboardStats,
   getTeacherAssessments,
@@ -890,6 +981,8 @@ export const teacherService = {
   getTodayAttendance,
   updateTeacherClasses,
   notifyTeacherAboutNewClass,
+  getTeacherId,
+  hasClassAccess,
   
   // Localization functions
   getLocalizedClassName,

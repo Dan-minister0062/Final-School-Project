@@ -1,5 +1,5 @@
 // src/services/classService.js - MySQL-backed class catalog shared by all screens
-import { getToken, syncGet } from './apiSync';
+import { syncGet } from './apiSync';
 
 // Canonical class codes (exact ids the frontend components already use)
 export const CLASS_CODES_BY_LEVEL = {
@@ -43,10 +43,8 @@ export function toMgmtLevelKey(key) {
   return key || '';
 }
 
-// Fetch raw class rows from MySQL. Returns null when offline/demo/empty.
+// Fetch raw class rows from MySQL. Returns null when the request fails/empty.
 export async function fetchServerClasses() {
-  const tk = getToken();
-  if (!tk || tk.startsWith('demo-')) return null;
   try {
     const res = await syncGet('/classes');
     const list = Array.isArray(res?.data)

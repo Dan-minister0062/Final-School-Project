@@ -1,5 +1,6 @@
 // src/components/dashboard/student/StudentResults.jsx
 import React, { useState, useEffect } from 'react';
+import { syncGet } from '../../../services/apiSync';
 import { Card, Row, Col, Button, Badge, Table, Modal, ProgressBar } from 'react-bootstrap';
 import {
   FaGraduationCap,
@@ -18,6 +19,7 @@ import {
 } from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
+import { useAuth } from '../../../hooks/useAuth';
 
 // ===== ALWAYS use English numbers =====
 const formatNumber = (num) => {
@@ -27,6 +29,7 @@ const formatNumber = (num) => {
 
 const StudentResults = () => {
   const { isArabic } = useLanguage();
+  const { user } = useAuth();
   const { notify } = useNotification();
   const [darkMode, setDarkMode] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -80,23 +83,22 @@ const StudentResults = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // ===== LOAD STUDENT DATA =====
-  const loadData = () => {
+  // ===== LOAD STUDENT DATA (MySQL-backed: /assessments, /classes, /submissions) =====
+  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
 
       console.log('🔄 Loading student results data...');
       
-      // Get current user from localStorage
-      const currentUserStr = localStorage.getItem('currentUser');
-      if (!currentUserStr) {
+      // Get current user
+      const currentUser = user;
+      if (!currentUser) {
         setError(isArabic ? 'لم يتم العثور على المستخدم' : 'User not found');
         setLoading(false);
         return;
       }
 
-      const currentUser = JSON.parse(currentUserStr);
       console.log('👨‍🎓 Current user:', currentUser);
 
       if (currentUser.role !== 'student') {
@@ -107,44 +109,46 @@ const StudentResults = () => {
 
       setStudent(currentUser);
 
-      // Get all assessments from localStorage
-      const allAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
-      console.log('📝 All assessments:', allAssessments.length);
-
-      // Get classes from localStorage
-      const allClasses = JSON.parse(localStorage.getItem('school_classes') || '[]');
-      console.log('📚 All classes:', allClasses.length);
+      // Fetch assessments, classes and submissions straight from MySQL.
+      const [assessmentsRes, classesRes, submissionsRes] = await Promise.all([
+        syncGet('/assessments'),
+        syncGet('/classes'),
+        syncGet('/submissions'),
+      ]);
+      const allAssessments = assessmentsRes?.data || (Array.isArray(assessmentsRes) ? assessmentsRes : []);
+      const allClasses = classesRes?.data || (Array.isArray(classesRes) ? classesRes : []);
+      const allSubmissions = submissionsRes?.data || (Array.isArray(submissionsRes) ? submissionsRes : []);
 
       // Find student's class
       const studentClass = allClasses.find(c => c.id === currentUser.classId || c.id === currentUser.class);
       console.log('📚 Student class:', studentClass);
 
-      // Filter assessments for student's class
-      const classAssessments = allAssessments.filter(a => {
-        // Check if assessment is for student's class
-        const isForClass = a.classId === currentUser.classId || a.classId === currentUser.class;
-        
-        // Check if student is specifically assigned (if assignedStudents exists)
-        const isAssigned = a.assignedStudents ? a.assignedStudents.includes(currentUser.id) : true;
-        
-        // Only show published or graded assessments
-        const isPublished = a.status === 'published' || a.status === 'closed' || a.status === 'pending_marking';
-        
-        return isForClass && isAssigned && isPublished;
+      // Server already scopes assessments/submissions to this student; keep a
+      // light status filter so only deliverable/graded results are shown.
+      const isPublished = a => ['published', 'sent_to_students', 'approved', 'closed', 'active'].includes(a.status);
+
+      // Submissions for this student, indexed by assessment id
+      const submissionByAssessment = {};
+      allSubmissions.forEach(s => {
+        if (String(s.studentId) === String(currentUser.id)) {
+          submissionByAssessment[String(s.assessmentId)] = s;
+        }
       });
 
+      const classAssessments = allAssessments.filter(a => isPublished(a));
       console.log('📝 Student assessments:', classAssessments.length);
 
       // Enrich assessments with class name and student's grade
       const enrichedAssessments = classAssessments.map(a => {
         const classInfo = allClasses.find(c => c.id === a.classId);
-        const studentGrade = a.grades?.find(g => g.studentId === currentUser.id);
+        const submission = submissionByAssessment[String(a.id)];
+        const studentScore = submission?.score != null ? submission.score : null;
         return {
           ...a,
           className: classInfo?.name || a.className || 'N/A',
-          studentScore: studentGrade?.score || null,
-          studentGrade: studentGrade,
-          isGraded: !!studentGrade,
+          studentScore: studentScore,
+          studentGrade: submission || null,
+          isGraded: submission?.status === 'graded' && studentScore !== null && studentScore !== undefined,
         };
       });
 

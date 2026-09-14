@@ -15,6 +15,8 @@ import {
 } from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
+import { useAuth } from '../../../hooks/useAuth';
+import { syncSend, syncGet } from '../../../services/apiSync';
 
 // ===== HELPER FUNCTIONS =====
 const formatNumber = (num) => {
@@ -85,22 +87,10 @@ const getMimeType = (fileName, fileType) => {
   return mimeMap[ext] || 'application/octet-stream';
 };
 
-// ===== GET CURRENT USER =====
-const getCurrentUser = () => {
-  try {
-    const userStr = localStorage.getItem('currentUser');
-    if (userStr) {
-      return JSON.parse(userStr);
-    }
-    return null;
-  } catch {
-    return null;
-  }
-};
-
 const StudentAnnouncements = () => {
   const { isArabic } = useLanguage();
   const { notify } = useNotification();
+  const { user } = useAuth();
   const [darkMode, setDarkMode] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -168,69 +158,128 @@ const StudentAnnouncements = () => {
   }, []);
 
   // ===== GET STUDENT ID =====
-  const getStudentId = () => {
-    const user = getCurrentUser();
-    if (user && user.id) {
-      return user.id;
-    }
-    const studentId = localStorage.getItem('studentId');
-    if (studentId) {
-      return studentId;
-    }
-    return 'student_1';
-  };
-
-  const getStudentName = () => {
-    const user = getCurrentUser();
-    if (user && user.name) {
-      return user.name;
-    }
-    return 'Student';
+const getStudentId = () => {
+    return user?.id || '';
   };
 
   // ===== LOAD DATA =====
-  const loadData = () => {
+  const loadData = async () => {
     try {
       setLoading(true);
       
       const studentId = getStudentId();
+      // The student's class may be stored as either the class name
+      // (e.g. "Primaire 3A") or the class code (e.g. "primary_3a");
+      // the assessment carries both too, so match against every value.
+      const classCode = user?.class_code || user?.classCode || user?.classId || user?.class || '';
+      const className = user?.className || user?.class_name || '';
+      const myClassValues = [classCode, className].map(v => String(v ?? '')).filter(Boolean);
+
+      // 0. Server-backed assessments sent to this student's class (cross-device)
+      let serverAssessments = [];
+      try {
+        const res = await syncGet('/assessments', { status: 'sent_to_students' });
+        if (res && Array.isArray(res.data)) {
+          serverAssessments = res.data.filter(a => {
+            if (myClassValues.length === 0) return true;
+            const aClassValues = [
+              a.classId,
+              a.class_code,
+              a.classCode,
+              a.class_name,
+              a.className,
+            ].map(v => String(v ?? '')).filter(Boolean);
+            return myClassValues.some(myClass =>
+              aClassValues.some(aClass => aClass === myClass)
+            );
+          });
+        }
+      } catch (e) {
+        console.warn('Server assessments fetch failed:', e);
+      }
+      console.log('🌐 Server assessments for class:', serverAssessments.length);
       
-      // 1. Load assessments from student_assessments (sent by teacher)
-      const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
-      const myStudentAssessments = studentAssessments.filter(a => a.studentId === studentId);
-      
-      console.log('📝 Student assessments from student_assessments:', myStudentAssessments.length);
-      
-      // 2. Load student's submissions from school_submissions
-      const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-      const studentSubmissions = allSubmissions.filter(s => s.studentId === studentId);
-      console.log('📤 Student submissions:', studentSubmissions.length);
-      setMySubmissions(studentSubmissions);
-      setFilteredSubmissions(studentSubmissions);
-      
-      // Enrich assessments with submission data
-      const enrichedAssessments = myStudentAssessments.map(a => {
-        // Find submission for this assessment
-        const submission = studentSubmissions.find(s => s.assessmentId === a.assessmentId || s.assessmentId === a.id);
+      // 1. Server-backed submissions for THIS student only (backend scopes by role).
+      let serverSubmissions = [];
+      try {
+        const subRes = await syncGet('/submissions');
+        if (subRes && Array.isArray(subRes.data) && subRes.data.length) {
+          serverSubmissions = subRes.data.map(s => ({
+            _serverId: s._serverId ?? s.id,
+            id: s._serverId ?? s.id,
+            assessmentId: s.assessmentId || s.assessment_id,
+            studentId: s.studentId || s.student_id || studentId,
+            studentCode: s.studentCode || s.student_code,
+            studentName: s.studentName || s.student_name || user?.name || 'Student',
+            content: s.content || '',
+            attachment: s.fileData || s.fileUrl || '',
+            fileName: s.fileName || s.file_name || '',
+            fileType: s.fileType || s.file_type || '',
+            score: s.score,
+            grade: s.score,
+            status: s.status || 'submitted',
+            submittedAt: s.submittedAt || s.submitted_at || '',
+            comment: s.comment || s.feedback || '',
+            remarks: s.comment || s.feedback || '',
+            gradedAt: s.updatedAt || s.updated_at || '',
+            gradedBy: '',
+            source: 'server',
+          }));
+        }
+      } catch (e) {
+        console.warn('Server submissions fetch failed:', e);
+      }
+      console.log('📤 Student submissions (server):', serverSubmissions.length);
+
+      // 2. Enrich assessments with submission status/grade (cross-device).
+      const submissionsByAssessment = {};
+      serverSubmissions.forEach(s => { submissionsByAssessment[String(s.assessmentId)] = s; });
+
+      const enrichedAssessments = serverAssessments.map(a => {
+        const submission = submissionsByAssessment[String(a.id || a._serverId)];
         return {
           ...a,
-          id: a.assessmentId || a.id,
-          assessmentId: a.assessmentId || a.id,
-          status: a.status || 'pending',
+          id: a.id || a._serverId,
+          assessmentId: a.id || a._serverId,
+          status: submission
+            ? (submission.status === 'graded' ? 'graded' : 'submitted')
+            : (a.status || 'pending'),
           hasSubmitted: !!submission,
           submissionId: submission?.id || null,
-          grade: a.grade || submission?.grade || null,
-          remarks: a.remarks || submission?.remarks || null,
-          isGraded: (a.grade !== null && a.grade !== undefined) || (submission?.grade !== null && submission?.grade !== undefined),
-          submittedAt: submission?.submittedAt || a.submittedAt || null,
+          grade: submission?.grade ?? null,
+          remarks: submission?.remarks || null,
+          isGraded: (submission?.grade !== null && submission?.grade !== undefined) || submission?.status === 'graded',
+          submittedAt: submission?.submittedAt || null,
           submissionData: submission || null,
-          gradedAt: a.gradedAt || submission?.gradedAt || null,
-          gradedBy: a.gradedBy || submission?.gradedBy || null,
+          gradedAt: submission?.gradedAt || null,
+          gradedBy: submission?.gradedBy || null,
         };
       });
-      
+
+      // 3. Submissions carry the assessment meta the UI renders.
+      const assessmentById = {};
+      serverAssessments.forEach(a => { assessmentById[String(a.id || a._serverId)] = a; });
+
+      const enrichedSubmissions = serverSubmissions.map(s => {
+        const a = assessmentById[String(s.assessmentId)];
+        return {
+          ...s,
+          title: a?.title || 'Untitled',
+          subject: a?.subject || '',
+          type: a?.type || 'assignment',
+          teacherId: a?.teacherId || a?.teacher_id,
+          teacherName: a?.teacherName || a?.teacher_name || '',
+          className: a?.className || a?.class_name || '',
+          totalMarks: a?.totalMarks || a?.maxScore || 20,
+          dueDate: a?.dueDate || '',
+          attachmentName: a?.attachmentName || '',
+        };
+      });
+
       setMyAssessments(enrichedAssessments);
       setFilteredAssessments(enrichedAssessments);
+      setMySubmissions(enrichedSubmissions);
+      setFilteredSubmissions(enrichedSubmissions);
 
       setLoading(false);
     } catch (err) {
@@ -385,7 +434,7 @@ const StudentAnnouncements = () => {
     if (submission && (submission.grade !== undefined && submission.grade !== null)) {
       return submission.grade;
     }
-    // Check from student_assessments
+    // Check from the enriched assessment view
     const studentAssess = myAssessments.find(a => a.assessmentId === assessmentId || a.id === assessmentId);
     if (studentAssess && studentAssess.grade !== undefined && studentAssess.grade !== null) {
       return studentAssess.grade;
@@ -400,7 +449,7 @@ const StudentAnnouncements = () => {
     if (submission && submission.remarks) {
       return submission.remarks;
     }
-    // Check from student_assessments
+    // Check from the enriched assessment view
     const studentAssess = myAssessments.find(a => a.assessmentId === assessmentId || a.id === assessmentId);
     if (studentAssess && studentAssess.remarks) {
       return studentAssess.remarks;
@@ -436,19 +485,6 @@ const StudentAnnouncements = () => {
       let content = item.attachment || item.content || item.fileContent || '';
       let fileName = item.attachmentName || item.fileName || 'file';
       let fileType = item.attachmentType || item.fileType || 'text/plain';
-
-      // If content is not found, try to get from localStorage by id
-      if (!content && item.id) {
-        try {
-          const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-          const found = allSubmissions.find(s => s.id === item.id);
-          if (found) {
-            content = found.attachment || found.content || found.fileContent || '';
-            fileName = found.attachmentName || found.fileName || fileName;
-            fileType = found.attachmentType || found.fileType || fileType;
-          }
-        } catch (e) {}
-      }
 
       if (!content) {
         notify(
@@ -510,13 +546,6 @@ const StudentAnnouncements = () => {
     }
   };
 
-  // ===== HANDLE DELETE ASSIGNMENT =====
-  const handleDeleteAssignmentClick = (assessment) => {
-    setItemToDelete(assessment);
-    setDeleteType('assignment');
-    setShowDeleteModal(true);
-  };
-
   // ===== HANDLE DELETE SUBMISSION =====
   const handleDeleteSubmissionClick = (submission) => {
     setItemToDelete(submission);
@@ -525,112 +554,51 @@ const StudentAnnouncements = () => {
   };
 
   // ===== CONFIRM DELETE =====
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!itemToDelete) return;
-    
+
     setDeleting(true);
     try {
-      const studentId = getStudentId();
-      
       if (deleteType === 'assignment') {
-        // Delete assignment from student_assessments
-        const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
-        const updatedAssessments = studentAssessments.filter(a => 
-          !(a.assessmentId === itemToDelete.assessmentId && a.studentId === studentId)
-        );
-        localStorage.setItem('student_assessments', JSON.stringify(updatedAssessments));
-        
-        // Also remove from student_assessments_by_student if exists
-        try {
-          const studentAssessmentsByStudent = JSON.parse(localStorage.getItem('student_assessments_by_student') || '{}');
-          if (studentAssessmentsByStudent[studentId]) {
-            studentAssessmentsByStudent[studentId] = studentAssessmentsByStudent[studentId].filter(a => 
-              a.assessmentId !== itemToDelete.assessmentId
-            );
-            localStorage.setItem('student_assessments_by_student', JSON.stringify(studentAssessmentsByStudent));
-          }
-        } catch (e) {}
-        
-        // If there's a submission for this assignment, delete it too
-        const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-        const updatedSubmissions = allSubmissions.filter(s => 
-          !(s.assessmentId === itemToDelete.assessmentId && s.studentId === studentId)
-        );
-        localStorage.setItem('school_submissions', JSON.stringify(updatedSubmissions));
-        
-        // Remove from local state
-        setMyAssessments(prev => prev.filter(a => a.assessmentId !== itemToDelete.assessmentId));
-        setFilteredAssessments(prev => prev.filter(a => a.assessmentId !== itemToDelete.assessmentId));
-        setMySubmissions(prev => prev.filter(s => s.assessmentId !== itemToDelete.assessmentId));
-        setFilteredSubmissions(prev => prev.filter(s => s.assessmentId !== itemToDelete.assessmentId));
-        
+        // Assessments are owned by teachers on the server; students cannot delete them.
         notify(
-          isArabic ? `✅ تم حذف التقييم "${itemToDelete.title}" بنجاح` : `✅ Assessment "${itemToDelete.title}" deleted successfully`,
-          'success'
+          isArabic
+            ? 'لا يمكن حذف التقييم. المعلم هو من يدير التقييمات.'
+            : 'Assessments cannot be deleted by students. The teacher manages them.',
+          'warning'
         );
-        
-      } else {
-        // Delete submission
-        const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-        const updatedSubmissions = allSubmissions.filter(s => s.id !== itemToDelete.id);
-        localStorage.setItem('school_submissions', JSON.stringify(updatedSubmissions));
-        
-        // Update student_assessments status back to pending
-        const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
-        const assessIndex = studentAssessments.findIndex(a => 
-          a.assessmentId === itemToDelete.assessmentId && a.studentId === studentId
-        );
-        if (assessIndex !== -1) {
-          studentAssessments[assessIndex].status = 'pending';
-          studentAssessments[assessIndex].submittedAt = null;
-          studentAssessments[assessIndex].grade = null;
-          studentAssessments[assessIndex].remarks = null;
-          localStorage.setItem('student_assessments', JSON.stringify(studentAssessments));
-        }
-        
-        // Also remove any admin notifications related to this submission
-        const adminNotifications = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
-        const updatedAdminNotifs = adminNotifications.filter(n => n.submissionId !== itemToDelete.id);
-        localStorage.setItem('admin_notifications', JSON.stringify(updatedAdminNotifs));
-        
-        // Remove from admin seen submissions
-        const seenSubmissions = JSON.parse(localStorage.getItem('admin_seen_submissions') || '[]');
-        const updatedSeen = seenSubmissions.filter(s => s.submissionId !== itemToDelete.id);
-        localStorage.setItem('admin_seen_submissions', JSON.stringify(updatedSeen));
-        
-        // Remove from local state
-        setMySubmissions(prev => prev.filter(s => s.id !== itemToDelete.id));
-        setFilteredSubmissions(prev => prev.filter(s => s.id !== itemToDelete.id));
-        
-        // Update the assessment status in local state
-        setMyAssessments(prev => prev.map(a => {
-          if (a.assessmentId === itemToDelete.assessmentId) {
-            return { ...a, status: 'pending', hasSubmitted: false, submissionData: null, grade: null, remarks: null, isGraded: false };
-          }
-          return a;
-        }));
-        setFilteredAssessments(prev => prev.map(a => {
-          if (a.assessmentId === itemToDelete.assessmentId) {
-            return { ...a, status: 'pending', hasSubmitted: false, submissionData: null, grade: null, remarks: null, isGraded: false };
-          }
-          return a;
-        }));
-        
-        notify(
-          isArabic ? '✅ تم حذف التقديم بنجاح' : '✅ Submission deleted successfully',
-          'success'
-        );
+        setDeleting(false);
+        return;
       }
-      
+
+      // Delete the submission on the server (student's own, ungraded only — enforced by the API).
+      if (!itemToDelete._serverId) {
+        notify(
+          isArabic ? '❌ هذا التقديم غير معروف على الخادم' : '❌ This submission is not known on the server',
+          'error'
+        );
+        setDeleting(false);
+        return;
+      }
+
+      const res = await syncSend('delete', `/submissions/${itemToDelete._serverId}`);
+      if (!res || !res.success) {
+        notify(
+          isArabic ? '❌ فشل حذف التقديم' : '❌ Failed to delete submission',
+          'error'
+        );
+        setDeleting(false);
+        return;
+      }
+
       setShowDeleteModal(false);
       setItemToDelete(null);
       setDeleting(false);
       loadData();
-      
-      window.dispatchEvent(new CustomEvent('submissionChanged', { 
-        detail: { action: 'delete', id: itemToDelete.id || itemToDelete.assessmentId }
+
+      window.dispatchEvent(new CustomEvent('submissionChanged', {
+        detail: { action: 'delete', id: itemToDelete.id || itemToDelete._serverId }
       }));
-      
     } catch (err) {
       console.error('Error deleting:', err);
       notify(
@@ -669,126 +637,65 @@ const StudentAnnouncements = () => {
     }
   };
 
-  const confirmSubmit = () => {
+  const confirmSubmit = async () => {
     if (!selectedAssessment) return;
-    
+
     setSubmitting(true);
     try {
-      const studentId = getStudentId();
-      const studentName = getStudentName();
-      
-      // Create submission
-      const submissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-      
-      const newSubmission = {
-        id: `SUB_${Date.now()}`,
-        assessmentId: selectedAssessment.assessmentId || selectedAssessment.id,
-        studentId: studentId,
-        studentName: studentName,
-        teacherId: selectedAssessment.teacherId,
-        teacherName: selectedAssessment.teacherName,
-        title: selectedAssessment.title,
-        subject: selectedAssessment.subject,
-        type: selectedAssessment.type,
-        className: selectedAssessment.className,
-        content: submissionText || '',
-        status: 'submitted',
-        submittedAt: new Date().toISOString(),
-        forwardedToTeacher: false,
-        forwardedAt: null,
-        fileName: submissionFile ? submissionFile.name : null,
-        fileType: submissionFile ? submissionFile.type : null,
-        attachment: submissionFilePreview || null,
-        grade: null,
-        remarks: null,
-        gradedAt: null,
-        gradedBy: null
-      };
-      
-      submissions.push(newSubmission);
-      localStorage.setItem('school_submissions', JSON.stringify(submissions));
-      
-      // Update student_assessments to reflect submission
-      const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
-      const assessIndex = studentAssessments.findIndex(a => 
-        (a.assessmentId === selectedAssessment.assessmentId || a.id === selectedAssessment.id) && 
-        a.studentId === studentId
-      );
-      if (assessIndex !== -1) {
-        studentAssessments[assessIndex].status = 'submitted';
-        studentAssessments[assessIndex].submittedAt = new Date().toISOString();
-        localStorage.setItem('student_assessments', JSON.stringify(studentAssessments));
+      const assessmentId = selectedAssessment.assessmentId || selectedAssessment.id;
+      if (!selectedAssessment._serverId && !assessmentId) {
+        notify(
+          isArabic ? '❌ هذا التقييم غير معروف على الخادم' : '❌ This assessment is not known on the server',
+          'error'
+        );
+        setSubmitting(false);
+        return;
       }
-      
-      // Create notification for teacher
-      const teacherNotifications = JSON.parse(localStorage.getItem('teacher_notifications') || '[]');
-      teacherNotifications.push({
-        id: `TEACH_NOTIF_${Date.now()}`,
-        type: 'new_submission',
-        title: isArabic ? `📝 تقديم جديد من طالب` : `📝 New submission from student`,
-        message: isArabic 
-          ? `الطالب ${studentName} قدم تقييم "${selectedAssessment.title}"`
-          : `Student ${studentName} submitted "${selectedAssessment.title}"`,
-        studentId: studentId,
-        studentName: studentName,
-        assessmentId: selectedAssessment.assessmentId || selectedAssessment.id,
-        assessmentTitle: selectedAssessment.title,
-        submissionId: newSubmission.id,
-        read: false,
-        createdAt: new Date().toISOString(),
-        link: `/dashboard/teacher/assessments`
+
+      const preview = submissionFilePreview && !submissionFilePreview.startsWith('data:')
+        ? submissionFilePreview
+        : null;
+
+      const res = await syncSend('post', '/submissions', {
+        assessment_id: assessmentId,
+        content: submissionText || '',
+        file_url: preview,
+        file_data: submissionFilePreview || null,
+        file_name: submissionFile ? submissionFile.name : null,
+        file_type: submissionFile ? submissionFile.type : null,
       });
-      localStorage.setItem('teacher_notifications', JSON.stringify(teacherNotifications));
-      
-      // Also create notification for admin (so admin can see submission)
-      const adminNotifications = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
-      adminNotifications.push({
-        id: `ADMIN_NOTIF_${Date.now()}`,
-        type: 'student_submission',
-        title: isArabic ? `📝 تقديم جديد من طالب` : `📝 New student submission`,
-        message: isArabic 
-          ? `الطالب ${studentName} قدم تقييم "${selectedAssessment.title}" للمعلم ${selectedAssessment.teacherName}`
-          : `Student ${studentName} submitted "${selectedAssessment.title}" to teacher ${selectedAssessment.teacherName}`,
-        studentId: studentId,
-        studentName: studentName,
-        teacherId: selectedAssessment.teacherId,
-        teacherName: selectedAssessment.teacherName,
-        assessmentId: selectedAssessment.assessmentId || selectedAssessment.id,
-        assessmentTitle: selectedAssessment.title,
-        submissionId: newSubmission.id,
-        read: false,
-        createdAt: new Date().toISOString(),
-        link: `/dashboard/admin/assessments`
-      });
-      localStorage.setItem('admin_notifications', JSON.stringify(adminNotifications));
-      
-      // Update admin seen submissions
-      const seenSubmissions = JSON.parse(localStorage.getItem('admin_seen_submissions') || '[]');
-      seenSubmissions.push({
-        submissionId: newSubmission.id,
-        seenAt: new Date().toISOString()
-      });
-      localStorage.setItem('admin_seen_submissions', JSON.stringify(seenSubmissions));
-      
+
+      if (!res || !res.data) {
+        notify(
+          isArabic ? '❌ فشل تقديم التقييم. حاول مرة أخرى' : '❌ Failed to submit assessment. Please try again.',
+          'error'
+        );
+        setSubmitting(false);
+        return;
+      }
+
       notify(
         isArabic ? '✅ تم تقديم التقييم بنجاح' : '✅ Assessment submitted successfully',
         'success'
       );
-      
+
       setShowSubmitModal(false);
       setSubmitting(false);
+      setSubmissionText('');
+      setSubmissionFile(null);
+      setSubmissionFilePreview(null);
+
+      window.dispatchEvent(new CustomEvent('submissionChanged', {
+        detail: { submission: res.data }
+      }));
+      window.dispatchEvent(new CustomEvent('notificationAdded', {
+        detail: { type: 'new_submission', submission: res.data }
+      }));
+      window.dispatchEvent(new CustomEvent('studentSubmission', {
+        detail: { submission: res.data }
+      }));
+
       loadData();
-      
-      window.dispatchEvent(new CustomEvent('submissionChanged', { 
-        detail: { submission: newSubmission }
-      }));
-      window.dispatchEvent(new CustomEvent('notificationAdded', { 
-        detail: { type: 'new_submission', submission: newSubmission }
-      }));
-      window.dispatchEvent(new CustomEvent('studentSubmission', { 
-        detail: { submission: newSubmission }
-      }));
-      
     } catch (err) {
       console.error('Error submitting assessment:', err);
       notify(
@@ -1145,16 +1052,6 @@ const StudentAnnouncements = () => {
                             <FaPaperPlane size={14} />
                           </Button>
                         )}
-                        {/* Delete Assignment Button - Always visible for all assignments */}
-                        <Button 
-                          variant="outline-danger" 
-                          size="sm"
-                          className="action-btn"
-                          onClick={() => handleDeleteAssignmentClick(assessment)}
-                          title={isArabic ? 'حذف التقييم' : 'Delete Assessment'}
-                        >
-                          <FaTrash size={14} />
-                        </Button>
                         {/* Delete Submission Button - only if submitted */}
                         {showDelete && (
                           <Button 
@@ -1667,18 +1564,6 @@ const StudentAnnouncements = () => {
               style={{ ...arabicFontStyle, borderRadius: '12px' }}
             >
               <FaDownload className="me-1" /> {isArabic ? 'تحميل' : 'Download'}
-            </Button>
-          )}
-          {selectedItem && selectedItemType === 'assessment' && (
-            <Button 
-              variant="outline-danger" 
-              onClick={() => {
-                setShowViewModal(false);
-                handleDeleteAssignmentClick(selectedItem);
-              }}
-              style={{ ...arabicFontStyle, borderRadius: '12px' }}
-            >
-              <FaTrash className="me-1" /> {isArabic ? 'حذف التقييم' : 'Delete Assessment'}
             </Button>
           )}
           {selectedItem && selectedItemType === 'assessment' && selectedItem.submissionData && (

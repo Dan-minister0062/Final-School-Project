@@ -19,9 +19,8 @@ import {
 import { useLanguage } from '../../../context/LanguageContext';
 import { useAuth } from '../../../hooks/useAuth';
 import { useNotification } from '../../../hooks/useNotification';
-import announcementService from '../../../services/announcementService';
+import { syncGet, syncSend } from '../../../services/apiSync';
 import notificationService from '../../../services/notificationService';
-import userDataService from '../../../services/userDataService';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ar, enUS } from 'date-fns/locale';
 import {
@@ -38,36 +37,6 @@ import {
 const formatNumber = (num) => {
   if (num === undefined || num === null) return '0';
   return num.toString();
-};
-
-// ===== Helper to save announcements to localStorage =====
-const saveAnnouncementsToStorage = (announcements) => {
-  try {
-    localStorage.setItem('announcements', JSON.stringify(announcements));
-    window.dispatchEvent(new StorageEvent('storage', {
-      key: 'announcements',
-      newValue: JSON.stringify(announcements)
-    }));
-    return true;
-  } catch (error) {
-    console.error('Error saving announcements to localStorage:', error);
-    return false;
-  }
-};
-
-// ===== Helper to get announcements from localStorage =====
-const getAnnouncementsFromStorage = () => {
-  try {
-    const stored = localStorage.getItem('announcements');
-    if (stored) {
-      const data = JSON.parse(stored);
-      return Array.isArray(data) ? data : [];
-    }
-    return [];
-  } catch (error) {
-    console.error('Error getting announcements from localStorage:', error);
-    return [];
-  }
 };
 
 const AnnouncementsManagement = () => {
@@ -284,14 +253,15 @@ const AnnouncementsManagement = () => {
   };
 
   // ===== LOAD ANNOUNCEMENTS =====
-  const loadAnnouncements = () => {
+  const loadAnnouncements = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      const loaded = getAnnouncementsFromStorage();
+      const res = await syncGet('/announcements');
+      const rows = Array.isArray(res?.data) ? res.data : [];
       
-      const sorted = loaded.sort((a, b) => {
+      const sorted = rows.sort((a, b) => {
         return new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date);
       });
 
@@ -302,9 +272,7 @@ const AnnouncementsManagement = () => {
         const searchLower = searchTerm.toLowerCase();
         filtered = filtered.filter(a =>
           (a.title || '').toLowerCase().includes(searchLower) ||
-          (a.titleAr || '').toLowerCase().includes(searchLower) ||
           (a.content || '').toLowerCase().includes(searchLower) ||
-          (a.contentAr || '').toLowerCase().includes(searchLower) ||
           (a.author || '').toLowerCase().includes(searchLower)
         );
       }
@@ -340,20 +308,12 @@ const AnnouncementsManagement = () => {
   useEffect(() => {
     loadAnnouncements();
     
-    const handleStorageChange = (e) => {
-      if (e.key === 'announcements') {
-        loadAnnouncements();
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    
     const handleAnnouncementsUpdated = () => {
       loadAnnouncements();
     };
     window.addEventListener('announcementsUpdated', handleAnnouncementsUpdated);
     
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('announcementsUpdated', handleAnnouncementsUpdated);
     };
   }, []);
@@ -453,40 +413,9 @@ const AnnouncementsManagement = () => {
   };
 
   // ===== SEND NOTIFICATIONS TO TARGET AUDIENCE =====
-  const sendNotificationsToAudience = (announcement) => {
+  const sendNotificationsToAudience = async (announcement) => {
     try {
       const targetAudience = announcement.targetAudience || ['all'];
-      const allUsers = JSON.parse(localStorage.getItem('school_users') || '[]');
-      const allStudents = JSON.parse(localStorage.getItem('school_students') || '[]');
-      const allParents = JSON.parse(localStorage.getItem('school_parents') || '[]');
-      const allTeachers = allUsers.filter(u => u.role === 'teacher');
-
-      let recipients = [];
-
-      if (targetAudience.includes('all')) {
-        recipients = [...allUsers, ...allStudents, ...allParents];
-      } else {
-        if (targetAudience.includes('students')) {
-          recipients = [...recipients, ...allStudents];
-        }
-        if (targetAudience.includes('parents')) {
-          recipients = [...recipients, ...allParents];
-        }
-        if (targetAudience.includes('teachers')) {
-          recipients = [...recipients, ...allTeachers];
-        }
-      }
-
-      const uniqueRecipients = [];
-      const seenIds = new Set();
-      recipients.forEach(r => {
-        if (r.id && !seenIds.has(r.id)) {
-          seenIds.add(r.id);
-          uniqueRecipients.push(r);
-        }
-      });
-
-      console.log(`📢 Sending announcement to ${uniqueRecipients.length} recipients`);
 
       const title = getTranslatedTitle(announcement);
       const titleAr = announcement.titleAr || announcement.title;
@@ -494,27 +423,20 @@ const AnnouncementsManagement = () => {
       const messageAr = announcement.contentAr || announcement.content;
 
       const notification = {
-        id: `NOT${String(Date.now()).slice(-6)}`,
         title: `📢 ${title}`,
         titleAr: `📢 ${titleAr}`,
         message: message.substring(0, 200) + (message.length > 200 ? '...' : ''),
         messageAr: messageAr.substring(0, 200) + (messageAr.length > 200 ? '...' : ''),
         type: 'announcement',
         priority: announcement.priority || 'medium',
-        read: false,
         recipientRole: 'all',
         announcementId: announcement.id,
         author: announcement.author || 'Admin',
-        createdAt: new Date().toISOString(),
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         link: '/announcements',
         targetAudience: targetAudience,
-        translationKey: announcement.translationKey || null
       };
 
-      const allNotifications = JSON.parse(localStorage.getItem('school_notifications') || '[]');
-      allNotifications.push(notification);
-      localStorage.setItem('school_notifications', JSON.stringify(allNotifications));
+      await notificationService.addNotification(notification);
 
       window.dispatchEvent(new CustomEvent('notificationAdded', { detail: notification }));
       window.dispatchEvent(new CustomEvent('newNotification', { 
@@ -528,24 +450,14 @@ const AnnouncementsManagement = () => {
         }
       }));
 
-      const existingAnnouncements = JSON.parse(localStorage.getItem('announcements') || '[]');
-      const updatedAnnouncements = existingAnnouncements.map(a => {
-        if (a.id === announcement.id) {
-          return { ...a, notified: true, notifiedAt: new Date().toISOString() };
-        }
-        return a;
-      });
-      localStorage.setItem('announcements', JSON.stringify(updatedAnnouncements));
-
-      console.log(`✅ Notification sent to ${uniqueRecipients.length} users`);
-
+      console.log('✅ Announcement notification sent');
     } catch (error) {
       console.error('Error sending notifications:', error);
     }
   };
 
   // ===== HANDLE ADD ANNOUNCEMENT =====
-  const handleAddAnnouncement = () => {
+  const handleAddAnnouncement = async () => {
     if (!formData.title || !formData.title.trim()) {
       notify(
         isArabic ? 'يرجى إدخال عنوان الإعلان' : 'Please enter announcement title',
@@ -631,17 +543,25 @@ const AnnouncementsManagement = () => {
         updatedAt: new Date().toISOString()
       };
 
-      const existing = getAnnouncementsFromStorage();
-      const updated = [...existing, newAnnouncement];
-      
-      const saved = saveAnnouncementsToStorage(updated);
-      
+      const saved = await syncSend('post', '/announcements', {
+        title: newAnnouncement.title,
+        content: newAnnouncement.content,
+        type: newAnnouncement.type,
+        priority: newAnnouncement.priority,
+        status: newAnnouncement.status,
+        author: newAnnouncement.author,
+        targetAudience: newAnnouncement.targetAudience,
+        image: newAnnouncement.image,
+        video: newAnnouncement.video,
+        mediaType: newAnnouncement.mediaType,
+        date: newAnnouncement.date,
+        time: newAnnouncement.time,
+      });
+
       if (!saved) {
-        throw new Error('Failed to save to localStorage');
+        throw new Error('Failed to save to server');
       }
 
-      setAllAnnouncementsData(updated);
-      
       window.dispatchEvent(new CustomEvent('announcementsUpdated', {
         detail: { announcement: newAnnouncement }
       }));
@@ -731,7 +651,7 @@ const AnnouncementsManagement = () => {
   };
 
   // ===== HANDLE SAVE EDIT =====
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editFormData.title || !editFormData.title.trim()) {
       notify(
         isArabic ? 'يرجى إدخال عنوان الإعلان' : 'Please enter announcement title',
@@ -775,43 +695,28 @@ const AnnouncementsManagement = () => {
         }
       }
 
-      const existing = getAnnouncementsFromStorage();
-      const updatedAnnouncements = existing.map(a => {
-        if (a.id === selectedAnnouncement.id) {
-          return {
-            ...a,
-            title: editFormData.title.trim(),
-            titleAr: titleAr,
-            content: editFormData.content.trim(),
-            contentAr: contentAr,
-            type: editFormData.type || 'announcement',
-            priority: editFormData.priority || 'medium',
-            status: editFormData.status || 'published',
-            date: editFormData.date || new Date().toISOString().split('T')[0],
-            time: editFormData.time || new Date().toTimeString().slice(0, 5),
-            targetAudience: editFormData.targetAudience || [],
-            isActive: editFormData.isActive !== false,
-            translationKey: editFormData.translationKey || null,
-            updatedAt: new Date().toISOString(),
-            image: mediaType === 'image' ? previewUrl : a.image,
-            video: mediaType === 'video' ? previewUrl : a.video,
-            mediaType: mediaType !== 'none' ? mediaType : a.mediaType,
-          };
-        }
-        return a;
+      const saved = await syncSend('put', `/announcements/${selectedAnnouncement.id}`, {
+        title: editFormData.title.trim(),
+        content: editFormData.content.trim(),
+        type: editFormData.type || 'announcement',
+        priority: editFormData.priority || 'medium',
+        status: editFormData.status || 'published',
+        date: editFormData.date || new Date().toISOString().split('T')[0],
+        time: editFormData.time || new Date().toTimeString().slice(0, 5),
+        targetAudience: editFormData.targetAudience || [],
+        image: mediaType === 'image' ? previewUrl : selectedAnnouncement.image,
+        video: mediaType === 'video' ? previewUrl : selectedAnnouncement.video,
+        mediaType: mediaType !== 'none' ? mediaType : selectedAnnouncement.mediaType,
       });
 
-      const saved = saveAnnouncementsToStorage(updatedAnnouncements);
-      
       if (!saved) {
-        throw new Error('Failed to save to localStorage');
+        throw new Error('Failed to save to server');
       }
 
-      setAllAnnouncementsData(updatedAnnouncements);
       window.dispatchEvent(new CustomEvent('announcementsUpdated'));
 
       if (editFormData.status === 'published' && selectedAnnouncement.status !== 'published') {
-        const updatedAnn = updatedAnnouncements.find(a => a.id === selectedAnnouncement.id);
+        const updatedAnn = { ...selectedAnnouncement, ...editFormData };
         if (updatedAnn) {
           sendNotificationsToAudience(updatedAnn);
         }
@@ -836,19 +741,15 @@ const AnnouncementsManagement = () => {
   };
 
   // ===== HANDLE DELETE ANNOUNCEMENT =====
-  const handleDeleteAnnouncement = () => {
+  const handleDeleteAnnouncement = async () => {
     setProcessingAction(true);
     try {
-      const existing = getAnnouncementsFromStorage();
-      const updated = existing.filter(a => a.id !== selectedAnnouncement.id);
-      
-      const saved = saveAnnouncementsToStorage(updated);
+      const saved = await syncSend('delete', `/announcements/${selectedAnnouncement.id}`);
       
       if (!saved) {
-        throw new Error('Failed to save to localStorage');
+        throw new Error('Failed to delete from server');
       }
 
-      setAllAnnouncementsData(updated);
       window.dispatchEvent(new CustomEvent('announcementsUpdated'));
 
       notify(
@@ -870,28 +771,19 @@ const AnnouncementsManagement = () => {
   };
 
   // ===== HANDLE TOGGLE STATUS =====
-  const handleToggleStatus = (announcementId, currentStatus) => {
+  const handleToggleStatus = async (announcementId, currentStatus) => {
     const newStatus = currentStatus === 'published' ? 'draft' : 'published';
     try {
-      const existing = getAnnouncementsFromStorage();
-      const updatedAnnouncements = existing.map(a => {
-        if (a.id === announcementId) {
-          return { ...a, status: newStatus, updatedAt: new Date().toISOString() };
-        }
-        return a;
-      });
-
-      const saved = saveAnnouncementsToStorage(updatedAnnouncements);
+      const saved = await syncSend('put', `/announcements/${announcementId}`, { status: newStatus });
       
       if (!saved) {
-        throw new Error('Failed to save to localStorage');
+        throw new Error('Failed to save to server');
       }
 
-      setAllAnnouncementsData(updatedAnnouncements);
       window.dispatchEvent(new CustomEvent('announcementsUpdated'));
 
       if (newStatus === 'published') {
-        const updatedAnn = updatedAnnouncements.find(a => a.id === announcementId);
+        const updatedAnn = allAnnouncementsData.find(a => a.id === announcementId);
         if (updatedAnn) {
           sendNotificationsToAudience(updatedAnn);
         }

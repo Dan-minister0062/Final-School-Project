@@ -98,7 +98,8 @@ const AdminNavbar = ({ userRole = 'admin' }) => {
       n.type === 'registration' ||
       n.type === 'registration_approved' ||
       n.type === 'registration_declined' ||
-      n.type === 'new_registration'
+      n.type === 'new_registration' ||
+      n.type === 'payment'
     );
     setNotifications(filteredNotifications);
     setUnreadCount(filteredNotifications.filter(n => !n.read).length);
@@ -111,7 +112,7 @@ const AdminNavbar = ({ userRole = 'admin' }) => {
     // Listen for new notifications
     const handleNewNotification = (event) => {
       const newNotif = event.detail;
-      if (newNotif && (newNotif.type === 'announcement' || newNotif.type === 'registration' || newNotif.type === 'new_registration')) {
+      if (newNotif && (newNotif.type === 'announcement' || newNotif.type === 'registration' || newNotif.type === 'new_registration' || newNotif.type === 'payment')) {
         loadNotifications();
       }
     };
@@ -170,7 +171,7 @@ const AdminNavbar = ({ userRole = 'admin' }) => {
     { path: '/dashboard/admin/teachers', icon: <FaChalkboardTeacher />, label: t('Teachers') },
     { path: '/dashboard/admin/classes', icon: <FaGraduationCap />, label: t('Classes') },
     { path: '/dashboard/admin/announcements', icon: <FaBullhorn />, label: t('Announcements') },
-    { path: '/dashboard/admin/academics', icon: <FaBook />, label: t('Academics') },
+    { path: '/dashboard/admin/subjects', icon: <FaBook />, label: t('Academics') },
   ];
 
   // ===== Handle notification click =====

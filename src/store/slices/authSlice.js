@@ -1,108 +1,27 @@
 // src/store/slices/authSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../services/api';
+import api, { fetchCsrfCookie, setAuthIdentity } from '../../services/api';
 
-// ===== DEMO ACCOUNTS =====
-const DEMO_ACCOUNTS = {
-  // Original demo accounts
-  'admin@madrasatulfathi.com': { 
-    role: 'admin', 
-    name: 'Admin User',
-    id: 'demo-admin-001',
-    password: 'password123',
-  },
-  'teacher@madrasatulfathi.com': { 
-    role: 'teacher', 
-    name: 'Teacher User',
-    id: 'demo-teacher-001',
-    password: 'password123',
-  },
-  'parent@madrasatulfathi.com': { 
-    role: 'parent', 
-    name: 'Parent User',
-    id: 'demo-parent-001',
-    password: 'password123',
-  },
-  'student@madrasatulfathi.com': { 
-    role: 'student', 
-    name: 'Student User',
-    id: 'demo-student-001',
-    password: 'password123',
-  },
-  // Add generic demo account
-  'demo@example.com': { 
-    role: 'admin', 
-    name: 'Demo User',
-    id: 'demo-user-001',
-    password: 'password123',
-  },
-};
-
-// ===== CHECK IF DEMO CREDENTIALS =====
-const isDemoCredentials = (email, password) => {
-  const account = DEMO_ACCOUNTS[email];
-  return account && account.password === password;
-};
-
-// ===== PERFORM DEMO LOGIN =====
-const performDemoLogin = (email) => {
-  const userData = DEMO_ACCOUNTS[email];
-  if (!userData) return null;
-  
-  const user = {
-    ...userData,
-    email: email,
-    token: 'demo-token-' + Date.now(),
-  };
-  
-  localStorage.setItem('token', user.token);
-  localStorage.setItem('role', user.role);
-  localStorage.setItem('user', JSON.stringify(user));
-  localStorage.setItem('isAuthenticated', 'true');
-  
-  return { user, role: user.role, token: user.token };
-};
+const resolveAuth = (data) => ({
+  user: data?.user || null,
+  role: data?.role || data?.user?.role || null,
+  token: data?.token || null,
+});
 
 // ===== LOGIN USER =====
 export const loginUser = createAsyncThunk(
   'auth/login',
   async (credentials, { rejectWithValue }) => {
     try {
-      // Check if this is a demo login attempt
-      if (isDemoCredentials(credentials.email, credentials.password)) {
-        console.log('🔐 Demo login detected, logging in locally...');
-        const result = performDemoLogin(credentials.email);
-        if (result) {
-          return result;
-        }
-      }
-      
-      // If not demo or demo failed, try real API
-      console.log('🔐 Attempting real API login...');
+      // Real API login only (MySQL-backed session via Laravel Sanctum).
+      await fetchCsrfCookie();
       const response = await api.post('/auth/login', credentials);
-      const { token, user, role } = response.data;
-      
-      localStorage.setItem('token', token);
-      localStorage.setItem('role', role);
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('isAuthenticated', 'true');
-      
-      return { user, role, token };
+      return resolveAuth(response.data);
     } catch (error) {
       console.error('❌ Login error:', error);
-      
-      // If API fails, try demo login as last resort
-      if (isDemoCredentials(credentials.email, credentials.password)) {
-        console.log('⚠️ API failed, but credentials match demo. Logging in locally...');
-        const result = performDemoLogin(credentials.email);
-        if (result) {
-          return result;
-        }
-      }
-      
       return rejectWithValue(
-        error.response?.data?.message || 
-        error.message || 
+        error.response?.data?.message ||
+        error.message ||
         'Login failed. Please check your credentials.'
       );
     }
@@ -114,13 +33,9 @@ export const registerUser = createAsyncThunk(
   'auth/register',
   async (userData, { rejectWithValue }) => {
     try {
+      await fetchCsrfCookie();
       const response = await api.post('/auth/register', userData);
-      const { token, user, role } = response.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('role', role);
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('isAuthenticated', 'true');
-      return { user, role, token };
+      return resolveAuth(response.data);
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.errors ||
@@ -133,38 +48,41 @@ export const registerUser = createAsyncThunk(
 
 // ===== LOGOUT USER =====
 export const logoutUser = createAsyncThunk('auth/logout', async () => {
-  const token = localStorage.getItem('token');
-  
-  if (token && !token.startsWith('demo-')) {
-    try {
-      await api.post('/auth/logout');
-    } catch {
-      // ignore network errors - local logout still proceeds
-    }
+  try {
+    await api.post('/auth/logout');
+  } catch {
+    // ignore network errors - local logout still proceeds
   }
-  
-  localStorage.removeItem('token');
-  localStorage.removeItem('role');
-  localStorage.removeItem('user');
-  localStorage.removeItem('isAuthenticated');
-  
+
+  setAuthIdentity(null);
+
   return {};
 });
 
+// ===== RESTORE SESSION (cookies) =====
+export const fetchMe = createAsyncThunk(
+  'auth/fetchMe',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/auth/me');
+      return resolveAuth(response.data);
+    } catch (error) {
+      return rejectWithValue(
+        error.response?.status ||
+          error.message ||
+          'Session check failed'
+      );
+    }
+  }
+);
+
 // ===== INITIAL STATE =====
 const initialState = {
-  user: (() => {
-    try {
-      const userData = localStorage.getItem('user');
-      return userData ? JSON.parse(userData) : null;
-    } catch {
-      return null;
-    }
-  })(),
-  token: localStorage.getItem('token') || null,
-  role: localStorage.getItem('role') || null,
-  isAuthenticated: localStorage.getItem('isAuthenticated') === 'true' || 
-                    !!localStorage.getItem('token'),
+  user: null,
+  token: null,
+  role: null,
+  isAuthenticated: false,
+  status: 'checking',
   loading: false,
   error: null,
 };
@@ -179,26 +97,24 @@ const authSlice = createSlice({
     },
     updateUser: (state, action) => {
       state.user = { ...state.user, ...action.payload };
-      localStorage.setItem('user', JSON.stringify(state.user));
+      setAuthIdentity(state.user);
     },
-    setAuthenticated: (state, action) => {
-      state.isAuthenticated = action.payload;
-    },
-    // Direct demo login
-    demoLogin: (state, action) => {
-      const { email, role, name, token } = action.payload;
-      const user = { email, role, name, token, id: 'demo-' + Date.now() };
-      state.user = user;
-      state.role = role;
-      state.token = token;
+    setSession: (state, action) => {
+      const { user, role, token } = action.payload || {};
+      state.user = user ?? state.user;
+      state.role = role ?? user?.role ?? state.role;
+      state.token = token ?? state.token;
       state.isAuthenticated = true;
-      state.loading = false;
-      state.error = null;
-      
-      localStorage.setItem('token', token);
-      localStorage.setItem('role', role);
-      localStorage.setItem('user', JSON.stringify(user));
-      localStorage.setItem('isAuthenticated', 'true');
+      state.status = 'authenticated';
+      setAuthIdentity(state.user);
+    },
+    clearSession: (state) => {
+      state.user = null;
+      state.token = null;
+      state.role = null;
+      state.isAuthenticated = false;
+      state.status = 'guest';
+      setAuthIdentity(null);
     },
   },
   extraReducers: (builder) => {
@@ -209,19 +125,23 @@ const authSlice = createSlice({
       })
       .addCase(loginUser.fulfilled, (state, action) => {
         state.loading = false;
-        state.isAuthenticated = true;
         state.user = action.payload.user;
         state.token = action.payload.token;
         state.role = action.payload.role;
+        state.isAuthenticated = true;
+        state.status = 'authenticated';
         state.error = null;
+        setAuthIdentity(state.user);
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
-        state.isAuthenticated = false;
+        state.status = 'guest';
         state.user = null;
         state.token = null;
         state.role = null;
+        state.isAuthenticated = false;
         state.error = action.payload || 'Login failed';
+        setAuthIdentity(null);
       })
       .addCase(registerUser.pending, (state) => {
         state.loading = true;
@@ -229,15 +149,19 @@ const authSlice = createSlice({
       })
       .addCase(registerUser.fulfilled, (state, action) => {
         state.loading = false;
-        state.isAuthenticated = true;
         state.user = action.payload.user;
         state.token = action.payload.token;
         state.role = action.payload.role;
+        state.isAuthenticated = true;
+        state.status = 'authenticated';
         state.error = null;
+        setAuthIdentity(state.user);
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading = false;
+        state.status = 'guest';
         state.error = action.payload || 'Registration failed';
+        setAuthIdentity(null);
       })
       .addCase(logoutUser.pending, (state) => {
         state.loading = true;
@@ -248,7 +172,9 @@ const authSlice = createSlice({
         state.token = null;
         state.role = null;
         state.isAuthenticated = false;
+        state.status = 'guest';
         state.error = null;
+        window.dispatchEvent(new CustomEvent('session:ended'));
       })
       .addCase(logoutUser.rejected, (state) => {
         state.loading = false;
@@ -256,9 +182,32 @@ const authSlice = createSlice({
         state.token = null;
         state.role = null;
         state.isAuthenticated = false;
+        state.status = 'guest';
+        window.dispatchEvent(new CustomEvent('session:ended'));
+      })
+      .addCase(fetchMe.pending, (state) => {
+        state.status = 'checking';
+      })
+      .addCase(fetchMe.fulfilled, (state, action) => {
+        state.status = 'authenticated';
+        state.user = action.payload.user;
+        state.token = action.payload.token;
+        state.role = action.payload.role;
+        state.isAuthenticated = true;
+        state.error = null;
+        setAuthIdentity(state.user);
+      })
+      .addCase(fetchMe.rejected, (state) => {
+        state.status = 'guest';
+        state.isAuthenticated = false;
+        state.user = null;
+        state.token = null;
+        state.role = null;
+        state.error = null;
+        setAuthIdentity(null);
       });
   },
 });
 
-export const { clearError, updateUser, setAuthenticated, demoLogin } = authSlice.actions;
+export const { clearError, updateUser, setSession, clearSession } = authSlice.actions;
 export default authSlice.reducer;

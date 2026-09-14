@@ -1,5 +1,5 @@
 // src/components/dashboard/admin/AdmissionManagement.jsx
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Container,
   Row,
@@ -63,6 +63,7 @@ import { useLanguage } from '../../../context/LanguageContext';
 import { getTranslation } from '../../../utils/translations';
 import { useNotification } from '../../../hooks/useNotification';
 import api from '../../../services/api';
+import { syncGet, syncSend } from '../../../services/apiSync';
 import { format } from 'date-fns';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
@@ -146,6 +147,7 @@ const AdmissionManagement = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const fullListRef = useRef([]);
 
   // ---- React Hook Form for edit ----
   const {
@@ -194,392 +196,118 @@ const AdmissionManagement = () => {
       : 'clamp(0.8rem, 1vw, 1rem)',
   };
 
-  // ===== Read admissions from localStorage (both keys) =====
-  const readLocalAdmissions = useCallback(() => {
-    const allAdmissions = [];
-    
-    // Try to read from 'registrations' (created by Admissions.jsx)
-    try {
-      const registrationsRaw = localStorage.getItem('registrations');
-      if (registrationsRaw) {
-        const parsed = JSON.parse(registrationsRaw);
-        if (Array.isArray(parsed)) {
-          parsed.forEach(r => {
-            allAdmissions.push({
-              id: r.id || `reg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-              studentName: r.studentName || `${r.firstName || ''} ${r.lastName || ''}`.trim() || 'Unknown Student',
-              dob: r.dob || r.dateOfBirth || null,
-              placeOfBirth: r.placeOfBirth || '',
-              gender: r.gender || '',
-              nationality: r.nationality || '',
-              address: r.address || '',
-              city: r.city || '',
-              studentPhoto: r.studentPhoto || null,
-              academicYear: r.academicYear || '',
-              level: r.level || '',
-              requestedClass: r.requestedClass || r.className || '',
-              admissionType: r.admissionType || '',
-              parentName: r.parentName || '',
-              relationship: r.relationship || '',
-              parentEmail: r.parentEmail || r.email || '',
-              parentPhone: r.parentPhone || r.phone || '',
-              parentAddress: r.parentAddress || r.address || '',
-              cinId: r.cinId || '',
-              parentPassword: r.parentPassword || '',
-              emergencyContact: r.emergencyContact || '',
-              emergencyRelationship: r.emergencyRelationship || '',
-              emergencyPhone: r.emergencyPhone || '',
-              message: r.additionalNotes || r.message || '',
-              previousSchool: r.previousSchool || '',
-              specialNeeds: r.specialNeeds || '',
-              hasAttendedBefore: r.hasAttendedBefore ?? false,
-              specialAssistance: r.specialAssistance ?? false,
-              authorizedPickup: r.authorizedPickup || '',
-              previousGrade: r.previousGrade || '',
-              lastAcademicYear: r.lastAcademicYear || '',
-              reportCard: r.reportCard || null,
-              schoolCertificate: r.schoolCertificate || null,
-              massarNumber: r.massarNumber || '',
-              academicTrack: r.academicTrack || '',
-              termsAgreed: r.termsAgreed ?? true,
-              status: r.status || 'pending',
-              adminNotes: r.adminNotes || r.admin_notes || '',
-              classId: r.classId || r.class_id || r.requestedClass || null,
-              paymentStatus: r.paymentStatus || r.payment_status || null,
-              paymentAmount: r.paymentAmount ?? r.payment_amount ?? null,
-              paymentRequestedAt: r.paymentRequestedAt || r.payment_requested_at || null,
-              paymentPaidAt: r.paymentPaidAt || r.payment_paid_at || null,
-              createdAt: r.submittedAt || r.createdAt || new Date().toISOString(),
-              updatedAt: r.updatedAt || r.createdAt || new Date().toISOString(),
-              source: 'registrations'
-            });
-          });
-        }
-      }
-    } catch (e) {
-      console.error('Error reading from registrations:', e);
-    }
-
-    // Also try to read from 'registration_requests' (legacy)
-    try {
-      const requestsRaw = localStorage.getItem('registration_requests');
-      if (requestsRaw) {
-        const parsed = JSON.parse(requestsRaw);
-        if (Array.isArray(parsed)) {
-          parsed.forEach(r => {
-            // Check if this entry already exists from registrations
-            const exists = allAdmissions.some(a => 
-              a.studentName === (r.studentName || `${r.firstName || ''} ${r.lastName || ''}`.trim()) &&
-              a.parentEmail === (r.parentEmail || r.email)
-            );
-            if (!exists) {
-              allAdmissions.push({
-                id: r.id || r._serverId || `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-                studentName: r.studentName || `${r.firstName || ''} ${r.lastName || ''}`.trim() || 'Unknown Student',
-                dob: r.dob || r.studentDob || null,
-                placeOfBirth: r.placeOfBirth || '',
-                gender: r.gender || '',
-                nationality: r.nationality || '',
-                address: r.address || '',
-                city: r.city || '',
-                studentPhoto: r.studentPhoto || null,
-                academicYear: r.academicYear || '',
-                level: r.level || '',
-                requestedClass: r.requestedClass || r.classId || '',
-                admissionType: r.admissionType || '',
-                parentName: r.parentName || '',
-                relationship: r.relationship || '',
-                parentEmail: r.parentEmail || r.email || '',
-                parentPhone: r.parentPhone || r.phone || '',
-                parentAddress: r.parentAddress || r.address || '',
-                cinId: r.cinId || '',
-                parentPassword: r.parentPassword || '',
-                emergencyContact: r.emergencyContact || '',
-                emergencyRelationship: r.emergencyRelationship || '',
-                emergencyPhone: r.emergencyPhone || '',
-                message: r.additionalNotes || r.message || '',
-                previousSchool: r.previousSchool || '',
-                specialNeeds: r.specialNeeds || '',
-                hasAttendedBefore: r.hasAttendedBefore ?? false,
-                specialAssistance: r.specialAssistance ?? false,
-                authorizedPickup: r.authorizedPickup || '',
-                previousGrade: r.previousGrade || '',
-                lastAcademicYear: r.lastAcademicYear || '',
-                reportCard: r.reportCard || null,
-                schoolCertificate: r.schoolCertificate || null,
-                massarNumber: r.massarNumber || '',
-                academicTrack: r.academicTrack || '',
-                termsAgreed: r.termsAgreed ?? true,
-                status: r.status || 'pending',
-                adminNotes: r.adminNotes || r.admin_notes || '',
-                classId: r.classId || r.class_id || r.requestedClass || null,
-                paymentStatus: r.paymentStatus || r.payment_status || null,
-                paymentAmount: r.paymentAmount ?? r.payment_amount ?? null,
-                paymentRequestedAt: r.paymentRequestedAt || r.payment_requested_at || null,
-                paymentPaidAt: r.paymentPaidAt || r.payment_paid_at || null,
-                createdAt: r.createdAt || r.submittedAt || new Date().toISOString(),
-                updatedAt: r.updatedAt || r.createdAt || new Date().toISOString(),
-                source: 'registration_requests'
-              });
-            }
-          });
-        }
-      }
-    } catch (e) {
-      console.error('Error reading from registration_requests:', e);
-    }
-
-    // Sort by createdAt descending
-    allAdmissions.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    
-    console.log('📋 Total admissions loaded:', allAdmissions.length);
-    return allAdmissions;
-  }, []);
-
-  // ---- Seed sample data ----
-  const seedSampleAdmissions = useCallback(() => {
-    const sampleData = [
-      {
-        id: 1,
-        studentName: isArabic ? 'أحمد عبد الله' : 'Ahmad Abdullah',
-        dob: '2018-05-15',
-        level: 'primary',
-        previousSchool: isArabic ? 'مدرسة النور' : 'Al Noor School',
-        specialNeeds: '',
-        parentName: isArabic ? 'عبد الله إبراهيم' : 'Abdullah Ibrahim',
-        parentEmail: 'abdullah@email.com',
-        parentPhone: '+212 537 350 200',
-        parentAddress: 'Maghrib El Arabi B3 Oulad Oujih, Kenitra',
-        parentPassword: 'encrypted_password',
-        emergencyContact: isArabic ? 'فاطمة إبراهيم' : 'Fatimah Ibrahim',
-        emergencyPhone: '+212 537 350 201',
-        message: '',
-        termsAgreed: true,
-        adminNotes: '',
-        classId: null,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: 2,
-        studentName: isArabic ? 'فاطمة يوسف' : 'Fatimah Yusuf',
-        dob: '2017-08-20',
-        level: 'primary',
-        previousSchool: isArabic ? 'مدرسة الأمل' : 'Al Amal School',
-        specialNeeds: '',
-        parentName: isArabic ? 'يوسف محمد' : 'Yusuf Muhammad',
-        parentEmail: 'yusuf@email.com',
-        parentPhone: '+212 537 350 202',
-        parentAddress: '123 Street, City',
-        parentPassword: 'encrypted_password',
-        emergencyContact: isArabic ? 'مريم يوسف' : 'Maryam Yusuf',
-        emergencyPhone: '+212 537 350 203',
-        message: '',
-        termsAgreed: true,
-        adminNotes: '',
-        classId: null,
-        status: 'pending',
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-        updatedAt: new Date(Date.now() - 86400000).toISOString(),
-      },
-      {
-        id: 3,
-        studentName: isArabic ? 'محمد علي' : 'Muhammad Ali',
-        dob: '2012-03-10',
-        level: 'secondary',
-        previousSchool: isArabic ? 'مدرسة التوفيق' : 'Al Tawfiq School',
-        specialNeeds: '',
-        parentName: isArabic ? 'علي حسن' : 'Ali Hassan',
-        parentEmail: 'ali@email.com',
-        parentPhone: '+212 537 350 204',
-        parentAddress: '789 Road, City',
-        parentPassword: 'encrypted_password',
-        emergencyContact: isArabic ? 'زينب علي' : 'Zainab Ali',
-        emergencyPhone: '+212 537 350 205',
-        message: '',
-        termsAgreed: true,
-        adminNotes: '',
-        classId: null,
-        status: 'approved',
-        createdAt: new Date(Date.now() - 172800000).toISOString(),
-        updatedAt: new Date(Date.now() - 172800000).toISOString(),
-      },
-    ];
-    try {
-      localStorage.setItem('registration_requests', JSON.stringify(sampleData));
-    } catch (e) {
-      console.error('Error seeding sample admissions:', e);
-    }
-    return sampleData;
-  }, [isArabic]);
-
-  // ---- Local store helpers ----
-  const updateLocalAdmission = useCallback((id, updater) => {
-    try {
-      const raw = localStorage.getItem('registrations');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          const idx = parsed.findIndex((r) => String(r.id) === String(id));
-          if (idx !== -1) {
-            parsed[idx] = { ...parsed[idx], ...updater(parsed[idx]) };
-            localStorage.setItem('registrations', JSON.stringify(parsed));
-            return true;
-          }
-        }
-      }
-      
-      // Fallback to registration_requests
-      const raw2 = localStorage.getItem('registration_requests');
-      if (raw2) {
-        const parsed = JSON.parse(raw2);
-        if (Array.isArray(parsed)) {
-          const idx = parsed.findIndex((r) => String(r.id ?? r._serverId) === String(id));
-          if (idx !== -1) {
-            parsed[idx] = { ...parsed[idx], ...updater(parsed[idx]) };
-            localStorage.setItem('registration_requests', JSON.stringify(parsed));
-            return true;
-          }
-        }
-      }
-      return false;
-    } catch (e) {
-      console.error('Error updating local admission:', e);
-      return false;
-    }
-  }, []);
-
-  const removeLocalAdmission = useCallback((id) => {
-    try {
-      const raw = localStorage.getItem('registrations');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          const idx = parsed.findIndex((r) => String(r.id) === String(id));
-          if (idx !== -1) {
-            parsed.splice(idx, 1);
-            localStorage.setItem('registrations', JSON.stringify(parsed));
-            return true;
-          }
-        }
-      }
-      
-      const raw2 = localStorage.getItem('registration_requests');
-      if (raw2) {
-        const parsed = JSON.parse(raw2);
-        if (Array.isArray(parsed)) {
-          const idx = parsed.findIndex((r) => String(r.id ?? r._serverId) === String(id));
-          if (idx !== -1) {
-            parsed.splice(idx, 1);
-            localStorage.setItem('registration_requests', JSON.stringify(parsed));
-            return true;
-          }
-        }
-      }
-      return false;
-    } catch (e) {
-      console.error('Error removing local admission:', e);
-      return false;
-    }
-  }, []);
-
-  const buildLocalEditUpdater = (data, requestedClassName, requestedClassId) => {
+  // ===== Build the snake_case payload for server-backed admission edits =====
+  const buildServerEditPayload = (data, requestedClassName, requestedClassId) => {
     const nameParts = String(data.studentName || '').trim().split(/\s+/);
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
-    return (r) => ({
-      ...r,
-      firstName: data.studentName ? firstName : r.firstName,
-      lastName: data.studentName ? lastName : r.lastName,
-      studentName: data.studentName ?? r.studentName,
-      dob: data.dob || r.dob,
-      studentDob: data.dob || r.studentDob,
-      level: data.level ?? r.level,
-      previousSchool: data.previousSchool ?? r.previousSchool,
-      specialNeeds: data.specialNeeds ?? r.specialNeeds,
-      placeOfBirth: data.placeOfBirth ?? r.placeOfBirth,
-      gender: data.gender ?? r.gender,
-      nationality: data.nationality ?? r.nationality,
-      address: data.address ?? r.address,
-      city: data.city ?? r.city,
-      academicYear: data.academicYear ?? r.academicYear,
-      requestedClass: requestedClassName || r.requestedClass,
-      classId: requestedClassId ?? r.classId,
-      admissionType: data.admissionType ?? r.admissionType,
-      parentName: data.parentName ?? r.parentName,
-      parentEmail: data.parentEmail ?? r.parentEmail,
-      parentPhone: data.parentPhone ?? r.parentPhone,
-      parentAddress: data.parentAddress ?? r.parentAddress,
-      parentPassword: data.parentPassword || r.parentPassword,
-      relationship: data.relationship ?? r.relationship,
-      cinId: data.cinId ?? r.cinId,
-      emergencyContact: data.emergencyContact ?? r.emergencyContact,
-      emergencyRelationship: data.emergencyRelationship ?? r.emergencyRelationship,
-      emergencyPhone: data.emergencyPhone ?? r.emergencyPhone,
-      message: data.message ?? r.message,
-      hasAttendedBefore: data.hasAttendedBefore ?? r.hasAttendedBefore,
-      previousGrade: data.previousGrade ?? r.previousGrade,
-      lastAcademicYear: data.lastAcademicYear ?? r.lastAcademicYear,
-      specialAssistance: data.specialAssistance ?? r.specialAssistance,
-      authorizedPickup: data.authorizedPickup ?? r.authorizedPickup,
-      massarNumber: data.massarNumber ?? r.massarNumber,
-      academicTrack: data.academicTrack ?? r.academicTrack,
-      updatedAt: new Date().toISOString(),
-    });
+    return {
+      first_name: firstName,
+      last_name: lastName,
+      studentName: data.studentName ?? undefined,
+      dob: data.dob || null,
+      level: data.level ?? null,
+      previous_school: data.previousSchool || null,
+      special_needs: data.specialNeeds || null,
+      place_of_birth: data.placeOfBirth || null,
+      gender: data.gender || null,
+      nationality: data.nationality || null,
+      address: data.address || null,
+      city: data.city || null,
+      academic_year: data.academicYear || null,
+      requested_class: requestedClassName || data.requestedClass || null,
+      admission_type: data.admissionType || null,
+      parent_name: data.parentName || null,
+      relationship: data.relationship || null,
+      parent_phone: data.parentPhone || '',
+      parent_email: data.parentEmail || '',
+      parent_address: data.parentAddress || null,
+      cin_id: data.cinId || null,
+      parent_password: data.parentPassword || null,
+      emergency_contact: data.emergencyContact || null,
+      emergency_relationship: data.emergencyRelationship || null,
+      emergency_phone: data.emergencyPhone || null,
+      additional_notes: data.message || null,
+      terms_agreed: true,
+      has_attended_before: !!data.hasAttendedBefore,
+      previous_grade: data.previousGrade || null,
+      last_academic_year: data.lastAcademicYear || null,
+      special_assistance: !!data.specialAssistance,
+      authorized_pickup: data.authorizedPickup || null,
+      massar_number: data.massarNumber || null,
+      academic_track: data.academicTrack || null,
+      admin_notes: data.adminNotes || null,
+    };
   };
 
-  const saveLocalEdit = (data, requestedClassName, requestedClassId) => {
-    try {
-      const updater = buildLocalEditUpdater(data, requestedClassName, requestedClassId);
-      let updated = updateLocalAdmission(selectedAdmission.id, updater);
-      if (!updated) {
-        const raw = JSON.parse(localStorage.getItem('registration_requests') || '[]');
-        const record = Array.isArray(raw) ? raw : [];
-        const existing = record.find((r) => String(r.id ?? r._serverId) === String(selectedAdmission.id));
-        const base = existing || { id: selectedAdmission.id };
-        record.push(updater({ ...base, id: base.id || selectedAdmission.id }));
-        localStorage.setItem('registration_requests', JSON.stringify(record));
-        updated = true;
-      }
-      return updated;
-    } catch (e) {
-      console.error('Error saving admission locally:', e);
-      return false;
-    }
-  };
-
-  // ---- Fetch admissions (localStorage first, then API) ----
+  // ---- Fetch admissions from API ----
   const fetchAdmissions = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      // First, get local admissions
-      let localAdmissions = readLocalAdmissions();
-      
-      // If no local admissions, seed sample data
-      if (localAdmissions.length === 0) {
-        seedSampleAdmissions();
-        localAdmissions = readLocalAdmissions();
-      }
-      
-      // Filter by status
-      let filtered = localAdmissions;
+      const serverRes = await syncGet('/registrations');
+      const serverRows = Array.isArray(serverRes?.data) ? serverRes.data : [];
+
+      const normalized = serverRows.map((r) => ({
+        ...r,
+        id: r._serverId ?? r.id,
+        _serverId: r._serverId ?? r.id,
+        studentName: r.studentName || r.full_name || `${r.first_name || ''} ${r.last_name || ''}`.trim() || 'Unknown Student',
+        dob: r.dob || r.dateOfBirth || null,
+        studentPhoto: r.studentPhoto || null,
+        academicYear: r.academic_year || r.academicYear || '',
+        level: r.level || '',
+        requestedClass: r.requested_class || r.requestedClass || '',
+        admissionType: r.admission_type || r.admissionType || '',
+        parentName: r.parent_name || r.parentName || '',
+        relationship: r.relationship || '',
+        parentEmail: r.parent_email || r.parentEmail || '',
+        parentPhone: r.parent_phone || r.parentPhone || '',
+        parentAddress: r.parent_address || r.parentAddress || '',
+        cinId: r.cin_id || r.cinId || '',
+        parentPassword: r.parent_password || r.parentPassword || '',
+        emergencyContact: r.emergency_contact || r.emergencyContact || '',
+        emergencyRelationship: r.emergency_relationship || r.emergencyRelationship || '',
+        emergencyPhone: r.emergency_phone || r.emergencyPhone || '',
+        message: r.additional_notes || r.message || '',
+        previousSchool: r.previous_school || r.previousSchool || '',
+        specialNeeds: r.special_needs || r.specialNeeds || '',
+        hasAttendedBefore: r.has_attended_before ?? r.hasAttendedBefore ?? false,
+        specialAssistance: r.special_assistance ?? r.specialAssistance ?? false,
+        authorizedPickup: r.authorized_pickup || r.authorizedPickup || '',
+        previousGrade: r.previous_grade || r.previousGrade || '',
+        lastAcademicYear: r.last_academic_year || r.lastAcademicYear || '',
+        reportCard: r.reportCard || null,
+        schoolCertificate: r.schoolCertificate || null,
+        massarNumber: r.massar_number || r.massarNumber || '',
+        academicTrack: r.academic_track || r.academicTrack || '',
+        termsAgreed: r.terms_agreed ?? true,
+        status: r.status || 'pending',
+        adminNotes: r.admin_notes || r.adminNotes || '',
+        classId: r.classId || r.class_id || null,
+        paymentStatus: r.payment_status || r.paymentStatus || null,
+        paymentAmount: r.payment_amount ?? r.paymentAmount ?? null,
+        paymentRequestedAt: r.payment_requested_at || r.paymentRequestedAt || null,
+        paymentPaidAt: r.payment_paid_at || r.paymentPaidAt || null,
+        createdAt: r.submitted_at || r.createdAt || new Date().toISOString(),
+        updatedAt: r.updatedAt || r.createdAt || new Date().toISOString(),
+      }));
+
+      fullListRef.current = normalized;
+
+      let filtered = normalized;
       if (filterStatus !== 'all') {
         filtered = filtered.filter(a => a.status === filterStatus);
       }
-      
-      // Filter by search term
       if (searchTerm) {
         const term = searchTerm.toLowerCase();
-        filtered = filtered.filter(a => 
+        filtered = filtered.filter(a =>
           a.studentName.toLowerCase().includes(term) ||
           a.parentName.toLowerCase().includes(term) ||
           a.parentEmail.toLowerCase().includes(term)
         );
       }
-      
-      // Sort
+
       filtered.sort((a, b) => {
         let aVal = a[sortBy] || '';
         let bVal = b[sortBy] || '';
@@ -590,41 +318,24 @@ const AdmissionManagement = () => {
           aVal = String(aVal).toLowerCase();
           bVal = String(bVal).toLowerCase();
         }
-        if (sortOrder === 'asc') {
-          return aVal > bVal ? 1 : -1;
-        } else {
-          return aVal < bVal ? 1 : -1;
-        }
+        if (sortOrder === 'asc') return aVal > bVal ? 1 : -1;
+        return aVal < bVal ? 1 : -1;
       });
-      
-      // Paginate
+
       const pageSize = 10;
       const start = (currentPage - 1) * pageSize;
       const end = start + pageSize;
       const paginated = filtered.slice(start, end);
-      
+
       setAdmissions(paginated);
-      setTotalPages(Math.ceil(filtered.length / pageSize));
-      
-      // Update stats
-      const pending = localAdmissions.filter(a => a.status === 'pending').length;
-      const approved = localAdmissions.filter(a => a.status === 'approved').length;
-      const rejected = localAdmissions.filter(a => a.status === 'rejected').length;
-      setStats({
-        total: localAdmissions.length,
-        pending,
-        approved,
-        rejected
-      });
-      
-      console.log('📊 Admissions loaded:', {
-        total: localAdmissions.length,
-        pending,
-        approved,
-        rejected,
-        displayed: paginated.length
-      });
-      
+      setTotalPages(Math.max(1, Math.ceil(filtered.length / pageSize)));
+
+      const pending = normalized.filter(a => a.status === 'pending').length;
+      const approved = normalized.filter(a => a.status === 'approved').length;
+      const rejected = normalized.filter(a => a.status === 'rejected').length;
+      setStats({ total: normalized.length, pending, approved, rejected });
+
+      console.log('📊 Admissions loaded:', { total: normalized.length, pending, approved, rejected, displayed: paginated.length });
     } catch (err) {
       console.error('Error fetching admissions:', err);
       setAdmissions([]);
@@ -633,7 +344,7 @@ const AdmissionManagement = () => {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, filterStatus, searchTerm, sortBy, sortOrder, readLocalAdmissions, seedSampleAdmissions, notify, isArabic]);
+  }, [currentPage, filterStatus, searchTerm, sortBy, sortOrder, notify, isArabic]);
 
   // ---- Load available classes ----
   useEffect(() => {
@@ -668,17 +379,8 @@ const AdmissionManagement = () => {
     fetchAdmissions();
   }, [fetchAdmissions]);
 
-  // ---- Listen for storage changes ----
+  // ---- Listen for custom events ----
   useEffect(() => {
-    const handleStorageChange = (event) => {
-      if (event.key === 'registrations' || event.key === 'registration_requests') {
-        console.log('🔔 Storage changed for:', event.key);
-        fetchAdmissions();
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Also listen for custom events
     const handleRegistrationSubmitted = () => {
       console.log('📝 Registration submitted event received');
       setTimeout(fetchAdmissions, 300);
@@ -687,7 +389,6 @@ const AdmissionManagement = () => {
     window.addEventListener('newNotification', handleRegistrationSubmitted);
     
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('registrationSubmitted', handleRegistrationSubmitted);
       window.removeEventListener('newNotification', handleRegistrationSubmitted);
     };
@@ -737,15 +438,12 @@ const AdmissionManagement = () => {
     if (!selectedAdmission) return;
     setActionLoading(true);
     try {
-      const deleted = removeLocalAdmission(selectedAdmission.id);
-      if (deleted) {
-        notify(isArabic ? 'تم حذف الطلب بنجاح' : 'Admission deleted successfully', 'success');
-        setShowDeleteModal(false);
-        setSelectedAdmission(null);
-        fetchAdmissions();
-      } else {
-        notify(isArabic ? 'فشل حذف الطلب' : 'Failed to delete admission', 'error');
-      }
+      const regId = selectedAdmission._serverId || selectedAdmission.id;
+      await syncSend('delete', `/registrations/${regId}`);
+      notify(isArabic ? 'تم حذف الطلب بنجاح' : 'Admission deleted successfully', 'success');
+      setShowDeleteModal(false);
+      setSelectedAdmission(null);
+      fetchAdmissions();
     } catch (err) {
       console.error(err);
       notify(err.message || (isArabic ? 'فشل حذف الطلب' : 'Failed to delete admission'), 'error');
@@ -757,52 +455,12 @@ const AdmissionManagement = () => {
   const updateStatus = async (id, newStatus) => {
     setActionLoading(true);
     try {
-      const updated = updateLocalAdmission(id, (r) => ({
-        ...r,
-        status: newStatus,
-        updatedAt: new Date().toISOString()
-      }));
-      
-      if (updated) {
-        const statusLabel = newStatus === 'approved' ? (isArabic ? 'تم القبول' : 'Approved') : (isArabic ? 'تم الرفض' : 'Rejected');
-        notify(isArabic ? `تم ${statusLabel} الطلب بنجاح` : `Admission ${statusLabel} successfully`, 'success');
-        
-        // If approved, also add to userDataService
-        if (newStatus === 'approved') {
-          const reg = admissions.find(a => String(a.id) === String(id));
-          if (reg) {
-            try {
-              const userDataService = (await import('../../../services/userDataService')).default;
-              const newStudent = {
-                id: `STU/${new Date().getFullYear()}/${String(Date.now()).slice(-6)}`,
-                name: reg.studentName,
-                firstName: reg.studentName?.split(' ')[0] || '',
-                lastName: reg.studentName?.split(' ').slice(1).join(' ') || '',
-                email: reg.parentEmail || '',
-                role: 'student',
-                phone: reg.parentPhone || '',
-                address: reg.parentAddress || '',
-                status: 'active',
-                level: reg.level || 'primary',
-                className: reg.requestedClass || '',
-                parentName: reg.parentName,
-                parentEmail: reg.parentEmail,
-                parentPhone: reg.parentPhone,
-                created_at: new Date().toISOString(),
-                needsProfileCompletion: true
-              };
-              userDataService.addUser(newStudent);
-              console.log('✅ Student added to userDataService:', newStudent);
-            } catch (e) {
-              console.error('Error adding student to userDataService:', e);
-            }
-          }
-        }
-        
-        fetchAdmissions();
-      } else {
-        notify(isArabic ? 'فشل تحديث الحالة' : 'Failed to update status', 'error');
-      }
+      const admission = fullListRef.current.find(a => String(a.id) === String(id)) || null;
+      const regId = admission?._serverId || id;
+      await syncSend('patch', `/registrations/${regId}/status`, { status: newStatus });
+      const statusLabel = newStatus === 'approved' ? (isArabic ? 'تم القبول' : 'Approved') : (isArabic ? 'تم الرفض' : 'Rejected');
+      notify(isArabic ? `تم ${statusLabel} الطلب بنجاح` : `Admission ${statusLabel} successfully`, 'success');
+      fetchAdmissions();
     } catch (err) {
       console.error(err);
       notify(err.message || (isArabic ? 'فشل تحديث الحالة' : 'Failed to update status'), 'error');
@@ -822,16 +480,21 @@ const AdmissionManagement = () => {
       ? selectedClass.id
       : data.requestedClass && !/^\d+$/.test(String(data.requestedClass)) ? null : data.requestedClass || null;
     
-    const success = saveLocalEdit(data, requestedClassName, requestedClassId);
-    if (success) {
+    // Server-backed admission -> persist edit to MySQL
+    try {
+      const payload = buildServerEditPayload(data, requestedClassName, requestedClassId);
+      const regId = selectedAdmission._serverId || selectedAdmission.id;
+      await syncSend('put', `/registrations/${regId}`, payload);
       notify(isArabic ? 'تم تحديث الطلب بنجاح' : 'Admission updated successfully', 'success');
       setShowEditModal(false);
       setSelectedAdmission(null);
       fetchAdmissions();
-    } else {
-      notify(isArabic ? 'فشل تحديث الطلب' : 'Failed to update admission', 'error');
+    } catch (err) {
+      console.error(err);
+      notify(err.message || (isArabic ? 'فشل تحديث الطلب' : 'Failed to update admission'), 'error');
+    } finally {
+      setActionLoading(false);
     }
-    setActionLoading(false);
   };
 
   // ---- Pagination ----

@@ -17,36 +17,12 @@ import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
 import api from '../../../services/api';
 import notificationService from '../../../services/notificationService';
-import userDataService from '../../../services/userDataService';
+import { syncGet, syncSend } from '../../../services/apiSync';
 
 // ===== FORMAT NUMBER =====
 const formatNumber = (num) => {
   if (num === undefined || num === null) return '0';
   return num.toString();
-};
-
-// ===== GENERATE STUDENT ID =====
-const generateStudentId = () => {
-  const year = new Date().getFullYear();
-  const allUsers = userDataService.getUsers();
-  const students = allUsers.filter(u => u.role === 'student');
-  
-  let maxNum = 0;
-  students.forEach(s => {
-    if (s.id && s.id.startsWith(`STU/${year}/`)) {
-      const parts = s.id.split('/');
-      if (parts.length === 3) {
-        const num = parseInt(parts[2], 10);
-        if (!isNaN(num) && num > maxNum) {
-          maxNum = num;
-        }
-      }
-    }
-  });
-  
-  const nextNum = maxNum + 1;
-  const paddedNum = String(nextNum).padStart(3, '0');
-  return `STU/${year}/${paddedNum}`;
 };
 
 const PaymentsManagement = () => {
@@ -168,22 +144,22 @@ const PaymentsManagement = () => {
   };
 
   // ===== CREATE STUDENT FROM PAYMENT DATA =====
-  const createOrUpdateStudentFromPayment = (payment) => {
+  const createOrUpdateStudentFromPayment = async (payment) => {
     try {
-      const allUsers = userDataService.getUsers();
-      
-      const existingStudent = allUsers.find(u => 
-        u.role === 'student' && 
-        (u.email === payment.parentEmail || 
-         u.name === payment.studentName ||
-         u.parentEmail === payment.parentEmail)
+      const studentsRes = await syncGet('/students');
+      const allStudents = Array.isArray(studentsRes?.data) ? studentsRes.data : [];
+
+      const existingStudent = allStudents.find(u =>
+        (u.email && String(u.email).toLowerCase() === String(payment.parentEmail || '').toLowerCase()) ||
+        u.name === payment.studentName ||
+        u.parentEmail === payment.parentEmail
       );
-      
+
       const fullName = payment.studentName || '';
       const nameParts = fullName.split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || '';
-      
+
       const studentData = {
         name: fullName,
         firstName: firstName,
@@ -203,29 +179,55 @@ const PaymentsManagement = () => {
         status: 'active',
         paymentStatus: 'paid',
         paymentApprovedAt: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
         needsProfileCompletion: !(payment.dateOfBirth && payment.gender && payment.address && payment.city),
       };
 
       if (existingStudent) {
-        const updated = userDataService.updateUser(existingStudent.id, {
+        const serverId = existingStudent._serverId ?? existingStudent.id;
+        await syncSend('put', `/users/${serverId}`, {
           ...studentData,
-          id: existingStudent.id,
           paymentStatus: 'paid',
           paymentApprovedAt: new Date().toISOString(),
         });
-        console.log('✅ Student payment status updated:', existingStudent.id);
-        return updated;
-      } else {
-        const studentId = generateStudentId();
-        const newStudent = {
+        console.log('✅ Student payment status updated:', serverId);
+        return {
+          ...existingStudent,
           ...studentData,
-          id: studentId,
+          id: serverId,
+          _serverId: serverId,
+          paymentStatus: 'paid',
+          paymentApprovedAt: new Date().toISOString(),
+        };
+      } else {
+        const year = new Date().getFullYear();
+        const levelLetter = (studentData.level || studentData.className || '').charAt(0).toUpperCase() || 'S';
+        const prefix = `alfath/stu/${year}/${levelLetter}`;
+        let maxNum = 0;
+        allStudents.forEach(s => {
+          const sid = s.code || s.id || '';
+          if (sid.startsWith(prefix)) {
+            const serial = (sid.split('/').pop() || '').replace(/^[A-Za-z]/, '');
+            const num = parseInt(serial, 10);
+            if (!isNaN(num) && num > maxNum) {
+              maxNum = num;
+            }
+          }
+        });
+        const studentCode = `${prefix}${maxNum + 1}`;
+        const res = await syncSend('post', '/users', {
+          ...studentData,
+          code: studentCode,
+        });
+        const created = res?.data?.data || res?.data || {};
+        const createdId = created._serverId ?? created.id ?? studentCode;
+        console.log('✅ New student created from payment:', createdId);
+        return {
+          ...studentData,
+          id: createdId,
+          _serverId: createdId,
+          code: created.code || studentCode,
           created_at: new Date().toISOString(),
         };
-        const result = userDataService.addUser(newStudent);
-        console.log('✅ New student created from payment:', result);
-        return result;
       }
     } catch (error) {
       console.error('❌ Error creating/updating student from payment:', error);
@@ -234,55 +236,24 @@ const PaymentsManagement = () => {
   };
 
   // ===== READ APPROVED ADMISSIONS =====
-  const readApprovedAdmissions = useCallback(() => {
+  const readApprovedAdmissions = useCallback(async () => {
     try {
-      // First try to read from 'registrations'
-      const registrationsRaw = localStorage.getItem('registrations');
-      if (registrationsRaw) {
-        const parsed = JSON.parse(registrationsRaw);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const approved = parsed.filter(r => r.status === 'approved');
-          if (approved.length > 0) {
-            console.log('📋 Found approved registrations:', approved.length);
-            return approved.map(r => ({
-              admissionId: r.id || `reg-${Date.now()}`,
-              studentName: r.studentName || `${r.firstName || ''} ${r.lastName || ''}`.trim() || 'Unknown Student',
-              parentEmail: r.parentEmail || r.email || '',
-              level: r.level || '',
-              className: r.className || r.requestedClass || '',
-              dateOfBirth: r.dateOfBirth || r.dob || '',
-              gender: r.gender || '',
-              address: r.address || '',
-              city: r.city || '',
-              phone: r.phone || '',
-              parentName: r.parentName || '',
-              parentPhone: r.parentPhone || '',
-              amount: 500,
-              createdAt: r.submittedAt || r.createdAt || new Date().toISOString(),
-            }));
-          }
-        }
-      }
+      const res = await syncGet('/registrations', { status: 'approved' });
+      const parsed = Array.isArray(res?.data) ? res.data : [];
 
-      // Fallback to registration_requests
-      const raw = localStorage.getItem('registration_requests');
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) return [];
-      
       return parsed
-        .filter((r) => r && r.status === 'approved' && (r.firstName || r.studentName))
+        .filter((r) => r && r.status === 'approved')
         .map((r) => ({
-          admissionId: r.id ?? r._serverId ?? `local-${Math.random().toString(36).slice(2, 10)}`,
-          studentName: r.firstName && r.lastName ? `${r.firstName} ${r.lastName}` : r.studentName || r.firstName || '',
-          parentEmail: r.parentEmail || r.parent_email || '',
+          admissionId: r._serverId ?? r.id,
+          studentName: r.studentName || `${r.firstName || ''} ${r.lastName || ''}`.trim() || 'Unknown Student',
+          parentEmail: r.parentEmail || r.parent_email || r.email || '',
           level: r.level || r.classId || '',
           className: r.requestedClass || r.className || '',
-          dateOfBirth: r.dateOfBirth || '',
+          dateOfBirth: r.dateOfBirth || r.dob || '',
           gender: r.gender || '',
-          address: r.address || '',
+          address: r.parentAddress || r.address || '',
           city: r.city || '',
-          phone: r.phone || '',
+          phone: r.parentPhone || r.phone || '',
           parentName: r.parentName || '',
           parentPhone: r.parentPhone || '',
           amount: 500,
@@ -294,51 +265,22 @@ const PaymentsManagement = () => {
     }
   }, []);
 
-  // ===== READ LOCAL PAYMENTS =====
-  const readLocalPayments = useCallback(() => {
-    try {
-      const raw = localStorage.getItem('student_payments');
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (e) {
-      console.error('Error reading local payments:', e);
-      return [];
-    }
-  }, []);
-
-  // ===== WRITE LOCAL PAYMENTS =====
-  const writeLocalPayments = useCallback((list) => {
-    try {
-      localStorage.setItem('student_payments', JSON.stringify(list));
-    } catch (e) {
-      console.error('Error writing local payments:', e);
-    }
-  }, []);
-
-  // ===== UPDATE LOCAL PAYMENT =====
-  const updateLocalPayment = useCallback((id, updater) => {
-    const list = readLocalPayments();
-    const idx = list.findIndex((r) => String(r.id ?? r._serverId) === String(id));
-    if (idx === -1) return false;
-    list[idx] = { ...list[idx], ...updater(list[idx]) };
-    writeLocalPayments(list);
-    return true;
-  }, [readLocalPayments, writeLocalPayments]);
-
   // ===== MAP ROWS =====
-  const mapLocalRow = useCallback((r) => ({
-    id: r.id,
-    _serverId: r._serverId || null,
-    admissionId: r.admissionId || null,
+  // ===== MAP SERVER PAYMENT ROW (MySQL via /api/payments) =====
+  const mapServerRow = useCallback((r) => ({
+    id: r._serverId ?? r.id,
+    _serverId: r._serverId ?? r.id,
+    admissionId: r.admissionId != null ? r.admissionId : (r.admission_id ?? null),
     studentName: r.studentName || '-',
     parentEmail: r.parentEmail || '',
+    parentName: r.parentName || '',
+    parentPhone: r.parentPhone || r.phone || '',
     level: r.level || '-',
     className: r.className || '',
     month: r.month || new Date().getMonth() + 1,
     year: r.year || new Date().getFullYear(),
-    amount: r.amount || 500,
-    type: r.type || 'full',
+    amount: r.amount != null ? r.amount : 500,
+    type: r.category || 'full',
     status: r.status || 'pending',
     method: r.method || null,
     hasReceipt: !!r.receipt,
@@ -346,25 +288,50 @@ const PaymentsManagement = () => {
     receiptName: r.receiptName || null,
     notes: r.notes || '',
     paidAt: r.paidAt || null,
-    approvedAt: r.approvedAt || null,
+    approvedAt: r.updatedAt || null,
     createdAt: r.createdAt || new Date().toISOString(),
     dateOfBirth: r.dateOfBirth || '',
     gender: r.gender || '',
     address: r.address || '',
     city: r.city || '',
     phone: r.phone || '',
-    parentName: r.parentName || '',
-    parentPhone: r.parentPhone || '',
-    parentEmail: r.parentEmail || '',
+  }), []);
+
+  // ===== SERVER PAYLOAD BUILDER (camelCase frontend -> snake_case API) =====
+  const toServerPayment = useCallback((p) => ({
+    title: p.title || `Tuition - ${p.studentName || 'Student'}`,
+    category: p.category || 'tuition',
+    student_name: p.studentName || '',
+    student_code: p.studentCode || p.student_code || null,
+    student_id: p.studentId || p.student_id || null,
+    parent_id: p.parentId || p.parent_id || null,
+    parent_email: p.parentEmail || '',
+    parent_name: p.parentName || '',
+    class_name: p.className || '',
+    level: p.level || '',
+    month: p.month,
+    year: p.year,
+    amount: p.amount != null ? p.amount : null,
+    method: p.method || null,
+    status: p.status || 'pending',
+    due_date: p.dueDate || null,
+    paid_at: p.paidAt || null,
+    admission_id: p.admissionId != null && /^\d+$/.test(String(p.admissionId)) ? Number(p.admissionId) : null,
+    date_of_birth: p.dateOfBirth || null,
+    gender: p.gender || '',
+    address: p.address || '',
+    city: p.city || '',
+    phone: p.phone || '',
+    notes: p.notes || '',
   }), []);
 
   // ===== BUILD ROWS =====
-  const buildRows = useCallback((paymentRows) => {
+  const buildRows = useCallback((paymentRows, dueList) => {
     const monthPayments = paymentRows.filter(
       (p) => p.month === selectedMonth && p.year === selectedYear,
     );
     
-    const allDue = readApprovedAdmissions();
+    const allDue = dueList || [];
     
     const seenAdmissionIds = new Set(
       monthPayments.filter((p) => p.admissionId != null).map((p) => String(p.admissionId)),
@@ -400,45 +367,39 @@ const PaymentsManagement = () => {
         phone: s.phone || '',
         parentName: s.parentName || '',
         parentPhone: s.parentPhone || '',
-        parentEmail: s.parentEmail || '',
       }));
     
     return [...monthPayments, ...due].sort((a, b) =>
       String(a.studentName).localeCompare(String(b.studentName)),
     );
-  }, [selectedMonth, selectedYear, readApprovedAdmissions]);
+  }, [selectedMonth, selectedYear]);
 
   // ===== FETCH DATA =====
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
-      const localPayments = readLocalPayments().map(mapLocalRow);
-      setPayments(localPayments);
-      setDueStudents(readApprovedAdmissions());
+      const payRes = await syncGet('/payments');
+      const serverRows = Array.isArray(payRes?.data) ? payRes.data.map(mapServerRow) : [];
+      setPayments(serverRows);
+
+      const approved = await readApprovedAdmissions();
+      setDueStudents(approved);
     } catch (err) {
       console.error('Error fetching payments:', err);
       setError(err.message || 'Failed to load payments');
     } finally {
       setLoading(false);
     }
-  }, [mapLocalRow, readLocalPayments, readApprovedAdmissions]);
+  }, [mapServerRow, readApprovedAdmissions]);
 
   useEffect(() => {
     fetchData();
   }, [fetchData]);
 
-  // ===== LISTEN FOR STORAGE CHANGES =====
+  // ===== LISTEN FOR DATA CHANGES =====
   useEffect(() => {
-    const handleStorageChange = (event) => {
-      if (event.key === 'registrations' || event.key === 'registration_requests' || event.key === 'student_payments') {
-        console.log('🔔 Storage changed:', event.key);
-        setTimeout(fetchData, 300);
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    
     const handleQueueUpdate = () => {
       console.log('📝 Registration/update event received');
       setTimeout(fetchData, 300);
@@ -446,12 +407,13 @@ const PaymentsManagement = () => {
     window.addEventListener('registrationSubmitted', handleQueueUpdate);
     window.addEventListener('newNotification', handleQueueUpdate);
     window.addEventListener('paymentQueueUpdated', handleQueueUpdate);
-    
+    window.addEventListener('paymentsUpdated', handleQueueUpdate);
+
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('registrationSubmitted', handleQueueUpdate);
       window.removeEventListener('newNotification', handleQueueUpdate);
       window.removeEventListener('paymentQueueUpdated', handleQueueUpdate);
+      window.removeEventListener('paymentsUpdated', handleQueueUpdate);
     };
   }, [fetchData]);
 
@@ -463,8 +425,6 @@ const PaymentsManagement = () => {
         id: approvedPayment.id,
         studentName: approvedPayment.studentName || '',
         parentEmail: approvedPayment.parentEmail || '',
-        parentName: approvedPayment.parentName || '',
-        parentPhone: approvedPayment.parentPhone || '',
         level: '',
         className: approvedPayment.className || '',
         month: approvedPayment.month || new Date().getMonth() + 1,
@@ -510,10 +470,14 @@ const PaymentsManagement = () => {
   };
 
   // ===== FILTERED ROWS =====
-  const allRows = buildRows(payments);
+  const allRows = buildRows(payments, dueStudents);
 
   const filteredRows = allRows.filter((p) => {
-    const statusOk = filterStatus === 'all' || p.status === filterStatus;
+    const statusOk =
+      filterStatus === 'all' ||
+      (filterStatus === 'paid'
+        ? p.status === 'paid' || p.status === 'approved'
+        : p.status === filterStatus);
     let searchOk = true;
     if (searchTerm.trim()) {
       const q = searchTerm.toLowerCase();
@@ -618,92 +582,45 @@ const PaymentsManagement = () => {
       reader.readAsDataURL(file);
     });
 
-  // ===== NOTIFY PARENT =====
-  const notifyParentOfPayment = (payment, status, notes) => {
-    try {
-      const monthName = getMonthName(payment.month || selectedMonth);
-      const year = payment.year || selectedYear;
-      const approved = status === 'approved';
-      const title = approved
-        ? (isArabic ? '✅ تم اعتماد دفعتك' : '✅ Payment Approved')
-        : (isArabic ? '❌ تم رفض دفعتك' : '❌ Payment Rejected');
-      const message = approved
-        ? (isArabic
-            ? `تم اعتماد دفعة ${payment.studentName} لشهر ${monthName} ${year}`
-            : `Payment for ${payment.studentName} (${monthName} ${year}) has been approved`)
-        : (isArabic
-            ? `تم رفض دفعة ${payment.studentName} لشهر ${monthName} ${year}${notes ? ` - السبب: ${notes}` : ''}`
-            : `Payment for ${payment.studentName} (${monthName} ${year}) has been rejected${notes ? ` - Reason: ${notes}` : ''}`);
-      notificationService.addNotification(title, message, 'payment', '/dashboard/parent/payments', {
-        payment_id: String(payment.id ?? payment._serverId ?? ''),
-        student_name: payment.studentName,
-        month: payment.month || selectedMonth,
-        year: payment.year || selectedYear,
-        status,
-        parent_email: payment.parentEmail || '',
-        amount: payment.amount != null ? payment.amount : null,
-      });
-    } catch (e) {
-      console.error('Error sending payment notification:', e);
-    }
-  };
-
   // ===== GENERATE MONTHLY PAYMENTS =====
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      const localPayments = readLocalPayments();
-      const list = [...localPayments];
-      let created = 0;
-      
-      const dueStudentsList = readApprovedAdmissions();
-      
-      dueStudentsList.forEach((s) => {
-        const exists = list.some(
-          (p) =>
-            String(p.admissionId) === String(s.admissionId) &&
-            p.month === selectedMonth &&
-            p.year === selectedYear,
-        );
-        if (!exists) {
-          list.push({
-            id: `p-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            admissionId: s.admissionId,
-            studentName: s.studentName,
-            parentEmail: s.parentEmail,
-            level: s.level,
-            className: s.className,
+      const dueStudentsList = await readApprovedAdmissions();
+
+      const monthPayments = payments.filter(
+        (p) =>
+          p.admissionId != null &&
+          p.month === selectedMonth &&
+          p.year === selectedYear,
+      );
+      const existingAdmissionIds = new Set(monthPayments.map((p) => String(p.admissionId)));
+
+      const createdPayments = dueStudentsList.filter(
+        (s) => !existingAdmissionIds.has(String(s.admissionId)),
+      );
+
+      await Promise.all(createdPayments.map(async (s) => {
+        try {
+          await syncSend('post', '/payments', toServerPayment({
+            ...s,
             month: selectedMonth,
             year: selectedYear,
-            amount: s.amount || 500,
             type: 'full',
             status: 'pending',
             method: null,
-            receipt: null,
-            receiptName: null,
-            notes: '',
-            paidAt: null,
-            approvedAt: null,
-            createdAt: new Date().toISOString(),
-            dateOfBirth: s.dateOfBirth || '',
-            gender: s.gender || '',
-            address: s.address || '',
-            city: s.city || '',
-            phone: s.phone || '',
-            parentName: s.parentName || '',
-            parentPhone: s.parentPhone || '',
-          });
-          created++;
+            amount: s.amount || 500,
+          }));
+        } catch (e) {
+          console.error('Failed to sync generated payment to server:', e);
         }
-      });
-      
-      writeLocalPayments(list);
-      
+      }));
+
       notify(
         isArabic
-          ? `تم إنشاء ${created} دفعة شهرية`
-          : `${created} monthly payments generated`,
-        created > 0 ? 'success' : 'info',
+          ? `تم إنشاء ${createdPayments.length} دفعة شهرية`
+          : `${createdPayments.length} monthly payments generated`,
+        createdPayments.length > 0 ? 'success' : 'info',
       );
       fetchData();
     } catch (err) {
@@ -773,9 +690,6 @@ const PaymentsManagement = () => {
     };
 
     try {
-      const list = readLocalPayments();
-      const idx = list.findIndex(p => p.id === selectedPayment.id);
-      
       const updatedPayment = {
         ...selectedPayment,
         ...studentData,
@@ -785,27 +699,20 @@ const PaymentsManagement = () => {
         notes: formNotes,
         updatedAt: new Date().toISOString(),
       };
-      
-      if (idx !== -1) {
-        list[idx] = updatedPayment;
-      } else {
-        list.push(updatedPayment);
-      }
-      
-      writeLocalPayments(list);
-      
+
+      // Sync to MySQL via /api/payments
+      const payload = toServerPayment(updatedPayment);
       if (formReceiptFile) {
-        const base64 = await fileToBase64(formReceiptFile);
-        const updatedList = readLocalPayments();
-        const updateIdx = updatedList.findIndex(p => p.id === selectedPayment.id);
-        if (updateIdx !== -1) {
-          updatedList[updateIdx].receipt = base64;
-          updatedList[updateIdx].receiptName = formReceiptFile.name;
-          updatedList[updateIdx].status = 'submitted';
-          writeLocalPayments(updatedList);
-        }
+        payload.receipt = await fileToBase64(formReceiptFile);
+        payload.receipt_name = formReceiptFile.name;
+        payload.status = 'submitted';
       }
-      
+      if (updatedPayment._serverId) {
+        await syncSend('put', `/payments/${updatedPayment._serverId}`, payload);
+      } else {
+        await syncSend('post', '/payments', payload);
+      }
+
       notify(
         isArabic ? 'تم حفظ الدفعة بنجاح' : 'Payment saved successfully',
         'success'
@@ -835,22 +742,31 @@ const PaymentsManagement = () => {
     setProcessingPaymentId(selectedPayment.id);
     try {
       const base64 = await fileToBase64(receiptFile);
-      const list = readLocalPayments();
-      const idx = list.findIndex(p => p.id === selectedPayment.id);
-      if (idx !== -1) {
-        list[idx].receipt = base64;
-        list[idx].receiptName = receiptFile.name;
-        if (list[idx].status !== 'approved') {
-          list[idx].status = 'submitted';
+      if (selectedPayment._serverId) {
+        if (selectedPayment.status !== 'approved') {
+          await syncSend('patch', `/payments/${selectedPayment._serverId}/status`, {
+            status: 'submitted',
+            receipt: base64,
+            receipt_name: receiptFile.name,
+          });
         }
-        list[idx].updatedAt = new Date().toISOString();
-        writeLocalPayments(list);
-        
-        notify(isArabic ? 'تم رفع الإيصال' : 'Receipt uploaded', 'success');
-        setShowReceiptModal(false);
-        setSelectedPayment(null);
-        fetchData();
+      } else {
+        await syncSend('post', '/payments', toServerPayment({
+          ...selectedPayment,
+          month: selectedPayment.month || selectedMonth,
+          year: selectedPayment.year || selectedYear,
+          amount: selectedPayment.amount != null ? selectedPayment.amount : 500,
+          method: selectedPayment.method || 'cash',
+          type: selectedPayment.type || 'full',
+          status: 'submitted',
+          receipt: base64,
+        }));
       }
+
+      notify(isArabic ? 'تم رفع الإيصال' : 'Receipt uploaded', 'success');
+      setShowReceiptModal(false);
+      setSelectedPayment(null);
+      fetchData();
     } catch (err) {
       console.error(err);
       notify(err.message || 'Failed to upload receipt', 'error');
@@ -917,36 +833,26 @@ const PaymentsManagement = () => {
     
     try {
       console.log('💰 Approving payment for:', payment.studentName);
-      
-      // Update payment status in localStorage
-      const list = readLocalPayments();
-      const idx = list.findIndex(p => p.id === payment.id);
-      
-      if (idx !== -1) {
-        list[idx].status = 'approved';
-        list[idx].paidAt = new Date().toISOString();
-        list[idx].approvedAt = new Date().toISOString();
-        list[idx].updatedAt = new Date().toISOString();
-        writeLocalPayments(list);
-        console.log('✅ Payment status updated to approved');
+
+      // Sync status to MySQL
+      if (payment._serverId) {
+        await syncSend('patch', `/payments/${payment._serverId}/status`, {
+          status: 'approved',
+          method: payment.method || 'cash',
+        });
+      } else {
+        // Not on server yet - create it as approved
+        await syncSend('post', '/payments', toServerPayment({
+          ...payment,
+          month: payment.month || selectedMonth,
+          year: payment.year || selectedYear,
+          status: 'approved',
+          method: payment.method || 'cash',
+        }));
       }
-      
-      // Update the registration status
-      try {
-        const registrations = JSON.parse(localStorage.getItem('registrations') || '[]');
-        const regIdx = registrations.findIndex(r => r.id === payment.admissionId);
-        if (regIdx !== -1) {
-          registrations[regIdx].paymentStatus = 'paid';
-          registrations[regIdx].paymentPaidAt = new Date().toISOString();
-          localStorage.setItem('registrations', JSON.stringify(registrations));
-          console.log('✅ Registration payment status updated');
-        }
-      } catch (e) {
-        console.log('Could not update registration payment status:', e);
-      }
-      
-      // CREATE STUDENT IN USER DATA SERVICE
-      const studentResult = createOrUpdateStudentFromPayment(payment);
+
+      // CREATE STUDENT FROM PAYMENT DATA
+      const studentResult = await createOrUpdateStudentFromPayment(payment);
 
       if (studentResult) {
         const studentName = payment.studentName || 'Student';
@@ -962,14 +868,7 @@ const PaymentsManagement = () => {
         
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('refreshStudents'));
-          try {
-            userDataService.notifyListeners();
-          } catch (e) {
-            console.warn('Could not notify listeners:', e);
-          }
         }, 300);
-
-        notifyParentOfPayment(payment, 'approved');
 
         notificationService.addNotification(
           isArabic ? `🎓 تم إضافة طالب جديد: ${studentName}` : `🎓 New Student Added: ${studentName}`,
@@ -993,6 +892,9 @@ const PaymentsManagement = () => {
         );
       }
 
+      window.dispatchEvent(new CustomEvent('paymentUpdated', {
+        detail: { paymentId: payment.id, studentId: payment.studentId, status: 'approved' }
+      }));
       fetchData();
     } catch (err) {
       console.error('Error approving payment:', err);
@@ -1015,21 +917,28 @@ const PaymentsManagement = () => {
     setActionLoading(true);
     setProcessingPaymentId(selectedPayment.id);
     try {
-      const list = readLocalPayments();
-      const idx = list.findIndex(p => p.id === selectedPayment.id);
-      
-      if (idx !== -1) {
-        list[idx].status = 'rejected';
-        list[idx].notes = rejectNotes || list[idx].notes;
-        list[idx].updatedAt = new Date().toISOString();
-        writeLocalPayments(list);
-        
-        notify(isArabic ? 'تم رفض الدفعة' : 'Payment rejected', 'success');
-        notifyParentOfPayment(selectedPayment, 'rejected', rejectNotes);
-        setShowRejectModal(false);
-        setSelectedPayment(null);
-        fetchData();
+      if (selectedPayment._serverId) {
+        await syncSend('patch', `/payments/${selectedPayment._serverId}/status`, {
+          status: 'rejected',
+          notes: rejectNotes || selectedPayment.notes || '',
+        });
+      } else {
+        await syncSend('post', '/payments', toServerPayment({
+          ...selectedPayment,
+          month: selectedPayment.month || selectedMonth,
+          year: selectedPayment.year || selectedYear,
+          status: 'rejected',
+          notes: rejectNotes || '',
+        }));
       }
+
+      notify(isArabic ? 'تم رفض الدفعة' : 'Payment rejected', 'success');
+      window.dispatchEvent(new CustomEvent('paymentUpdated', {
+        detail: { paymentId: selectedPayment.id, studentId: selectedPayment.studentId, status: 'rejected' }
+      }));
+      setShowRejectModal(false);
+      setSelectedPayment(null);
+      fetchData();
     } catch (err) {
       console.error(err);
       notify(err.message || 'Failed to reject payment', 'error');
@@ -1050,10 +959,10 @@ const PaymentsManagement = () => {
     setActionLoading(true);
     setProcessingPaymentId(selectedPayment.id);
     try {
-      const list = readLocalPayments();
-      const filtered = list.filter(p => p.id !== selectedPayment.id);
-      writeLocalPayments(filtered);
-      
+      if (selectedPayment._serverId) {
+        await syncSend('delete', `/payments/${selectedPayment._serverId}`);
+      }
+
       notify(isArabic ? 'تم حذف الدفعة' : 'Payment deleted', 'success');
       setShowDeleteModal(false);
       setSelectedPayment(null);
@@ -1424,6 +1333,7 @@ const PaymentsManagement = () => {
                 <option value="pending">{isArabic ? 'قيد الانتظار' : 'Pending'}</option>
                 <option value="submitted">{isArabic ? 'إيصال مرسل' : 'Receipt Submitted'}</option>
                 <option value="approved">{isArabic ? 'معتمد' : 'Approved'}</option>
+                <option value="paid">{isArabic ? 'مدفوع' : 'Paid'}</option>
                 <option value="rejected">{isArabic ? 'مرفوض' : 'Rejected'}</option>
               </Form.Select>
             </Col>

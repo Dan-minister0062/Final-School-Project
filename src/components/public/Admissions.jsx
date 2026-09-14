@@ -77,6 +77,7 @@ import {
 import { useLanguage } from "../../context/LanguageContext";
 import { getTranslation } from "../../utils/translations";
 import { useNotification } from "../../hooks/useNotification";
+import { submitAdmission } from "../../services/admissionService";
 import logo from "../../assets/images/school logo.jpeg";
 
 // ===== ALWAYS use English numbers - NO Arabic numeral conversion =====
@@ -247,146 +248,57 @@ const Admissions = () => {
   const password = watch("parentPassword");
   const passwordStrength = getPasswordStrength(password);
 
-  // ===== Generate a unique registration ID =====
-  const generateRegistrationId = () => {
-    const year = new Date().getFullYear();
-    const random = Math.random().toString(36).substring(2, 8).toUpperCase();
-    return `REG/${year}/${random}`;
-  };
-
-  // ===== Save registration to localStorage =====
-  const saveRegistrationToLocalStorage = (data) => {
-    try {
-      // Get existing registrations
-      const existingRegistrations = JSON.parse(localStorage.getItem('registrations') || '[]');
-      
-      // Create registration object
-      const registration = {
-        id: generateRegistrationId(),
-        ...data,
-        studentName: `${data.firstName || ''} ${data.lastName || ''}`.trim(),
-        submittedAt: new Date().toISOString(),
-        status: 'pending',
-        read: false,
-        reportCard: data.reportCard || null,
-        schoolCertificate: data.schoolCertificate || null,
-      };
-      
-      // Add to array
-      existingRegistrations.unshift(registration);
-      
-      // Save back to localStorage
-      localStorage.setItem('registrations', JSON.stringify(existingRegistrations));
-      
-      console.log('✅ Registration saved to localStorage:', registration);
-      return registration;
-    } catch (error) {
-      console.error('Error saving registration to localStorage:', error);
-      return null;
-    }
-  };
-
-  // ===== Notify admins about a new registration =====
-  const dispatchAdminNotification = (data, registration) => {
-    try {
-      const levelMap = {
-        kindergarden: isArabic ? "أولي" : "Kindergarden",
-        primary: isArabic ? "ابتدائي" : "Primary",
-        secondary: isArabic ? "إعدادي" : "Secondary",
-        high_school: isArabic ? "ثانوي" : "High School",
-      };
-      const levelDisplay = levelMap[data.level] || data.level;
-      const studentFullName = `${data.firstName || ''} ${data.lastName || ''}`.trim();
-      const notificationTitle = isArabic
-        ? `📝 تسجيل طالب جديد: ${studentFullName}`
-        : `📝 New Student Registration: ${studentFullName}`;
-      const notificationMessage = isArabic
-        ? `تم تسجيل ${studentFullName} في مستوى ${levelDisplay} بواسطة ${data.parentName || 'ولي الأمر'}`
-        : `${studentFullName} registered for ${levelDisplay} by ${data.parentName || 'Parent'}`;
-
-      // Create notification object
-      const notification = {
-        id: `notif-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        title: notificationTitle,
-        message: notificationMessage,
-        type: 'registration',
-        link: '/dashboard/admin/registrations',
-        createdAt: new Date().toISOString(),
-        read: false,
-        studentName: studentFullName,
-        level: data.level,
-        levelDisplay: levelDisplay,
-        parentName: data.parentName || '',
-        email: data.parentEmail || '',
-        phone: data.parentPhone || '',
-        address: data.parentAddress || '',
-        userName: data.parentName || 'Parent',
-        registrationId: registration?.id || null,
-      };
-
-      // Save to localStorage notifications
-      try {
-        const savedNotifications = JSON.parse(localStorage.getItem('notifications') || '[]');
-        savedNotifications.unshift(notification);
-        if (savedNotifications.length > 100) {
-          savedNotifications.length = 100;
-        }
-        localStorage.setItem('notifications', JSON.stringify(savedNotifications));
-        console.log('✅ Notification saved to localStorage');
-      } catch (e) {
-        console.error('Error saving notification to localStorage:', e);
-      }
-
-      // Dispatch event for real-time updates
-      try {
-        const event = new CustomEvent('newNotification', {
-          detail: notification
-        });
-        window.dispatchEvent(event);
-        console.log('✅ Notification event dispatched');
-      } catch (e) {
-        console.error('Error dispatching notification event:', e);
-      }
-
-      // Also dispatch a storage event for other tabs
-      try {
-        const storageEvent = new StorageEvent('storage', {
-          key: 'notifications',
-          newValue: JSON.stringify(JSON.parse(localStorage.getItem('notifications') || '[]')),
-        });
-        window.dispatchEvent(storageEvent);
-      } catch (e) {
-        console.error('Error dispatching storage event:', e);
-      }
-
-      console.log('✅ Notification dispatched for registration:', notificationTitle);
-    } catch (e) {
-      console.error('Error sending notification:', e);
-    }
-  };
+  // ===== Map the form data to the backend (MySQL) payload =====
+  const buildAdmissionPayload = (data) => ({
+    first_name: data.firstName || '',
+    last_name: data.lastName || '',
+    dob: data.dob || null,
+    place_of_birth: data.placeOfBirth || null,
+    gender: data.gender || null,
+    nationality: data.nationality || null,
+    address: data.address || null,
+    city: data.city || null,
+    academic_year: data.academicYear || null,
+    level: data.level || null,
+    requested_class: data.requestedClass || null,
+    admission_type: data.admissionType || null,
+    has_attended_before: !!data.hasAttendedBefore,
+    previous_school: data.previousSchool || null,
+    previous_grade: data.previousGrade || null,
+    last_academic_year: data.lastAcademicYear || null,
+    massar_number: data.massarNumber || null,
+    academic_track: data.academicTrack || null,
+    special_assistance: !!data.specialAssistance,
+    authorized_pickup: data.authorizedPickup || null,
+    parent_name: data.parentName || null,
+    relationship: data.relationship || null,
+    parent_phone: data.parentPhone || '',
+    parent_email: data.parentEmail || '',
+    parent_address: data.parentAddress || null,
+    cin_id: data.cinId || null,
+    parent_password: data.parentPassword || null,
+    emergency_contact: data.emergencyContact || null,
+    emergency_relationship: data.emergencyRelationship || null,
+    emergency_phone: data.emergencyPhone || null,
+    additional_notes: data.additionalNotes || null,
+    terms_agreed: !!data.termsAgreed,
+  });
 
   const onSubmit = async (data) => {
     setSubmitting(true);
     
     try {
-      console.log('📤 Submitting admission data (local-only):', data);
+      // Persist to the backend (MySQL) first.
+      const payload = buildAdmissionPayload(data);
+      const serverRegistration = await submitAdmission(payload);
+      console.log('✅ Admission saved to MySQL:', serverRegistration);
 
-      // Save registration to localStorage
-      const registration = saveRegistrationToLocalStorage(data);
-      
-      if (!registration) {
-        throw new Error('Failed to save registration to localStorage');
-      }
+      setRegistrationId(serverRegistration?.id || null);
 
-      console.log("✅ Registration saved successfully:", registration);
+      // The backend (AdmissionController@store) creates the admin notification
+      // (audience=admin) and persists the registration row - nothing else to
+      // store on this device.
 
-      // Set registration ID
-      setRegistrationId(registration.id);
-
-      // Dispatch notification to admin
-      dispatchAdminNotification(data, registration);
-
-      // Show success message
       notify(
         isArabic
           ? "✅ تم تقديم طلب التسجيل بنجاح!"
@@ -406,8 +318,8 @@ const Admissions = () => {
       console.error("❌ Submission error:", error);
       
       let msg = isArabic
-        ? "حدث خطأ. الرجاء المحاولة مرة أخرى."
-        : "Something went wrong. Please try again.";
+        ? "حدث خطأ أثناء إرسال الطلب إلى الخادم. الرجاء المحاولة مرة أخرى."
+        : "Could not save your registration on the server. Please try again.";
       
       notify(msg, "error");
       

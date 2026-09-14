@@ -1,5 +1,5 @@
 // src/services/notificationService.js - MySQL-backed notifications (API-first)
-import api from './api';
+import api, { getAuthIdentity } from './api';
 
 function fromServerNotification(sn) {
   return {
@@ -11,6 +11,7 @@ function fromServerNotification(sn) {
     link: sn.link || null,
     priority: sn.priority || 'low',
     metadata: sn.metadata || {},
+    audience: sn.audience || 'all',
     read: !!sn.read,
     time: sn.createdAt || new Date().toISOString(),
     created_at: sn.createdAt || new Date().toISOString(),
@@ -29,12 +30,7 @@ class NotificationService {
   }
 
   hasSession() {
-    try {
-      const token = localStorage.getItem('token');
-      return !!token && !token.startsWith('demo-');
-    } catch {
-      return false;
-    }
+    return !!getAuthIdentity();
   }
 
   setupEventListeners() {
@@ -46,7 +42,8 @@ class NotificationService {
         `${detail.parentName} قام بتسجيل ${detail.studentName}`,
         'registration',
         '/dashboard/admin/registrations',
-        { student_name: detail.studentName, parent_name: detail.parentName }
+        { student_name: detail.studentName, parent_name: detail.parentName },
+        { audience: 'admin' }
       );
     });
 
@@ -58,7 +55,8 @@ class NotificationService {
         `تم إضافة واجب جديد: ${detail.title} للفصل ${detail.className}`,
         'assignment',
         '/dashboard/teacher/assessments',
-        { assignment_title: detail.title, class_name: detail.className }
+        { assignment_title: detail.title, class_name: detail.className },
+        { audience: 'students' }
       );
     });
 
@@ -70,7 +68,8 @@ class NotificationService {
         `${detail.studentName} قام بتسليم واجب ${detail.assignmentTitle}`,
         'submission',
         '/dashboard/teacher/assessments',
-        { student_name: detail.studentName, assignment_title: detail.assignmentTitle }
+        { student_name: detail.studentName, assignment_title: detail.assignmentTitle },
+        { audience: 'teachers' }
       );
     });
 
@@ -82,11 +81,12 @@ class NotificationService {
         detail.message || 'تم نشر إعلان جديد من الإدارة',
         'announcement',
         '/dashboard/admin/announcements',
-        { announcement_title: detail.title }
+        { announcement_title: detail.title },
+        { audience: 'all' }
       );
     });
 
-    // Listen for grade posted events (Student/Parent)
+    // Listen for grade posted events (Student/Parent): personal to the student.
     window.addEventListener('gradePosted', (event) => {
       const { detail } = event;
       this.addNotification(
@@ -94,7 +94,8 @@ class NotificationService {
         `تم نشر نتيجة ${detail.subject} للطالب ${detail.studentName}`,
         'grade',
         '/dashboard/student/my-results',
-        { student_name: detail.studentName, subject: detail.subject }
+        { student_name: detail.studentName, subject: detail.subject },
+        { recipientId: detail.studentId ?? null, audience: 'students' }
       );
     });
 
@@ -106,7 +107,8 @@ class NotificationService {
         `تم تسجيل حضور ${detail.studentName} - ${detail.status}`,
         'attendance',
         '/dashboard/parent/child-results',
-        { student_name: detail.studentName, status: detail.status }
+        { student_name: detail.studentName, status: detail.status },
+        { audience: 'parents' }
       );
     });
 
@@ -118,7 +120,8 @@ class NotificationService {
         `تم تغيير جدول ${detail.className} - ${detail.change}`,
         'schedule',
         '/dashboard/teacher',
-        { class_name: detail.className, change: detail.change }
+        { class_name: detail.className, change: detail.change },
+        { audience: 'teachers' }
       );
     });
   }
@@ -146,7 +149,26 @@ class NotificationService {
     return this.notifications;
   }
 
-  async addNotification(title, message, type = 'info', link = null, metadata = {}) {
+  async addNotification(title, message, type = 'info', link = null, metadata = {}, options = {}) {
+    // Accept a single options object ({ title, message, type, link, metadata })
+    // as well as the traditional positional signature.
+    if (typeof title === 'object' && title !== null) {
+      const opts = title;
+      title = opts.title;
+      message = opts.message;
+      type = opts.type || 'info';
+      link = opts.link || null;
+      metadata = opts.metadata || {};
+      options = {
+        audience: opts.audience,
+        recipientId: opts.recipientId ?? opts.userId ?? opts.user_id,
+      };
+    }
+    // Broadcast notifications must not be pinned to the creating user's id.
+    const audience = options.audience || 'all';
+    const recipientId = options.recipientId ?? null;
+    const isBroadcast = !recipientId && audience !== 'all';
+
     const newNotification = {
       id: Date.now() + Math.random(),
       title: title,
@@ -157,7 +179,8 @@ class NotificationService {
       type: type,
       link: link || this.getDefaultLink(type),
       priority: this.getPriority(type),
-      metadata: metadata
+      metadata: metadata,
+      audience,
     };
 
     this.notifications = [newNotification, ...this.notifications];
@@ -166,14 +189,22 @@ class NotificationService {
     // Persist the notification row in MySQL when a real session exists.
     if (this.hasSession()) {
       try {
-        const res = await api.post('/notifications', {
+        const payload = {
           title,
           message,
           type,
           link: newNotification.link,
           priority: newNotification.priority,
-          metadata,
-        });
+          metadata: metadata ?? {},
+          audience,
+        };
+        // Personal notifications target a specific user; broadcasts null it.
+        if (recipientId) {
+          payload.user_id = recipientId;
+        } else if (isBroadcast || audience === 'all') {
+          payload.user_id = null;
+        }
+        const res = await api.post('/notifications', payload);
         if (res.data?.success && res.data?.data?.id) {
           newNotification._serverId = res.data.data.id;
           newNotification.id = res.data.data.id;
@@ -231,7 +262,7 @@ class NotificationService {
       admin: ['registration', 'system', 'announcement', 'reminder'],
       teacher: ['assignment', 'submission', 'schedule', 'announcement'],
       parent: ['grade', 'attendance', 'announcement', 'payment'],
-      student: ['grade', 'announcement', 'assignment']
+      student: ['grade', 'announcement', 'assignment', 'payment']
     };
     const allowedTypes = roleMap[role] || ['announcement'];
     return this.notifications.filter((n) => allowedTypes.includes(n.type));
@@ -265,7 +296,7 @@ class NotificationService {
           admin: ['registration', 'system', 'announcement', 'reminder'],
           teacher: ['assignment', 'submission', 'schedule', 'announcement'],
           parent: ['grade', 'attendance', 'announcement', 'payment'],
-          student: ['grade', 'announcement', 'assignment']
+          student: ['grade', 'announcement', 'assignment', 'payment']
         }[role] || ['announcement']
       : null;
 
@@ -305,6 +336,10 @@ class NotificationService {
     return () => {
       this.listeners = this.listeners.filter((cb) => cb !== callback);
     };
+  }
+
+  subscribe(callback) {
+    return this.addListener(callback);
   }
 
   notifyListeners(notification = null) {

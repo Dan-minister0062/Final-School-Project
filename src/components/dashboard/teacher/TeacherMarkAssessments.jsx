@@ -1,17 +1,16 @@
 // src/components/dashboard/teacher/TeacherMarkAssessments.jsx
 import React, { useState, useEffect } from 'react';
-import { teacherService } from '../../services/teacherService';
-import { assessmentService } from '../../services/assessmentService';
-import { Card, Modal, Form, Button, Badge, Table, Alert, Spinner } from 'react-bootstrap';
+import { Card, Modal, Form, Button, Badge, Table, Alert, InputGroup } from 'react-bootstrap';
 import { 
   FaSave, FaEye, FaCheckCircle, FaTimesCircle, 
-  FaClock, FaFileAlt, FaUserGraduate, FaPrint,
-  FaDownload, FaSpinner, FaExclamationTriangle,
-  FaSearch, FaFilter, FaSync, FaArrowRight,
-  FaChevronDown, FaChevronUp, FaStar, FaStarHalf
+  FaClock, FaFileAlt, FaUserGraduate,
+  FaSpinner, FaExclamationTriangle,
+  FaSearch, FaSync
 } from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
+import { syncGet, syncSend } from '../../../services/apiSync';
+import { useAuth } from '../../../hooks/useAuth';
 
 // ===== ALWAYS use English numbers =====
 const formatNumber = (num) => {
@@ -40,8 +39,8 @@ const TeacherMarkAssessments = () => {
   const [submissionContent, setSubmissionContent] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState('name');
-  const [sortDirection, setSortDirection] = useState('asc');
+  const [sortField] = useState('name');
+  const [sortDirection] = useState('asc');
 
   // ===== ARABIC FONT STYLE =====
   const arabicFontStyle = {
@@ -77,14 +76,24 @@ const TeacherMarkAssessments = () => {
     loadInitialData();
   }, []);
 
-  const loadInitialData = () => {
+  const { user } = useAuth();
+
+  const loadInitialData = async () => {
     try {
       setLoading(true);
-      const assignedClasses = teacherService.getAssignedClasses();
-      setClasses(assignedClasses);
-      
-      const teacherAssessments = assessmentService.getTeacherAssessments();
-      setAssessments(teacherAssessments);
+
+      const assignedClassCodes = Array.isArray(user?.assignedClasses) ? user.assignedClasses
+        : Array.isArray(user?.assigned_classes) ? user.assigned_classes : [];
+
+      const classesRes = await syncGet('/classes');
+      const allClasses = Array.isArray(classesRes?.data) ? classesRes.data : [];
+      const assigned = allClasses.filter(c => assignedClassCodes.some(code => String(code) === String(c.id) || String(code) === String(c.code)));
+      setClasses(assigned);
+
+      const assessRes = await syncGet('/assessments');
+      const allAssessments = Array.isArray(assessRes?.data) ? assessRes.data : [];
+      setAssessments(allAssessments);
+
       setLoading(false);
     } catch (err) {
       setError(err.message);
@@ -104,21 +113,32 @@ const TeacherMarkAssessments = () => {
     }
   }, [selectedAssessment]);
 
-  const loadStudents = () => {
+  const loadStudents = async () => {
     try {
       setLoading(true);
-      const classStudents = teacherService.getStudentsByClass(selectedClass);
+      const studentsRes = await syncGet('/students');
+      const allStudents = Array.isArray(studentsRes?.data) ? studentsRes.data : [];
+
+      // Students may store either the class code or the class name in
+      // students.class_code, so match the selected class by id, code and name.
+      const selectedClassRow = classes.find(c =>
+        String(c.id) === String(selectedClass) || String(c.code) === String(selectedClass)
+      );
+      const classKeys = new Set([String(selectedClass), String(selectedClassRow?.id), String(selectedClassRow?.code), String(selectedClassRow?.name)].filter(v => v && v !== 'undefined' && v !== 'null'));
+
+      const classStudents = allStudents
+        .filter(s => classKeys.has(String(s.class_code)) || classKeys.has(String(s.classId)) || classKeys.has(String(s.className)))
+        .map(s => ({ id: s.id, name: s.name, userId: s.userId || s.user_id, classId: s.class_code || s.classId }));
       setStudents(classStudents);
       
-      // Initialize grades for all students
       const initialGrades = classStudents.map(student => ({
-        studentId: student.id,
-        studentName: student.name || student.firstName || 'Unknown',
+        studentId: student.userId || student.id,
+        studentName: student.name || 'Unknown',
         score: '',
         feedback: '',
         assessmentId: selectedAssessment || '',
-        submitted: student.submitted || false,
-        submissionDate: student.submissionDate || null,
+        submitted: false,
+        submissionDate: null,
         graded: false
       }));
       setGrades(initialGrades);
@@ -129,34 +149,22 @@ const TeacherMarkAssessments = () => {
     }
   };
 
-  const loadGrades = () => {
+  const loadGrades = async () => {
     try {
       if (!selectedAssessment) return;
-      
-      const existingGrades = assessmentService.getGradesForAssessment(selectedAssessment);
-      if (existingGrades.length > 0) {
-        setGrades(prev => prev.map(g => {
-          const existing = existingGrades.find(eg => eg.studentId === g.studentId);
-          return existing ? {
-            ...g,
-            score: existing.score || '',
-            feedback: existing.feedback || '',
-            percentage: existing.percentage,
-            grade: existing.grade,
-            graded: true
-          } : g;
-        }));
-      }
-      
-      // Check for submissions
-      const submissions = assessmentService.getSubmissionsForAssessment(selectedAssessment);
+      const res = await syncGet(`/assessments/${selectedAssessment}/submissions`);
+      const submissions = Array.isArray(res?.data) ? res.data : [];
       if (submissions.length > 0) {
         setGrades(prev => prev.map(g => {
-          const submission = submissions.find(s => s.studentId === g.studentId);
+          const submission = submissions.find(s => String(s.studentId ?? s.student_id) === String(g.studentId));
           return submission ? {
             ...g,
+            score: submission.score ?? '',
+            feedback: submission.comment || submission.feedback || '',
             submitted: true,
-            submissionDate: submission.submittedAt || submission.date || new Date().toISOString()
+            submissionDate: submission.submittedAt || submission.submitted_at || new Date().toISOString(),
+            graded: submission.score != null && submission.score !== '',
+            _serverId: submission.id || submission._serverId,
           } : g;
         }));
       }
@@ -187,12 +195,27 @@ const TeacherMarkAssessments = () => {
     ));
   };
 
-  const handleViewSubmission = (student) => {
+  const handleViewSubmission = async (student) => {
     setSelectedStudent(student);
     try {
-      const submission = assessmentService.getSubmission(selectedAssessment, student.id);
-      setSubmissionContent(submission);
-    } catch (err) {
+      const res = await syncGet(`/assessments/${selectedAssessment}/submissions`);
+      const submissions = Array.isArray(res?.data) ? res.data : [];
+      const submission = submissions.find(s => String(s.studentId ?? s.student_id) === String(student.userId || student.id));
+      if (submission) {
+        setSubmissionContent({
+          content: submission.content || '',
+          fileType: submission.fileType || submission.file_type || '',
+          fileUrl: submission.fileUrl || submission.file_url || '',
+          submittedAt: submission.submittedAt || submission.submitted_at,
+        });
+      } else {
+        setSubmissionContent(null);
+        notify(
+          isArabic ? 'لا يوجد تقديم لهذا الطالب' : 'No submission found for this student',
+          'warning'
+        );
+      }
+    } catch {
       setSubmissionContent(null);
       notify(
         isArabic ? 'لا يوجد تقديم لهذا الطالب' : 'No submission found for this student',
@@ -208,18 +231,15 @@ const TeacherMarkAssessments = () => {
       return;
     }
 
-    const assessment = assessmentService.getAssessmentById(selectedAssessment);
-    if (!assessment) {
-      setError('Assessment not found');
-      return;
-    }
+    const assessment = assessments.find(a => String(a.id) === String(selectedAssessment));
+    const maxMarks = assessment ? (assessment.totalMarks || assessment.max_score || assessment.maxScore || 20) : 20;
 
     const invalidGrades = grades.filter(g => 
-      g.score !== '' && (g.score < 0 || g.score > assessment.totalMarks)
+      g.score !== '' && (g.score < 0 || g.score > maxMarks)
     );
 
     if (invalidGrades.length > 0) {
-      setError(`Invalid scores detected. Scores must be between 0 and ${assessment.totalMarks}`);
+      setError(`Invalid scores detected. Scores must be between 0 and ${maxMarks}`);
       return;
     }
 
@@ -233,16 +253,19 @@ const TeacherMarkAssessments = () => {
         return;
       }
 
-      const savedGrades = assessmentService.saveGrades(selectedAssessment, validGrades);
-      
-      setGrades(prev => prev.map(g => {
-        const saved = savedGrades.find(sg => sg.studentId === g.studentId);
-        return saved ? { ...g, ...saved, graded: true } : g;
+      const studentsPayload = validGrades.map(g => ({
+        student_id: g.studentId,
+        score: parseFloat(g.score),
+        comment: g.feedback || '',
       }));
 
-      setSuccess(`Successfully saved ${savedGrades.length} grades`);
+      await syncSend('post', `/assessments/${selectedAssessment}/submissions`, { students: studentsPayload });
+      
+      await loadGrades();
+
+      setSuccess(`Successfully saved ${validGrades.length} grades`);
       notify(
-        isArabic ? `تم حفظ ${savedGrades.length} درجة بنجاح` : `Successfully saved ${savedGrades.length} grades`,
+        isArabic ? `تم حفظ ${validGrades.length} درجة بنجاح` : `Successfully saved ${validGrades.length} grades`,
         'success'
       );
       setTimeout(() => setSuccess(''), 3000);
@@ -262,19 +285,18 @@ const TeacherMarkAssessments = () => {
 
     try {
       setSaving(true);
-      const assessment = assessmentService.getAssessmentById(selectedAssessment);
-      if (!assessment) throw new Error('Assessment not found');
+      const assessment = assessments.find(a => String(a.id) === String(selectedAssessment));
+      const maxMarks = assessment ? (assessment.totalMarks || assessment.max_score || assessment.maxScore || 20) : 20;
       
-      if (grade.score < 0 || grade.score > assessment.totalMarks) {
-        throw new Error(`Score must be between 0 and ${assessment.totalMarks}`);
+      if (grade.score < 0 || grade.score > maxMarks) {
+        throw new Error(`Score must be between 0 and ${maxMarks}`);
       }
 
-      const savedGrades = assessmentService.saveGrades(selectedAssessment, [grade]);
+      await syncSend('post', `/assessments/${selectedAssessment}/submissions`, {
+        students: [{ student_id: grade.studentId, score: parseFloat(grade.score), comment: grade.feedback || '' }],
+      });
       
-      setGrades(prev => prev.map(g => {
-        const saved = savedGrades.find(sg => sg.studentId === g.studentId);
-        return saved ? { ...g, ...saved, graded: true } : g;
-      }));
+      await loadGrades();
 
       setSuccess(`Grade saved for ${grade.studentName}`);
       notify(
@@ -296,7 +318,7 @@ const TeacherMarkAssessments = () => {
 
   // ===== GET FILTERED STUDENTS =====
   const getFilteredStudents = () => {
-    let filtered = students.map((student, index) => ({
+    let filtered = students.map((student) => ({
       ...student,
       grade: grades.find(g => g.studentId === student.id) || { score: '', feedback: '', submitted: false, graded: false }
     }));
@@ -385,7 +407,7 @@ const TeacherMarkAssessments = () => {
   };
 
   const filteredStudents = getFilteredStudents();
-  const selectedAssessmentData = assessmentService.getAssessmentById(selectedAssessment);
+  const selectedAssessmentData = assessments.find(a => String(a.id) === String(selectedAssessment)) || null;
 
   if (loading) {
     return (

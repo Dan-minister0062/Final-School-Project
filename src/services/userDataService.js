@@ -1,5 +1,6 @@
-﻿// src/services/userDataService.js
-import { getToken, syncGet, syncSend } from "./apiSync";
+// src/services/userDataService.js
+import { getAuthIdentity } from "./api";
+import { syncGet, syncSend } from "./apiSync";
 
 class UserDataService {
   constructor() {
@@ -14,8 +15,7 @@ class UserDataService {
 
   // ===== BACKEND SYNC HELPERS =====
   isDemoSession() {
-    const token = getToken();
-    return !token || token.startsWith("demo-");
+    return !getAuthIdentity();
   }
 
   serverRolePrefix(role) {
@@ -33,13 +33,31 @@ class UserDataService {
     }
   }
 
+  // Serial letter for student IDs, derived from the class level prefix
+  // (K=kindergarten, P=primary, S=secondary, H=high school). Fall back to the
+  // class code's own prefix first so `highschool_*` codes and French display
+  // names (1ère Bac, Tronc Commun, Collège, Primaire) resolve correctly.
+  studentSerialLetter(levelOrCode) {
+    const raw = String(levelOrCode || "").trim();
+    const codePrefix = raw.toLowerCase().split(/[_\s]/)[0];
+    if (codePrefix === "kindergarten" || codePrefix === "kitâb" || raw.toLowerCase().includes("préparation")) return "K";
+    if (codePrefix === "primary" || codePrefix === "primaire") return "P";
+    if (codePrefix === "secondary" || codePrefix === "collège" || codePrefix === "college") return "S";
+    return "H";
+  }
+
   mapServerUser(su) {
     const role = su.role || "student";
     const name = su.name || "";
     const nameParts = name.trim().split(/\s+/);
     const local = {
       _serverId: su.id,
-      id: `${this.serverRolePrefix(role)}/${new Date().getFullYear()}/S${su.id}`,
+      id:
+        role === "student"
+          ? `alfath/stu/${new Date().getFullYear()}/${this.studentSerialLetter(
+              su.class_code ?? su.className ?? su.class_name ?? su.department ?? "",
+            )}${su.id}`
+          : `${this.serverRolePrefix(role)}/${new Date().getFullYear()}/S${su.id}`,
       name,
       firstName: nameParts.slice(0, -1).join(" ") || name,
       lastName: nameParts.length > 1 ? nameParts[nameParts.length - 1] : "",
@@ -62,6 +80,10 @@ class UserDataService {
       emergencyContactName: su.emergencyContactName || "",
       emergencyContactRelationship: su.emergencyContactRelationship || "",
       emergencyContactPhone: su.emergencyContactPhone || "",
+      // Canonical student number lives in students.code (the frontend's
+      // fabricated `id` is display-only and must never be used as a join key).
+      studentNumber: su.studentNumber || su.student_code || su.code || "",
+      student_code: su.studentNumber || su.student_code || su.code || "",
     };
 
     if (role === "teacher") {
@@ -96,13 +118,16 @@ class UserDataService {
       const level = su.level || su.bio || "";
       local.className = className;
       local.class = className;
+      local.classId = su.class_code || su.classCode || "";
+      local.classCode = su.class_code || su.classCode || "";
       local.department = className;
       local.level = level;
       local.educationLevel = level;
       local.education_level = level;
       local.classLevel = level;
       local.class_level = level;
-      local.massarNumber = su.massarNumber || "";
+      local.massarNumber = su.massarNumber || su.massar_number || "";
+      local.massar_number = local.massarNumber;
       local.academicYear = su.academicYear || "";
       local.admissionType = su.admissionType || "";
       local.previousSchool = su.previousSchool || "";
@@ -111,6 +136,8 @@ class UserDataService {
       local.parentName = su.parentName || "";
       local.parentEmail = su.parentEmail || "";
       local.parentPhone = su.parentPhone || "";
+      local.parentId = su.parentId ?? su.parent_id ?? null;
+      local.parent_id = local.parentId;
       local.attendance = su.attendance ?? 0;
       local.averageGrade = su.averageGrade ?? 0;
     }
@@ -118,9 +145,13 @@ class UserDataService {
     if (role === "parent") {
       local.occupation = su.occupation || "";
       local.employer = su.employer || "";
+      local.relationship = su.relationship || "";
       local.childrenNames = Array.isArray(su.childrenNames)
         ? su.childrenNames
-        : [];
+        : Array.isArray(su.children)
+          ? su.children
+          : [];
+      local.children = local.childrenNames;
     }
 
     return local;
@@ -192,9 +223,11 @@ class UserDataService {
 
     if (user.role === "student") {
       const className = user.className || user.class || "";
+      const classCode = user.classId || user.classCode || user.class_code || "";
       const level = user.level || "";
       payload.className = className;
       payload.department = className;
+      payload.classCode = classCode;
       payload.level = level;
       payload.bio = level;
       [
@@ -224,8 +257,23 @@ class UserDataService {
           payload[key] = user[key];
         }
       });
-      if (Array.isArray(user.childrenNames)) {
-        payload.childrenNames = user.childrenNames;
+      if (user.relationship !== undefined && user.relationship !== null && user.relationship !== "") {
+        payload.relationship = user.relationship;
+      }
+      const childrenValue =
+        (Array.isArray(user.childrenNames)
+          ? user.childrenNames
+          : typeof user.childrenNames === "string" && user.childrenNames !== ""
+            ? user.childrenNames.split(",").map((s) => s.trim()).filter(Boolean)
+            : null) ||
+        (Array.isArray(user.children_names)
+          ? user.children_names
+          : typeof user.children_names === "string" && user.children_names !== ""
+            ? user.children_names.split(",").map((s) => s.trim()).filter(Boolean)
+            : null) ||
+        (Array.isArray(user.children) ? user.children : null);
+      if (Array.isArray(childrenValue) && childrenValue.length > 0) {
+        payload.childrenNames = childrenValue;
       }
     }
 
@@ -256,7 +304,9 @@ class UserDataService {
         this.users[index] = { ...mapped, id: user.id };
       }
       this.notifyListeners("backend_sync", null, [...this.users]);
+      return mapped;
     }
+    return null;
   }
 
   async pushUpdateUser(user, changedFields = {}) {
@@ -299,12 +349,17 @@ class UserDataService {
       "parentEmail",
       "parentPhone",
       "className",
+      "classCode",
+      "classId",
+      "class_code",
       "attendance",
       "averageGrade",
       // Parent fields
       "occupation",
       "employer",
       "childrenNames",
+      "children_names",
+      "relationship",
     ];
     const payload = {};
     Object.keys(changedFields).forEach((key) => {
@@ -371,7 +426,7 @@ class UserDataService {
   }
 
   // ===== GENERATE ID WITH FORMAT =====
-  generateId(role) {
+  generateId(role, level = "") {
     const year = new Date().getFullYear();
 
     let prefix = "";
@@ -392,21 +447,24 @@ class UserDataService {
         prefix = "USR";
     }
 
+    const letter = role === "student" ? this.studentSerialLetter(level) : "";
+    const idPrefix = role === "student" ? `alfath/stu/${year}/${letter}` : `${prefix}/${year}`;
     const roleUsers = this.users.filter((u) => u.role === role);
     const roleIds = roleUsers
       .map((u) => u.id)
-      .filter(
-        (id) => typeof id === "string" && id.startsWith(`${prefix}/${year}`),
-      )
-      .map((id) => parseInt(id.split("/")[2]) || 0);
+      .filter((id) => typeof id === "string" && id.startsWith(idPrefix))
+      .map((id) => parseInt(String(id.split("/").pop() || "").replace(/^[A-Za-z]/, ""), 10) || 0);
 
     let nextNumber = roleIds.length > 0 ? Math.max(...roleIds) + 1 : 1;
+    if (role === "student") {
+      return `${idPrefix}${nextNumber}`;
+    }
     const formattedNumber = String(nextNumber).padStart(4, "0");
     return `${prefix}/${year}/${formattedNumber}`;
   }
 
   loadFromStorage() {
-    // Business data is no longer persisted in localStorage.
+    // Business data is never persisted in browser storage.
     // The users list lives in MySQL and is loaded via syncFromBackend().
     this.initialized = true;
     return this.users;

@@ -43,7 +43,7 @@ const Login = () => {
   const { language, isArabic } = useLanguage();
   const t = (key) => getTranslation(key, language);
   const navigate = useNavigate();
-  const { login, loading, error, clearAuthError, isAuthenticated } = useAuth();
+  const { login, loading, error, clearAuthError, isAuthenticated, role } = useAuth();
   const { notify } = useNotification();
 
   const [showPassword, setShowPassword] = useState(false);
@@ -60,308 +60,47 @@ const Login = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      const role = localStorage.getItem("role") || "admin";
+      const currentRole = role || "admin";
       const roleDashboards = {
         admin: "/dashboard/admin",
         teacher: "/dashboard/teacher",
         parent: "/dashboard/parent",
         student: "/dashboard/student",
       };
-      navigate(roleDashboards[role] || "/dashboard/admin");
+      navigate(roleDashboards[currentRole] || "/dashboard/admin");
     }
     return () => {
       if (clearAuthError) clearAuthError();
     };
-  }, [isAuthenticated, navigate, clearAuthError]);
+  }, [isAuthenticated, role, navigate, clearAuthError]);
 
-  // ===== FIND USER BY EMAIL AND PASSWORD - FIXED =====
-  const findUser = (email, password) => {
-    try {
-      // First check school_users (this is the primary source)
-      const users = JSON.parse(localStorage.getItem("school_users") || "[]");
-      console.log("🔍 Searching for user in school_users:", email);
-      
-      let foundUser = users.find(
-        (u) => u.email === email && u.password === password,
-      );
-
-      if (foundUser) {
-        console.log("✅ User found in school_users:", foundUser);
-        // Ensure all required fields are present
-        return {
-          ...foundUser,
-          role: foundUser.role || "admin",
-          name: foundUser.name || `${foundUser.firstName || ''} ${foundUser.lastName || ''}`.trim(),
-        };
-      }
-
-      // If not found, check school_teachers (for backward compatibility)
-      const teachers = JSON.parse(
-        localStorage.getItem("school_teachers") || "[]",
-      );
-      foundUser = teachers.find(
-        (t) => t.email === email && t.password === password,
-      );
-
-      if (foundUser) {
-        console.log("✅ Teacher found in school_teachers:", foundUser);
-        foundUser.role = "teacher";
-        return foundUser;
-      }
-
-      // If not found, check school_parents (for backward compatibility)
-      const parents = JSON.parse(
-        localStorage.getItem("school_parents") || "[]",
-      );
-      foundUser = parents.find(
-        (p) => p.email === email && p.password === password,
-      );
-
-      if (foundUser) {
-        console.log("✅ Parent found in school_parents:", foundUser);
-        foundUser.role = "parent";
-        return foundUser;
-      }
-
-      // If still not found, check if there's a user with this email (case insensitive)
-      const userByEmail = users.find(
-        (u) => u.email.toLowerCase() === email.toLowerCase(),
-      );
-      if (userByEmail) {
-        console.warn("⚠️ User found but password doesn't match:", email);
-        return null;
-      }
-
-      console.warn("⚠️ No user found with email:", email);
-      return null;
-    } catch (error) {
-      console.error("Error finding user:", error);
-      return null;
-    }
-  };
-
-  // ===== SAVE USER TO LOCALSTORAGE - FIXED =====
-  const saveUserToStorage = (user) => {
-    try {
-      console.log("💾 Saving user to localStorage:", user);
-      
-      // Ensure user has all required fields
-      const userToSave = {
-        id: user.id || `USR${String(Date.now()).slice(-6)}`,
-        name: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim(),
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        address: user.address || '',
-        city: user.city || '',
-        dateOfBirth: user.dateOfBirth || '',
-        gender: user.gender || '',
-        nationality: user.nationality || '',
-        cin: user.cin || '',
-        role: user.role || 'admin',
-        status: user.status || 'active',
-        password: user.password || 'password123',
-        // Teacher specific fields
-        level: user.level || '',
-        educationLevel: user.educationLevel || user.level || '',
-        subjects: user.subjects || [],
-        qualifications: user.qualifications || [],
-        specialization: user.specialization || '',
-        experienceYears: user.experienceYears || '',
-        employmentType: user.employmentType || '',
-        previousSchool: user.previousSchool || '',
-        assignedClasses: user.assignedClasses || [],
-        classes: user.assignedClasses || [],
-        // Parent specific fields
-        childrenNames: user.childrenNames || '',
-        occupation: user.occupation || '',
-        employer: user.employer || '',
-        // Emergency contact
-        emergencyContactName: user.emergencyContactName || '',
-        emergencyContactRelationship: user.emergencyContactRelationship || '',
-        emergencyContactPhone: user.emergencyContactPhone || '',
-        // Metadata
-        lastLogin: new Date().toISOString(),
-        createdAt: user.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      // Save to school_users (primary storage)
-      const users = JSON.parse(localStorage.getItem("school_users") || "[]");
-      const existingUserIndex = users.findIndex((u) => u.id === userToSave.id);
-      
-      if (existingUserIndex === -1) {
-        users.push(userToSave);
-        localStorage.setItem("school_users", JSON.stringify(users));
-        console.log("✅ User saved to school_users");
-      } else {
-        users[existingUserIndex] = {
-          ...users[existingUserIndex],
-          ...userToSave,
-          lastLogin: new Date().toISOString(),
-        };
-        localStorage.setItem("school_users", JSON.stringify(users));
-        console.log("✅ User updated in school_users");
-      }
-
-      // If teacher, also save to school_teachers
-      if (userToSave.role === "teacher") {
-        const teachers = JSON.parse(
-          localStorage.getItem("school_teachers") || "[]",
-        );
-        const existingTeacherIndex = teachers.findIndex(
-          (t) => t.id === userToSave.id,
-        );
-        
-        const teacherData = {
-          ...userToSave,
-          role: 'teacher',
-        };
-        
-        if (existingTeacherIndex === -1) {
-          teachers.push(teacherData);
-          localStorage.setItem("school_teachers", JSON.stringify(teachers));
-          console.log("✅ Teacher saved to school_teachers");
-        } else {
-          teachers[existingTeacherIndex] = {
-            ...teachers[existingTeacherIndex],
-            ...teacherData,
-            lastLogin: new Date().toISOString(),
-          };
-          localStorage.setItem("school_teachers", JSON.stringify(teachers));
-          console.log("✅ Teacher updated in school_teachers");
-        }
-      }
-
-      // If parent, also save to school_parents
-      if (userToSave.role === "parent") {
-        const parents = JSON.parse(
-          localStorage.getItem("school_parents") || "[]",
-        );
-        const existingParentIndex = parents.findIndex(
-          (p) => p.id === userToSave.id,
-        );
-        
-        const parentData = {
-          ...userToSave,
-          role: 'parent',
-        };
-        
-        if (existingParentIndex === -1) {
-          parents.push(parentData);
-          localStorage.setItem("school_parents", JSON.stringify(parents));
-          console.log("✅ Parent saved to school_parents");
-        } else {
-          parents[existingParentIndex] = {
-            ...parents[existingParentIndex],
-            ...parentData,
-            lastLogin: new Date().toISOString(),
-          };
-          localStorage.setItem("school_parents", JSON.stringify(parents));
-          console.log("✅ Parent updated in school_parents");
-        }
-      }
-
-      // Save current session
-      localStorage.setItem("currentUser", JSON.stringify(userToSave));
-      localStorage.setItem("user", JSON.stringify(userToSave));
-      localStorage.setItem("role", userToSave.role);
-      localStorage.setItem("userId", userToSave.id);
-      localStorage.setItem("token", "demo-token-" + Date.now());
-      
-      // Also set in auth context format
-      localStorage.setItem("isLoggedIn", "true");
-
-      console.log("✅ User session saved:", userToSave);
-      return userToSave;
-    } catch (error) {
-      console.error("❌ Error saving user to storage:", error);
-      return null;
-    }
-  };
-
+  // ===== LOGIN SUBMISSION =====
   const onSubmit = async (data) => {
     setLoginSuccess(false);
     try {
-      console.log("🔐 Login attempt for:", data.email);
-      
-      // First try to find user in localStorage
-      const foundUser = findUser(data.email, data.password);
+      // Real login API only (MySQL-backed). No offline/mock fallback.
+      const result = await login(data);
+      if (result && result.success) {
+        setLoginSuccess(true);
+        notify(t("Login successful!"), "success");
 
-      if (foundUser) {
-        // Save user to storage and get session
-        const savedUser = saveUserToStorage(foundUser);
-        
-        if (savedUser) {
-          setLoginSuccess(true);
-          notify(t("Login successful!"), "success");
-
-          // Check for notifications
-          const notifications = JSON.parse(
-            localStorage.getItem("school_notifications") || "[]",
-          );
-          const unread = notifications.filter(
-            (n) =>
-              (n.recipientId === savedUser.id || n.recipientRole === savedUser.role) &&
-              !n.read,
-          );
-
-          if (unread.length > 0) {
-            setTimeout(() => {
-              notify(
-                isArabic
-                  ? `🔔 لديك ${unread.length} إشعارات غير مقروءة`
-                  : `🔔 You have ${unread.length} unread notifications`,
-                "info",
-              );
-            }, 1000);
-          }
-
-          // Redirect after delay
-          setTimeout(() => {
-            const role = savedUser.role || "admin";
-            const roleDashboards = {
-              admin: "/dashboard/admin",
-              teacher: "/dashboard/teacher",
-              parent: "/dashboard/parent",
-              student: "/dashboard/student",
-            };
-            const dashboard = roleDashboards[role] || "/dashboard/admin";
-            console.log(`🔄 Redirecting to: ${dashboard}`);
-            navigate(dashboard);
-          }, 1500);
-        } else {
-          notify(
-            isArabic ? "❌ فشل حفظ بيانات المستخدم" : "❌ Failed to save user data",
-            "error",
-          );
-          setLoginSuccess(false);
-        }
-      } else {
-        // Try the actual login API
-        const result = await login(data);
-        if (result && result.success) {
-          setLoginSuccess(true);
-          notify(t("Login successful!"), "success");
-          
-          setTimeout(() => {
-            const role = localStorage.getItem("role") || "admin";
-            const roleDashboards = {
-              admin: "/dashboard/admin",
-              teacher: "/dashboard/teacher",
-              parent: "/dashboard/parent",
-              student: "/dashboard/student",
-            };
-            navigate(roleDashboards[role] || "/dashboard/admin");
-          }, 1500);
-        } else {
-          const errorMsg =
-            result?.error || (isArabic ? "❌ فشل تسجيل الدخول" : "❌ Login failed");
-          notify(errorMsg, "error");
-          setLoginSuccess(false);
-        }
+        setTimeout(() => {
+          const currentRole = result.role || "admin";
+          const roleDashboards = {
+            admin: "/dashboard/admin",
+            teacher: "/dashboard/teacher",
+            parent: "/dashboard/parent",
+            student: "/dashboard/student",
+          };
+          navigate(roleDashboards[currentRole] || "/dashboard/admin");
+        }, 1500);
+        return;
       }
+
+      const errorMsg =
+        result?.error || (isArabic ? "❌ فشل تسجيل الدخول" : "❌ Login failed");
+      notify(errorMsg, "error");
+      setLoginSuccess(false);
     } catch (err) {
       console.error("Login error:", err);
       notify(

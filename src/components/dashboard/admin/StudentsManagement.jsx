@@ -69,7 +69,9 @@ import {
 import { useLanguage } from "../../../context/LanguageContext";
 import { useAuth } from "../../../hooks/useAuth";
 import { useNotification } from "../../../hooks/useNotification";
-import userDataService from "../../../services/userDataService";
+import api from '../../../services/api';
+import { syncGet, syncSend } from '../../../services/apiSync';
+import notificationService from '../../../services/notificationService';
 import { format, formatDistanceToNow, isValid } from "date-fns";
 import { ar, enUS } from "date-fns/locale";
 
@@ -216,104 +218,41 @@ const StudentsManagement = () => {
   // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
   // ===== SAVE USER TO STORAGE (for login) =====
   // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
-  const saveUserToStorage = (userData) => {
+  const saveUserToStorage = async (userData) => {
     try {
-      console.log("💾 Saving student user to storage:", userData);
-      
-      const userToSave = {
-        id: userData.id || `USR${String(Date.now()).slice(-6)}`,
-        name: userData.name || `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
-        firstName: userData.firstName || '',
-        lastName: userData.lastName || '',
-        email: userData.email || '',
+      const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+      const payload = {
+        name: fullName,
+        email: userData.email,
+        password: userData.password || 'student123',
+        role: 'student',
+        first_name: userData.firstName || '',
+        last_name: userData.lastName || '',
         phone: userData.phone || '',
         address: userData.address || '',
         city: userData.city || '',
-        dateOfBirth: userData.dateOfBirth || '',
-        gender: userData.gender || '',
-        nationality: userData.nationality || '',
-        role: 'student',
+        date_of_birth: userData.dateOfBirth || null,
+        gender: userData.gender || null,
+        nationality: userData.nationality || null,
         status: userData.status || 'active',
-        password: userData.password || 'student123',
-        classId: userData.classId || '',
-        class: userData.classId || '',
-        className: userData.className || '',
-        educationLevel: userData.educationLevel || '',
-        level: userData.educationLevel || '',
-        parentName: userData.parentName || '',
-        parentPhone: userData.parentPhone || '',
-        parentEmail: userData.parentEmail || '',
-        avatar: userData.avatar || userData.profilePhoto || '',
-        profilePhoto: userData.profilePhoto || userData.avatar || '',
-        lastLogin: null,
-        createdAt: userData.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        class_code: userData.classId || null,
+        level: userData.educationLevel || null,
+        parent_name: userData.parentName || null,
+        parent_phone: userData.parentPhone || null,
+        parent_email: userData.parentEmail || null,
       };
 
-      const users = JSON.parse(localStorage.getItem("school_users") || "[]");
-      const existingUserIndex = users.findIndex((u) => u.id === userToSave.id);
-      
-      if (existingUserIndex === -1) {
-        users.push(userToSave);
-        localStorage.setItem("school_users", JSON.stringify(users));
-        console.log("✅ Student saved to school_users for login");
+      if (userData._serverId) {
+        await syncSend('put', `/users/${userData._serverId}`, payload);
       } else {
-        users[existingUserIndex] = { ...users[existingUserIndex], ...userToSave };
-        localStorage.setItem("school_users", JSON.stringify(users));
-        console.log("✅ Student updated in school_users");
+        await syncSend('post', '/users', payload);
       }
 
-      const students = JSON.parse(localStorage.getItem("school_students") || "[]");
-      const existingStudentIndex = students.findIndex((s) => s.id === userToSave.id);
-      
-      const studentData = {
-        id: userToSave.id,
-        name: userToSave.name,
-        firstName: userToSave.firstName,
-        lastName: userToSave.lastName,
-        email: userToSave.email,
-        phone: userToSave.phone,
-        address: userToSave.address,
-        city: userToSave.city,
-        dateOfBirth: userToSave.dateOfBirth,
-        gender: userToSave.gender,
-        nationality: userToSave.nationality,
-        classId: userToSave.classId,
-        class: userToSave.classId,
-        className: userToSave.className,
-        educationLevel: userToSave.educationLevel,
-        level: userToSave.educationLevel,
-        parentName: userToSave.parentName,
-        parentPhone: userToSave.parentPhone,
-        parentEmail: userToSave.parentEmail,
-        status: userToSave.status,
-        password: userToSave.password,
-        avatar: userToSave.avatar,
-        profilePhoto: userToSave.profilePhoto,
-        createdAt: userToSave.createdAt,
-        updatedAt: userToSave.updatedAt,
-      };
-      
-      if (existingStudentIndex === -1) {
-        students.push(studentData);
-        localStorage.setItem("school_students", JSON.stringify(students));
-        console.log("✅ Student saved to school_students");
-      } else {
-        students[existingStudentIndex] = { ...students[existingStudentIndex], ...studentData };
-        localStorage.setItem("school_students", JSON.stringify(students));
-        console.log("✅ Student updated in school_students");
-      }
-
-      window.dispatchEvent(new CustomEvent('usersUpdated', { 
-        detail: { user: userToSave, action: 'save' }
-      }));
-      window.dispatchEvent(new CustomEvent('studentsUpdated', { 
-        detail: { student: studentData, action: 'save' }
-      }));
-
+      window.dispatchEvent(new CustomEvent('usersUpdated', { detail: { user: userData, action: 'save' } }));
+      window.dispatchEvent(new CustomEvent('studentsUpdated', { detail: { student: userData, action: 'save' } }));
       return true;
     } catch (error) {
-      console.error("❌ Error saving student user to storage:", error);
+      console.error("Error saving student user:", error);
       return false;
     }
   };
@@ -321,78 +260,42 @@ const StudentsManagement = () => {
   // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
   // ===== SEND NOTIFICATION TO TEACHER =====
   // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
-  const notifyTeacherAboutStudent = (studentName, className, teacherId, studentId) => {
+  const notifyTeacherAboutStudent = async (studentName, className, teacherId, studentId) => {
     try {
-      if (!teacherId) {
-        console.warn('⚠️ No teacher ID provided for notification');
-        return false;
-      }
-
-      const notifications = JSON.parse(localStorage.getItem('school_notifications') || '[]');
-      
-      const notification = {
-        id: `NOT${String(notifications.length + 1).padStart(3, '0')}`,
-        title: isArabic ? '👨‍🎓 طالب جديد تم تعيينه' : '👨‍🎓 New Student Assigned',
-        message: isArabic 
+      if (!teacherId) return false;
+      notificationService.create({
+        title: isArabic ? 'طالب جديد تم تعيينه' : 'New Student Assigned',
+        message: isArabic
           ? `تم تعيين الطالب ${studentName} إلى فصلك: ${className}`
           : `Student ${studentName} has been assigned to your class: ${className}`,
         type: 'student',
-        read: false,
         recipientId: teacherId,
         recipientRole: 'teacher',
         studentId: studentId,
         className: className,
         studentName: studentName,
-        createdAt: new Date().toISOString(),
-        time: new Date().toLocaleString(),
         link: '/dashboard/teacher/my-students',
-      };
-      
-      notifications.push(notification);
-      localStorage.setItem('school_notifications', JSON.stringify(notifications));
-      console.log(`🔔 Notification sent to teacher ${teacherId} about student ${studentName}`);
-      
-      window.dispatchEvent(new CustomEvent('notificationAdded', { detail: notification }));
-      window.dispatchEvent(new CustomEvent('studentAdded', { 
-        detail: { student: { name: studentName, id: studentId, class: className }, teacherId: teacherId }
-      }));
-      
+      });
       return true;
     } catch (error) {
-      console.error('❌ Error sending teacher notification:', error);
+      console.error('Error sending teacher notification:', error);
       return false;
     }
   };
 
-  // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
-  // ===== FIND TEACHER BY CLASS ID =====
-  // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
-  const findTeacherByClassId = (classId) => {
+  const findTeacherByClassId = async (classId) => {
     try {
-      const users = JSON.parse(localStorage.getItem('school_users') || '[]');
-      const teacher = users.find(u => 
-        u.role === 'teacher' && 
-        (u.assignedClasses || []).includes(classId)
-      );
-      return teacher || null;
+      const res = await syncGet('/users', { role: 'teacher' });
+      const rows = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.data) ? res.data.data : []);
+      return rows.find(u => (u.assignedClasses || []).includes(classId)) || null;
     } catch (error) {
-      console.error('Error finding teacher by class:', error);
       return null;
     }
   };
 
-  // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
-  // ===== GET CLASS NAME BY ID =====
-  // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
   const getClassNameById = (classId) => {
-    try {
-      const classes = JSON.parse(localStorage.getItem('school_classes') || '[]');
-      const classInfo = classes.find(c => c.id === classId);
-      return classInfo?.name || classId || 'Unknown Class';
-    } catch (error) {
-      console.error('Error getting class name:', error);
-      return 'Unknown Class';
-    }
+    const classInfo = classes.find(c => c.id === classId || c.code === classId || c.name === classId);
+    return classInfo?.name || classId || 'Unknown Class';
   };
 
   // ===== Check dark mode & mobile =====
@@ -421,46 +324,56 @@ const StudentsManagement = () => {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // ===== LOAD CLASSES FROM STORAGE (with debug logging) =====
-  const loadClassesFromStorage = () => {
+  const loadClassesFromStorage = async () => {
     try {
-      const classesData = JSON.parse(localStorage.getItem("school_classes") || "[]");
-      console.log("📚 Classes from localStorage:", classesData);
-      console.log("📚 Number of classes found:", classesData.length);
-      
-      if (classesData.length > 0) {
-        setClasses(classesData);
+      const res = await syncGet('/classes');
+      const rows = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.data) ? res.data.data : []);
+      if (rows.length > 0) {
+        setClasses(rows);
         return true;
-      } else {
-        console.warn("⚠️ No classes found in localStorage under key 'school_classes'");
-        console.warn("⚠️ Please make sure you have created classes in the system.");
-        return false;
       }
+      return false;
     } catch (err) {
-      console.error("❌ Could not load classes from localStorage:", err);
       return false;
     }
   };
 
   // ===== LOAD STUDENTS =====
-  const loadStudents = () => {
+  const loadStudents = async () => {
     setLoading(true);
     try {
-      let studentsData = JSON.parse(localStorage.getItem("school_students") || "[]");
+      const res = await syncGet('/students');
+      let studentsData = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.data) ? res.data.data : []);
       
-      if (studentsData.length === 0) {
-        const users = JSON.parse(localStorage.getItem("school_users") || "[]");
-        studentsData = users.filter(u => u.role === 'student');
+      const classesRes = await syncGet('/classes');
+      const classesData = Array.isArray(classesRes?.data) ? classesRes.data : (Array.isArray(classesRes?.data?.data) ? classesRes.data.data : []);
+      
+      let paidSet = new Set();
+      try {
+        const payRes = await syncGet('/payments');
+        const payRows = Array.isArray(payRes?.data) ? payRes.data : [];
+        payRows
+          .filter((p) => p.status === 'approved' || p.status === 'paid')
+          .forEach((p) => {
+            if (p.student_id != null) paidSet.add(`userId:${p.student_id}`);
+            if (p.student_code) paidSet.add(`code:${String(p.student_code).toLowerCase()}`);
+            if (p.student_name) paidSet.add(`name:${String(p.student_name).toLowerCase()}`);
+          });
+      } catch (e) {
+        console.error('Error loading paid payments:', e);
       }
       
-      const classesData = JSON.parse(localStorage.getItem("school_classes") || "[]");
-      
       const enrichedStudents = studentsData.map(student => {
-        const classInfo = classesData.find(c => c.id === student.classId || c.id === student.class);
+        const classInfo = classesData.find(c => c.id === student.classId || c.code === student.classId || c.id === student.class || c.code === student.class || c.name === student.className);
+        const isPaid =
+          (student.userId != null && paidSet.has(`userId:${student.userId}`)) ||
+          (student.code && paidSet.has(`code:${String(student.code).toLowerCase()}`)) ||
+          (student.name && paidSet.has(`name:${String(student.name).toLowerCase()}`));
         return {
           ...student,
           className: classInfo?.name || student.className || student.class || 'N/A',
-          classLevel: classInfo?.level || student.educationLevel || student.level || 'N/A',
+          classLevel: classInfo?.level || classInfo?.level_key || student.educationLevel || student.level || 'N/A',
+          isPaid,
         };
       });
       
@@ -524,23 +437,15 @@ const StudentsManagement = () => {
   useEffect(() => {
     loadStudents();
 
-    const handleStorageChange = (e) => {
-      if (e.key === "school_students" || e.key === "school_users" || e.key === "school_classes") {
-        console.log("🔄 Storage changed, refreshing students");
-        loadStudents();
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-
     const handleStudentsUpdated = () => {
-      console.log("📚 Students updated, refreshing");
       loadStudents();
     };
     window.addEventListener("studentsUpdated", handleStudentsUpdated);
+    window.addEventListener("usersUpdated", handleStudentsUpdated);
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("studentsUpdated", handleStudentsUpdated);
+      window.removeEventListener("usersUpdated", handleStudentsUpdated);
     };
   }, []);
 
@@ -577,8 +482,15 @@ const StudentsManagement = () => {
     setProcessingAction(true);
     try {
       const fullName = `${formData.firstName} ${formData.lastName}`.trim();
-      const className = getClassNameById(formData.classId);
-      const userId = `STU${String(Date.now()).slice(-6)}`;
+      const className = await getClassNameById(formData.classId);
+      const year = new Date().getFullYear();
+      const levelLetter = (formData.educationLevel || '').charAt(0).toUpperCase() || 'S';
+      const studentPrefix = `alfath/stu/${year}/${levelLetter}`;
+      const existingSerials = students
+        .map((s) => String(s.id || ""))
+        .filter((id) => id.startsWith(studentPrefix))
+        .map((id) => parseInt((id.split("/").pop() || "").replace(/^[A-Za-z]/, ""), 10) || 0);
+      const userId = `${studentPrefix}${(existingSerials.length ? Math.max(...existingSerials) : 0) + 1}`;
       
       const studentData = {
         id: userId,
@@ -609,33 +521,18 @@ const StudentsManagement = () => {
         updatedAt: new Date().toISOString(),
       };
 
-      const saved = saveUserToStorage(studentData);
+      const saved = await saveUserToStorage(studentData);
       
       if (saved) {
-        const teacher = findTeacherByClassId(formData.classId);
+        const teacher = await findTeacherByClassId(formData.classId);
         if (teacher) {
           notifyTeacherAboutStudent(fullName, className, teacher.id, userId);
-        }
-
-        try {
-          const classes = JSON.parse(localStorage.getItem("school_classes") || "[]");
-          const classIndex = classes.findIndex(c => c.id === formData.classId);
-          if (classIndex !== -1) {
-            classes[classIndex].students = (classes[classIndex].students || 0) + 1;
-            localStorage.setItem("school_classes", JSON.stringify(classes));
-          }
-        } catch (e) {
-          console.warn("Could not update class student count:", e);
         }
 
         notify(
           isArabic ? "تم إضافة الطالب بنجاح" : "Student added successfully",
           "success"
         );
-
-        window.dispatchEvent(new CustomEvent("studentsUpdated", {
-          detail: { student: studentData, action: "add" }
-        }));
 
         setShowAddModal(false);
         resetFormData();
@@ -647,7 +544,7 @@ const StudentsManagement = () => {
         );
       }
     } catch (error) {
-      console.error("❌ Error saving student:", error);
+      console.error("Error saving student:", error);
       notify(
         isArabic ? "حدث خطأ أثناء حفظ الطالب" : "Error saving student",
         "error"
@@ -718,7 +615,7 @@ const StudentsManagement = () => {
     setProcessingAction(true);
     try {
       const fullName = `${editFormData.firstName} ${editFormData.lastName}`.trim();
-      const className = getClassNameById(editFormData.classId);
+      const className = await getClassNameById(editFormData.classId);
       
       const updatedStudent = {
         ...selectedStudent,
@@ -750,7 +647,7 @@ const StudentsManagement = () => {
         updatedStudent.password = editFormData.password;
       }
 
-      const saved = saveUserToStorage(updatedStudent);
+      const saved = await saveUserToStorage(updatedStudent);
       
       if (saved) {
         notify(
@@ -785,35 +682,15 @@ const StudentsManagement = () => {
   const handleDeleteStudent = async () => {
     setProcessingAction(true);
     try {
-      let studentsList = JSON.parse(localStorage.getItem("school_students") || "[]");
-      studentsList = studentsList.filter(s => s.id !== selectedStudent.id);
-      localStorage.setItem("school_students", JSON.stringify(studentsList));
-
-      let users = JSON.parse(localStorage.getItem("school_users") || "[]");
-      users = users.filter(u => u.id !== selectedStudent.id);
-      localStorage.setItem("school_users", JSON.stringify(users));
-
-      if (selectedStudent.classId) {
-        try {
-          const classes = JSON.parse(localStorage.getItem("school_classes") || "[]");
-          const classIndex = classes.findIndex(c => c.id === selectedStudent.classId);
-          if (classIndex !== -1) {
-            classes[classIndex].students = Math.max(0, (classes[classIndex].students || 0) - 1);
-            localStorage.setItem("school_classes", JSON.stringify(classes));
-          }
-        } catch (e) {
-          console.warn("Could not update class student count:", e);
-        }
+      const serverId = selectedStudent._serverId || selectedStudent.id;
+      if (serverId) {
+        await syncSend('delete', `/users/${serverId}`);
       }
 
       notify(
         isArabic ? "تم حذف الطالب بنجاح" : "Student deleted successfully",
         "success"
       );
-
-      window.dispatchEvent(new CustomEvent("studentsUpdated", {
-        detail: { student: selectedStudent, action: "delete" }
-      }));
 
       setShowDeleteConfirm(false);
       loadStudents();
@@ -829,23 +706,10 @@ const StudentsManagement = () => {
   };
 
   // ===== HANDLE TOGGLE STATUS =====
-  const handleToggleStatus = (studentId, currentStatus) => {
+  const handleToggleStatus = async (studentId, currentStatus) => {
     const newStatus = currentStatus === "active" ? "inactive" : "active";
     try {
-      let studentsList = JSON.parse(localStorage.getItem("school_students") || "[]");
-      const index = studentsList.findIndex(s => s.id === studentId);
-      if (index !== -1) {
-        studentsList[index].status = newStatus;
-        localStorage.setItem("school_students", JSON.stringify(studentsList));
-      }
-
-      let users = JSON.parse(localStorage.getItem("school_users") || "[]");
-      const userIndex = users.findIndex(u => u.id === studentId);
-      if (userIndex !== -1) {
-        users[userIndex].status = newStatus;
-        localStorage.setItem("school_users", JSON.stringify(users));
-      }
-
+      await syncSend('put', `/users/${studentId}`, { status: newStatus });
       notify(
         isArabic
           ? `تم ${newStatus === "active" ? "تفعيل" : "تعطيل"} الطالب بنجاح`
@@ -1312,9 +1176,18 @@ const StudentsManagement = () => {
                           </Badge>
                         </td>
                         <td>
-                          <Badge bg={getStatusBadge(student.status)} style={{ borderRadius: "8px" }}>
-                            {getStatusLabel(student.status)}
-                          </Badge>
+                          <div className="d-flex gap-1 align-items-center">
+                            <Badge bg={getStatusBadge(student.status)} style={{ borderRadius: "8px" }}>
+                              {getStatusLabel(student.status)}
+                            </Badge>
+                            {student.isPaid && (
+                              <Badge bg="success" style={{ borderRadius: "8px" }}
+                                title={isArabic ? "قام بسداد الدفعة" : "Has paid"}>
+                                <FaCheckCircle size={10} className="me-1" />
+                                {isArabic ? "مدفوع" : "Paid"}
+                              </Badge>
+                            )}
+                          </div>
                         </td>
                         <td>
                           <div className="d-flex gap-1 justify-content-center flex-wrap">
@@ -1590,45 +1463,17 @@ const StudentsManagement = () => {
                   >
                     <option value="">{isArabic ? "اختر الفصل" : "Select Class"}</option>
                     {(() => {
-                      // Try state first, then localStorage, then try other possible keys
-                      let classList = classes.length > 0 ? classes : [];
-                      
-                      if (classList.length === 0) {
-                        try {
-                          // Try "school_classes"
-                          const fromStorage = JSON.parse(localStorage.getItem("school_classes") || "[]");
-                          if (fromStorage.length > 0) {
-                            classList = fromStorage;
-                            console.log("✅ Loaded classes from localStorage for dropdown:", classList.length);
-                          } else {
-                            // Try "classes" (alternative key)
-                            const altStorage = JSON.parse(localStorage.getItem("classes") || "[]");
-                            if (altStorage.length > 0) {
-                              classList = altStorage;
-                              console.log("✅ Loaded classes from 'classes' key:", classList.length);
-                            }
-                          }
-                        } catch (e) {
-                          console.warn("Error reading classes from localStorage:", e);
-                        }
-                      }
-                      
+                      const classList = classes.length > 0 ? classes : [];
                       return classList.map((cls) => (
-                        <option key={cls.id} value={cls.id}>
+                        <option key={cls.id || cls.code} value={cls.id || cls.code}>
                           {cls.name} {cls.level ? `(${getLevelDisplay(cls.level)})` : ""}
                         </option>
                       ));
                     })()}
                   </Form.Select>
                   {(() => {
-                    // Show a helpful message if no classes exist
-                    const hasClasses = (() => {
-                      try {
-                        const fromStorage = JSON.parse(localStorage.getItem("school_classes") || "[]");
-                        return fromStorage.length > 0;
-                      } catch { return false; }
-                    })();
-                    if (!hasClasses && classes.length === 0) {
+                    const hasClasses = classes.length > 0;
+                    if (!hasClasses) {
                       return (
                         <Form.Text className="text-warning" style={arabicFontStyle}>
                           ⚠️ {isArabic ? "لا توجد فصول. يرجى إنشاء فصل أولاً." : "No classes found. Please create a class first."}
@@ -2242,16 +2087,11 @@ const StudentsManagement = () => {
                     }}
                   >
                     <option value="">{isArabic ? "اختر الفصل" : "Select Class"}</option>
-                    {(() => {
-                      const classList = classes.length > 0 
-                        ? classes 
-                        : JSON.parse(localStorage.getItem("school_classes") || "[]");
-                      return classList.map((cls) => (
-                        <option key={cls.id} value={cls.id}>
+                    {classes.map((cls) => (
+                        <option key={cls.id || cls.code} value={cls.id || cls.code}>
                           {cls.name}
                         </option>
-                      ));
-                    })()}
+                    ))}
                   </Form.Select>
                 </Form.Group>
               </Col>

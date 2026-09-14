@@ -1,6 +1,6 @@
 // src/utils/constants.js
 
-// Storage Keys for localStorage
+// Persistence keys used by in-memory service caches (data itself lives in MySQL)
 export const STORAGE_KEYS = {
   USERS: 'school_users',
   STUDENTS: 'school_students',
@@ -9,6 +9,7 @@ export const STORAGE_KEYS = {
   TEACHERS: 'school_teachers',
   ASSESSMENTS: 'school_assessments',
   GRADES: 'school_grades',
+  SUBMISSIONS: 'school_submissions',
   ATTENDANCE: 'school_attendance',
   NOTIFICATIONS: 'school_notifications',
   TEACHER_ASSIGNMENTS: 'teacher_assignments',
@@ -73,7 +74,6 @@ export const GRADING_SCALE = {
 
 // User Roles
 export const USER_ROLES = {
-  DIRECTOR: 'director',
   ADMIN: 'admin',
   TEACHER: 'teacher',
   PARENT: 'parent',

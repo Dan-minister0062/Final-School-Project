@@ -76,7 +76,8 @@ const AcceptInvite = () => {
     try {
       const response = await api.post('/auth/set-password', {
         token,
-        password
+        password,
+        password_confirmation: confirmPassword,
       });
 
       if (response.data.success) {

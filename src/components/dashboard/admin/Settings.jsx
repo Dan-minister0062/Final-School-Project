@@ -3,7 +3,7 @@ import { Container, Row, Col, Card, Form, Button } from 'react-bootstrap';
 import { FaSave, FaSchool, FaCalendarAlt, FaCog, FaExclamationTriangle } from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
-import api from '../../../services/api';
+import { syncGet, syncSend } from '../../../services/apiSync';
 
 // ===== SETTINGS COMPONENT WITH SAVE FUNCTIONALITY =====
 const Settings = () => {
@@ -36,19 +36,12 @@ const Settings = () => {
 
   // Load settings from MySQL through the API on mount
   useEffect(() => {
-    try {
-      const token = localStorage.getItem('token');
-      if (token && !token.startsWith('demo-')) {
-        api.get('/settings').then((res) => {
-          const data = res.data?.data;
-          if (data && typeof data === 'object') {
-            setSettings(prev => ({ ...prev, ...data }));
-          }
-        }).catch(() => {});
+    syncGet('/settings').then((res) => {
+      const data = res?.data;
+      if (data && typeof data === 'object') {
+        setSettings(prev => ({ ...prev, ...data }));
       }
-    } catch (e) {
-      console.error('Error loading settings:', e);
-    }
+    });
   }, []);
 
   const handleChange = (e) => {
@@ -61,19 +54,25 @@ const Settings = () => {
 
   const handleSave = () => {
     setLoading(true);
-    api.post('/settings', { settings })
-      .then(() => {
+    syncSend('post', '/settings', { settings })
+      .then((res) => {
         setLoading(false);
-        notify(
-          isArabic ? 'تم حفظ الإعدادات بنجاح' : 'Settings saved successfully',
-          'success'
-        );
+        if (res?.message) {
+          notify(
+            isArabic ? 'تم حفظ الإعدادات بنجاح' : 'Settings saved successfully',
+            'success'
+          );
+        } else {
+          notify(
+            isArabic ? 'تم حفظ الإعدادات بنجاح' : 'Settings saved successfully',
+            'success'
+          );
+        }
       })
-      .catch((error) => {
+      .catch(() => {
         setLoading(false);
         notify(
-          error.response?.data?.message ||
-            (isArabic ? 'فشل حفظ الإعدادات' : 'Failed to save settings'),
+          isArabic ? 'فشل حفظ الإعدادات' : 'Failed to save settings',
           'error'
         );
       });
@@ -97,8 +96,7 @@ const Settings = () => {
         maintenanceMode: false,
       };
       setSettings(defaults);
-      // Persist the defaults back to MySQL
-      api.post('/settings', { settings: defaults }).catch(() => {});
+      syncSend('post', '/settings', { settings: defaults });
       notify(
         isArabic ? 'تم إعادة تعيين الإعدادات' : 'Settings reset successfully',
         'info'

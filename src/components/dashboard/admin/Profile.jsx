@@ -137,10 +137,7 @@ const Profile = () => {
       setProfileImage(tempImage);
 
       try {
-        const token = localStorage.getItem('token');
-        if (token && !token.startsWith('demo-')) {
-          api.put('/profile', { avatar: tempImage }).catch(() => {});
-        }
+        api.put('/profile', { avatar: tempImage }).catch(() => {});
       } catch (e) {
         console.error('Error saving avatar:', e);
       }
@@ -173,10 +170,7 @@ const Profile = () => {
       fileInputRef.current.value = '';
     }
     try {
-      const token = localStorage.getItem('token');
-      if (token && !token.startsWith('demo-')) {
-        api.put('/profile', { avatar: null }).catch(() => {});
-      }
+      api.put('/profile', { avatar: null }).catch(() => {});
     } catch (e) {
       console.error('Error removing avatar:', e);
     }
@@ -213,23 +207,19 @@ const Profile = () => {
       saveProfileImage();
     }
 
-    // Persist profile fields on the users table via the API
     try {
-      const token = localStorage.getItem('token');
-      if (token && !token.startsWith('demo-')) {
-        api.put('/profile', {
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
-          address: formData.address,
-        }).catch(() => {});
-      }
+      api.put('/profile', {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+      }).then((res) => {
+        if (res?.data?.user && handleProfileUpdate) {
+          handleProfileUpdate(res.data.user);
+        }
+      }).catch(() => {});
     } catch (e) {
       console.error('Error saving profile:', e);
-    }
-
-    if (handleProfileUpdate) {
-      handleProfileUpdate(formData);
     }
     setIsEditing(false);
     

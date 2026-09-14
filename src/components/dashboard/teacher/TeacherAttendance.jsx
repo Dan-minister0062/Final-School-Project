@@ -1,6 +1,6 @@
 // src/components/dashboard/teacher/TeacherAttendance.jsx
-import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Form, Button, Badge, Table, Alert, ProgressBar } from 'react-bootstrap';
+import React, { useState, useEffect, useRef } from 'react';
+import { Card, Row, Col, Form, Button, Badge, Table, Alert } from 'react-bootstrap';
 import { 
   FaSave, 
   FaUndo, 
@@ -22,6 +22,8 @@ import {
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
 import { teacherService } from '../../../services/teacherService';
+import { syncGet, syncSend } from '../../../services/apiSync';
+import notificationService from '../../../services/notificationService';
 
 // ===== ALWAYS use English numbers =====
 const formatNumber = (num) => {
@@ -47,6 +49,7 @@ const TeacherAttendance = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState([]);
   const [teacher, setTeacher] = useState(null);
+  const rosterRef = useRef([]);
   const [attendanceStats, setAttendanceStats] = useState({
     present: 0,
     absent: 0,
@@ -91,7 +94,7 @@ const TeacherAttendance = () => {
   }, []);
 
   // ===== LOAD DATA =====
-  const loadData = () => {
+  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -110,10 +113,28 @@ const TeacherAttendance = () => {
       
       setTeacher(currentTeacher);
       
-      // Get assigned classes
-      const assignedClasses = teacherService.getAssignedClasses(currentTeacher.id);
-      console.log('📚 Assigned classes:', assignedClasses.length);
-      setClasses(assignedClasses);
+      // Get assigned classes & student roster (MySQL via /api/classes, /api/students)
+      const [classesRes, studentsRes] = await Promise.all([
+        syncGet('/classes'),
+        syncGet('/students'),
+      ]);
+      const allClasses = Array.isArray(classesRes?.data) ? classesRes.data : [];
+      const studentRows = Array.isArray(studentsRes?.data) ? studentsRes.data : [];
+
+      const assignedList = Array.isArray(currentTeacher.assignedClasses)
+        ? currentTeacher.assignedClasses
+        : (Array.isArray(currentTeacher.assigned_classes) ? currentTeacher.assigned_classes : []);
+      const assignedClassIds = new Set(
+        assignedList.map(c => (typeof c === 'object' ? (c.id ?? c.code) : c)).map(String)
+      );
+
+      const assignedClasses = allClasses.filter(c => assignedClassIds.has(String(c.id ?? c.code)));
+      setClasses(assignedClasses.length > 0 ? assignedClasses : allClasses);
+      rosterRef.current = studentRows;
+
+      if (assignedClasses.length > 0 && !selectedClass) {
+        setSelectedClass(assignedClasses[0].id ?? assignedClasses[0].code);
+      }
       
       setLoading(false);
     } catch (err) {
@@ -124,7 +145,7 @@ const TeacherAttendance = () => {
   };
 
   // ===== LOAD ATTENDANCE =====
-  const loadAttendance = () => {
+  const loadAttendance = async () => {
     if (!selectedClass) {
       setError(isArabic ? 'الرجاء اختيار فصل أولاً' : 'Please select a class first');
       return;
@@ -136,30 +157,44 @@ const TeacherAttendance = () => {
       
       console.log(`📚 Loading attendance for class: ${selectedClass} on ${selectedDate}`);
       
-      // Get students for the selected class
-      const allStudents = JSON.parse(localStorage.getItem('school_students') || '[]');
+      // Get students for the selected class from the roster (MySQL via /api/students)
+      const allStudents = rosterRef.current || [];
       console.log(`📚 All students: ${allStudents.length}`);
-      
-      const classStudents = allStudents.filter(s => 
-        s.classId === selectedClass || s.class === selectedClass || s.class_name === selectedClass
+
+      // Students may store either the class code or the class name in
+      // students.class_code, so match the selected class by id, code and name.
+      const selectedClassRow = classes.find(c =>
+        String(c.id) === String(selectedClass) || String(c.code) === String(selectedClass)
+      );
+      const classKeys = new Set([String(selectedClass), String(selectedClassRow?.id), String(selectedClassRow?.code), String(selectedClassRow?.name)].filter(v => v && v !== 'undefined' && v !== 'null'));
+
+      const classStudents = allStudents.filter(s =>
+        classKeys.has(String(s.class_code)) ||
+        classKeys.has(String(s.classId)) ||
+        classKeys.has(String(s.className))
       );
       console.log(`📚 Students in class: ${classStudents.length}`);
       
       setStudents(classStudents);
 
-      // Get existing attendance record for this specific date
-      const attendanceRecords = JSON.parse(localStorage.getItem('school_attendance') || '[]');
-      const existingRecord = attendanceRecords.find(
-        r => r.classId === selectedClass && r.date === selectedDate
-      );
+      // Get existing attendance for this specific date (MySQL via /api/attendance)
+      const dayRes = await syncGet('/attendance', { class_code: selectedClass, date: selectedDate });
+      const dayRows = Array.isArray(dayRes?.data) ? dayRes.data : [];
       
-      if (existingRecord && existingRecord.students) {
-        setAttendanceData(existingRecord.students);
-        updateStats(existingRecord.students);
+      if (dayRows.length > 0) {
+        const serverStudents = dayRows.map(a => ({
+          studentId: a.studentId != null ? a.studentId : (a.studentCode ?? null),
+          studentName: a.studentName || 'Unknown',
+          status: a.status || 'present',
+          remarks: a.remarks || '',
+          _serverId: a._serverId,
+        }));
+        setAttendanceData(serverStudents);
+        updateStats(serverStudents);
       } else {
-        // Create new attendance record for this date
+        // Create new attendance list for this date, defaulting to present
         const initialAttendance = classStudents.map(student => ({
-          studentId: student.id,
+          studentId: student.userId != null ? student.userId : student.id,
           studentName: student.name || student.firstName || 'Unknown',
           status: 'present'
         }));
@@ -167,16 +202,21 @@ const TeacherAttendance = () => {
         updateStats(initialAttendance);
       }
       
-      // Calculate overall stats
-      const overallStats = getOverallAttendanceStats();
-      setAttendanceStats(prev => ({
-        ...prev,
-        overallPresent: overallStats.present,
-        overallAbsent: overallStats.absent,
-        overallLate: overallStats.late,
-        overallExcused: overallStats.excused,
-        overallTotalDays: overallStats.totalDays,
-      }));
+      // Calculate overall class stats (MySQL via /api/attendance)
+      try {
+        const overallRes = await syncGet('/attendance', { class_code: selectedClass });
+        const overall = getOverallAttendanceStats(Array.isArray(overallRes?.data) ? overallRes.data : []);
+        setAttendanceStats(prev => ({
+          ...prev,
+          overallPresent: overall.overallPresent,
+          overallAbsent: overall.overallAbsent,
+          overallLate: overall.overallLate,
+          overallExcused: overall.overallExcused,
+          overallTotalDays: overall.overallTotalDays,
+        }));
+      } catch (e) {
+        console.warn('Overall stats fetch failed:', e);
+      }
       
       setLoading(false);
     } catch (err) {
@@ -199,56 +239,75 @@ const TeacherAttendance = () => {
   };
 
   // ===== CALCULATE OVERALL ATTENDANCE STATS =====
-  const getOverallAttendanceStats = () => {
-    try {
-      const allRecords = JSON.parse(localStorage.getItem('school_attendance') || '[]');
-      const classRecords = allRecords.filter(r => r.classId === selectedClass);
-      
-      if (classRecords.length === 0) {
-        return { totalDays: 0, present: 0, absent: 0, late: 0, excused: 0 };
-      }
+  const getOverallAttendanceStats = (records = []) => {
+    if (records.length === 0) {
+      return { overallPresent: 0, overallAbsent: 0, overallLate: 0, overallExcused: 0, overallTotalDays: 0 };
+    }
       
       let present = 0;
       let absent = 0;
       let late = 0;
       let excused = 0;
       
-      classRecords.forEach(record => {
-        record.students.forEach(student => {
-          switch (student.status) {
-            case 'present':
-              present++;
-              break;
-            case 'absent':
-              absent++;
-              break;
-            case 'late':
-              late++;
-              break;
-            case 'excused':
-              excused++;
-              break;
-            default:
-              break;
-          }
-        });
+      records.forEach(student => {
+        switch (student.status) {
+          case 'present':
+            present++;
+            break;
+          case 'absent':
+            absent++;
+            break;
+          case 'late':
+            late++;
+            break;
+          case 'excused':
+            excused++;
+            break;
+          default:
+            break;
+        }
       });
       
-      return { totalDays: classRecords.length, present, absent, late, excused };
-    } catch (err) {
-      console.error('Error calculating overall stats:', err);
-      return { totalDays: 0, present: 0, absent: 0, late: 0, excused: 0 };
-    }
+      const totalDays = new Set(records.map(r => r.date)).size;
+      return { overallPresent: present, overallAbsent: absent, overallLate: late, overallExcused: excused, overallTotalDays: totalDays };
   };
 
   // ===== LOAD HISTORY =====
-  const loadHistory = () => {
+  const loadHistory = async () => {
     try {
-      const attendanceRecords = JSON.parse(localStorage.getItem('school_attendance') || '[]');
-      let filteredHistory = attendanceRecords;
+      let filteredHistory = [];
       
-      if (selectedClass) {
-        filteredHistory = filteredHistory.filter(r => r.classId === selectedClass);
+      // Merge server-backed history (MySQL via /api/attendance)
+      try {
+        const res = await syncGet('/attendance', selectedClass ? { class_code: selectedClass } : {});
+        if (Array.isArray(res?.data) && res.data.length > 0) {
+          const grouped = {};
+          res.data.forEach((a) => {
+            const key = a.date;
+            if (!grouped[key]) {
+              grouped[key] = {
+                classId: a.classId,
+                class_code: a.classCode,
+                date: a.date,
+                students: [],
+                teacherId: a.teacherId,
+                updatedAt: a.updatedAt,
+                createdAt: a.createdAt,
+                source: 'server',
+              };
+            }
+            grouped[key].students.push({
+              studentId: a.studentId != null ? a.studentId : (a.studentCode ?? null),
+              studentName: a.studentName,
+              status: a.status,
+              remarks: a.remarks,
+              _serverId: a._serverId,
+            });
+          });
+          filteredHistory = Object.values(grouped);
+        }
+      } catch (e) {
+        console.warn('Server history fetch failed:', e);
       }
       
       // Sort by date (newest first)
@@ -299,7 +358,7 @@ const TeacherAttendance = () => {
   };
 
   // ===== HANDLE SAVE ATTENDANCE =====
-  const handleSaveAttendance = () => {
+  const handleSaveAttendance = async () => {
     try {
       setSaving(true);
       setError(null);
@@ -310,43 +369,30 @@ const TeacherAttendance = () => {
         return;
       }
 
-      // Get existing attendance records
-      let attendanceRecords = JSON.parse(localStorage.getItem('school_attendance') || '[]');
-      
-      // Check if a record exists for this class and date
-      const existingIndex = attendanceRecords.findIndex(
-        r => r.classId === selectedClass && r.date === selectedDate
-      );
-      
-      const record = {
-        classId: selectedClass,
-        date: selectedDate,
-        students: attendanceData.map(s => ({
-          studentId: s.studentId,
-          studentName: s.studentName,
-          status: s.status
-        })),
-        teacherId: teacher?.id,
-        teacherName: teacher?.name || teacher?.firstName || 'Unknown',
-        updatedAt: new Date().toISOString(),
-      };
-      
-      if (existingIndex !== -1) {
-        // Update existing record - this OVERWRITES the attendance for that day
-        attendanceRecords[existingIndex] = { 
-          ...attendanceRecords[existingIndex], 
-          ...record,
-          createdAt: attendanceRecords[existingIndex].createdAt || new Date().toISOString(),
-        };
-        console.log(`✅ Updated attendance for ${selectedDate}`);
-      } else {
-        // Create new record - this ADDS a new day's attendance
-        record.createdAt = new Date().toISOString();
-        attendanceRecords.push(record);
-        console.log(`✅ Created new attendance for ${selectedDate}`);
+      // Persist the day's batch to MySQL (replace-if-exists semantics on server)
+      try {
+        const res = await syncSend('post', '/attendance', {
+          class_code: selectedClass,
+          date: selectedDate,
+          teacher_id: teacher?.id,
+          students: attendanceData.map(s => ({
+            student_id: s.studentId,
+            student_name: s.studentName,
+            status: s.status,
+          })),
+        });
+        if (res?.data) {
+          const byStudent = {};
+          res.data.forEach((a) => { byStudent[String(a.studentId ?? a.studentCode)] = a._serverId; });
+          const updatedData = attendanceData.map(s => ({
+            ...s,
+            _serverId: byStudent[String(s.studentId)] || s._serverId,
+          }));
+          setAttendanceData(updatedData);
+        }
+      } catch (e) {
+        console.warn('Server attendance save failed:', e);
       }
-      
-      localStorage.setItem('school_attendance', JSON.stringify(attendanceRecords));
       
       // Calculate stats for this day
       const presentCount = attendanceData.filter(a => a.status === 'present').length;
@@ -388,59 +434,41 @@ const TeacherAttendance = () => {
   // ===== SEND ATTENDANCE NOTIFICATION =====
   const sendAttendanceNotification = (classId, present, total) => {
     try {
-      const className = classes.find(c => c.id === classId)?.name || 'Unknown';
-      const notifications = JSON.parse(localStorage.getItem('school_notifications') || '[]');
+      const className = classes.find(c => String(c.id ?? c.code) === String(classId))?.name || 'Unknown';
       
       // Find parents of absent/late students
       const absentStudents = attendanceData
         .filter(a => a.status === 'absent' || a.status === 'late')
-        .map(a => {
-          const student = students.find(s => s.id === a.studentId);
-          return student?.parentId || student?.parent;
-        })
+        .map(a => students.find(s => String(s.userId ?? s.id) === String(a.studentId)))
         .filter(Boolean);
       
-      // Send notification to teacher
-      const notification = {
-        id: `NOT${String(notifications.length + 1).padStart(3, '0')}`,
-        title: '📊 Attendance Recorded',
-        message: `Attendance for ${className} on ${selectedDate}: ${present}/${total} students present`,
+      // Send notification to teacher (personal, MySQL via /api/notifications)
+      notificationService.addNotification({
+        title: isArabic ? '📊 تم تسجيل الحضور' : '📊 Attendance Recorded',
+        message: isArabic
+          ? `تم تسجيل حضور ${className} في ${selectedDate}: ${present}/${total} طالب`
+          : `Attendance for ${className} on ${selectedDate}: ${present}/${total} students present`,
         type: 'attendance',
-        read: false,
-        recipientRole: 'teacher',
-        recipientId: teacher?.id,
-        createdAt: new Date().toISOString(),
-        time: new Date().toLocaleString(),
         link: '/dashboard/teacher/attendance',
-      };
-      notifications.push(notification);
-      
-      // Send notifications to parents of absent/late students
-      absentStudents.forEach(parentId => {
-        const student = students.find(s => s.parentId === parentId || s.parent === parentId);
-        if (student) {
-          const status = attendanceData.find(a => a.studentId === student.id)?.status || 'absent';
-          const parentNotification = {
-            id: `NOT${String(notifications.length + 1).padStart(3, '0')}`,
-            title: '📊 Student Attendance Alert',
-            message: `Your child ${student.name || student.firstName || 'Unknown'} was ${getStatusLabel(status)} on ${selectedDate}`,
-            type: 'attendance',
-            read: false,
-            recipientRole: 'parent',
-            recipientId: parentId,
-            studentId: student.id,
-            createdAt: new Date().toISOString(),
-            time: new Date().toLocaleString(),
-            link: '/dashboard/parent/child-results',
-          };
-          notifications.push(parentNotification);
-        }
+        metadata: { classId, date: selectedDate, present, total },
+        audience: 'teachers',
+        recipientId: teacher?.id,
       });
       
-      localStorage.setItem('school_notifications', JSON.stringify(notifications));
-      
-      // Dispatch events
-      window.dispatchEvent(new CustomEvent('notificationAdded'));
+      // Send notifications to parents of absent/late students (broadcast to parents)
+      absentStudents.forEach(student => {
+        const status = attendanceData.find(a => String(a.studentId) === String(student.userId ?? student.id))?.status || 'absent';
+        notificationService.addNotification({
+          title: '📊 Student Attendance Alert',
+          message: isArabic
+            ? `طفلك ${student.name || student.firstName || 'Unknown'} كان ${getStatusLabel(status)} في ${selectedDate}`
+            : `Your child ${student.name || student.firstName || 'Unknown'} was ${getStatusLabel(status)} on ${selectedDate}`,
+          type: 'attendance',
+          link: '/dashboard/parent/child-results',
+          metadata: { classId, date: selectedDate, studentId: student.userId ?? student.id },
+          audience: 'parents',
+        });
+      });
       
     } catch (err) {
       console.error('Error sending attendance notification:', err);

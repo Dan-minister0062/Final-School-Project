@@ -5,14 +5,11 @@ export const ThemeContext = createContext();
 
 // ✅ Export ThemeProvider as a named export
 export const ThemeProvider = ({ children }) => {
-  // Check localStorage for saved theme preference
-  const savedTheme = localStorage.getItem('theme') || 'light';
-  const [darkMode, setDarkMode] = useState(savedTheme === 'dark');
+  // Theme preference is intentionally NOT persisted across reloads
+  // (no browser persistence). Defaults to light.
+  const [darkMode, setDarkMode] = useState(false);
 
   useEffect(() => {
-    // Save theme preference to localStorage
-    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
-    
     // Apply theme to document
     if (darkMode) {
       document.documentElement.setAttribute('data-bs-theme', 'dark');

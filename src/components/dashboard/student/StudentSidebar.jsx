@@ -1,8 +1,10 @@
 // src/components/dashboard/student/StudentSidebar.jsx
 import React, { useState, useEffect } from "react";
-import { NavLink, Link } from "react-router-dom";
-import { useAuth } from "../../hooks/useAuth";
-import { useLanguage } from "../../context/LanguageContext";
+import { NavLink } from "react-router-dom";
+import { useAuth } from "../../../hooks/useAuth";
+import { useLanguage } from "../../../context/LanguageContext";
+import { syncGet } from "../../../services/apiSync";
+import notificationService from "../../../services/notificationService";
 import {
   FaChartPie,
   FaGraduationCap,
@@ -14,6 +16,7 @@ import {
   FaBook,
   FaUser,
   FaBullhorn,
+  FaMoneyBillWave,
 } from "react-icons/fa";
 import { Badge } from "react-bootstrap";
 
@@ -21,74 +24,52 @@ const StudentSidebar = () => {
   const { user, logout } = useAuth();
   const { isArabic } = useLanguage();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingPaymentsCount, setPendingPaymentsCount] = useState(0);
 
-  // ===== Get unread notifications count =====
-  const getUnreadCount = () => {
+  const getPendingPaymentsCount = async () => {
     try {
-      const allNotifications = JSON.parse(
-        localStorage.getItem("school_notifications") || "[]"
-      );
-      
-      // Filter notifications for this student
-      const userEmail = user?.email || "";
-      const userRole = user?.role || "student";
-      
-      const unread = allNotifications.filter(n => {
-        // Check if notification is for this user
-        const isForUser = n.recipientEmail === userEmail || 
-                          n.recipientRole === userRole || 
-                          n.recipientRole === "all";
-        
-        // Check target audience
-        let isTargeted = false;
-        if (n.targetAudience) {
-          isTargeted = n.targetAudience.includes("all") || 
-                       n.targetAudience.includes("students");
-        } else {
-          isTargeted = true;
-        }
-        
-        return isForUser && isTargeted && !n.read;
-      }).length;
-      
-      return unread;
+      const res = await syncGet('/payments');
+      const rows = Array.isArray(res?.data) ? res.data : [];
+      return rows.filter(p => (p.status === 'pending' || p.status === 'submitted')).length;
     } catch (error) {
-      console.error("Error getting unread count:", error);
+      console.error("Error getting pending payments count:", error);
       return 0;
     }
   };
 
-  // ===== Load unread count on mount and listen for changes =====
+  const getUnreadCount = () => {
+    return notificationService.getUnreadCount('student');
+  };
+
   useEffect(() => {
     const updateUnreadCount = () => {
       setUnreadCount(getUnreadCount());
     };
 
+    const updatePendingPayments = async () => {
+      setPendingPaymentsCount(await getPendingPaymentsCount());
+    };
+
     updateUnreadCount();
+    updatePendingPayments();
 
-    // Listen for storage changes
-    const handleStorageChange = (e) => {
-      if (e.key === "school_notifications") {
-        updateUnreadCount();
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-
-    // Listen for custom events
-    const handleNotificationAdded = () => {
+    const unsubNotifications = notificationService.subscribe(() => {
       updateUnreadCount();
+    });
+
+    const handlePaymentUpdated = () => {
+      updatePendingPayments();
     };
-    window.addEventListener("notificationAdded", handleNotificationAdded);
-    window.addEventListener("newNotification", handleNotificationAdded);
+    window.addEventListener("paymentUpdated", handlePaymentUpdated);
+    window.addEventListener("paymentApproved", handlePaymentUpdated);
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
-      window.removeEventListener("notificationAdded", handleNotificationAdded);
-      window.removeEventListener("newNotification", handleNotificationAdded);
+      unsubNotifications();
+      window.removeEventListener("paymentUpdated", handlePaymentUpdated);
+      window.removeEventListener("paymentApproved", handlePaymentUpdated);
     };
   }, [user]);
 
-  // ===== MENU ITEMS =====
   const menuItems = [
     {
       path: "/dashboard/student",
@@ -97,24 +78,9 @@ const StudentSidebar = () => {
       end: true,
     },
     {
-      path: "/dashboard/student/classes",
-      icon: <FaBook />,
-      label: isArabic ? "فصولي" : "My Classes",
-    },
-    {
-      path: "/dashboard/student/results",
+      path: "/dashboard/student/my-results",
       icon: <FaGraduationCap />,
       label: isArabic ? "نتائجي الدراسية" : "My Results",
-    },
-    {
-      path: "/dashboard/student/assessments",
-      icon: <FaTasks />,
-      label: isArabic ? "التقييمات" : "Assessments",
-    },
-    {
-      path: "/dashboard/student/attendance",
-      icon: <FaCalendarCheck />,
-      label: isArabic ? "الحضور" : "Attendance",
     },
     {
       path: "/dashboard/student/announcements",
@@ -123,10 +89,10 @@ const StudentSidebar = () => {
       badge: unreadCount,
     },
     {
-      path: "/dashboard/student/notifications",
-      icon: <FaBell />,
-      label: isArabic ? "الإشعارات" : "Notifications",
-      badge: unreadCount,
+      path: "/dashboard/student/payments",
+      icon: <FaMoneyBillWave />,
+      label: isArabic ? "المدفوعات" : "Payments",
+      badge: pendingPaymentsCount,
     },
     {
       path: "/dashboard/student/profile",
@@ -139,7 +105,6 @@ const StudentSidebar = () => {
     if (logout) {
       logout();
     } else {
-      localStorage.removeItem("currentUser");
       window.location.href = "/login";
     }
   };
@@ -193,9 +158,9 @@ const StudentSidebar = () => {
       <div className="sidebar-footer p-3 position-absolute bottom-0 w-100">
         <div className="d-flex align-items-center">
           <div className="user-avatar me-2">
-            {user?.profilePhoto ? (
+            {user?.avatar || user?.profilePhoto ? (
               <img
-                src={user.profilePhoto}
+                src={user.avatar || user.profilePhoto}
                 alt={user.name}
                 className="rounded-circle"
                 style={{ width: "32px", height: "32px", objectFit: "cover" }}
@@ -282,7 +247,6 @@ const StudentSidebar = () => {
           background-color: #495057;
         }
 
-        /* Scrollbar styling */
         .student-sidebar::-webkit-scrollbar {
           width: 4px;
         }
@@ -338,7 +302,6 @@ const StudentSidebar = () => {
           }
         }
 
-        /* RTL Support */
         [dir="rtl"] .student-sidebar .nav-link .me-3 {
           margin-right: 0 !important;
           margin-left: 1rem !important;
@@ -352,7 +315,6 @@ const StudentSidebar = () => {
           margin-right: auto !important;
         }
 
-        /* Dark mode support */
         .dashboard-wrapper.dark-theme .student-sidebar {
           background: #0d1117 !important;
         }

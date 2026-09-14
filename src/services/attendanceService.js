@@ -1,18 +1,22 @@
 // src/services/attendanceService.js
 import { teacherService } from './teacherService';
 import { STORAGE_KEYS } from '../utils/constants';
+import { syncGet, syncSend } from './apiSync';
+
+// In-memory cache (no browser persistence).
+const memoryCache = new Map();
 
 class AttendanceService {
   constructor() {
     this.attendanceRecords = [];
     this._listeners = [];
     this.loadData();
+    this.syncAttendance();
   }
 
   _getData(key) {
     try {
-      const data = localStorage.getItem(key);
-      return data ? JSON.parse(data) : [];
+      return memoryCache.has(key) ? memoryCache.get(key) : [];
     } catch (error) {
       console.error(`Error loading ${key}:`, error);
       return [];
@@ -21,7 +25,7 @@ class AttendanceService {
 
   _saveData(key, data) {
     try {
-      localStorage.setItem(key, JSON.stringify(data));
+      memoryCache.set(key, data);
     } catch (error) {
       console.error(`Error saving ${key}:`, error);
     }
@@ -49,6 +53,49 @@ class AttendanceService {
 
   loadData() {
     this.attendanceRecords = this._getData(STORAGE_KEYS.ATTENDANCE);
+  }
+
+  // Sync flat server rows from /api/attendance into the record-per-class/date shape
+  async syncAttendance() {
+    try {
+      const res = await syncGet('/attendance');
+      if (!Array.isArray(res?.data) || res.data.length === 0) return;
+
+      const grouped = {};
+      res.data.forEach((a) => {
+        const key = `${a.classId}|${a.date}`;
+        if (!grouped[key]) {
+          grouped[key] = {
+            classId: a.classId,
+            class_code: a.classCode,
+            date: a.date,
+            students: [],
+            teacherId: a.teacherId,
+            updatedAt: a.updatedAt,
+            createdAt: a.createdAt,
+            source: 'server',
+          };
+        }
+        grouped[key].students.push({
+          studentId: a.studentId != null ? a.studentId : (a.student_code ?? null),
+          studentCode: a.studentCode,
+          studentName: a.studentName,
+          status: a.status,
+          remarks: a.remarks,
+          _serverId: a._serverId,
+        });
+      });
+
+      const serverRecords = Object.values(grouped);
+      const serverKeys = new Set(serverRecords.map((r) => `${r.classId}|${r.date}`));
+      this.attendanceRecords = [
+        ...serverRecords,
+        ...this.attendanceRecords.filter((r) => !serverKeys.has(`${r.classId}|${r.date}`)),
+      ];
+      this._notifyListeners();
+    } catch (e) {
+      console.warn('[attendanceService] Server sync failed:', e);
+    }
   }
 
   saveData() {
@@ -96,6 +143,9 @@ class AttendanceService {
 
     this.saveData();
 
+    // Persist the day's batch to MySQL (replace-if-exists semantics on server)
+    this.syncSaveAttendance(classId, date, attendanceData);
+
     // Trigger attendance update event
     if (typeof window !== 'undefined') {
       const event = new CustomEvent('attendanceUpdate', {
@@ -113,6 +163,37 @@ class AttendanceService {
     }
 
     return record;
+  }
+
+  // POST the day's attendance to MySQL and attach returned server ids locally
+  async syncSaveAttendance(classId, date, attendanceData) {
+    try {
+      const res = await syncSend('post', '/attendance', {
+        class_code: classId,
+        date,
+        students: attendanceData.map((s) => ({
+          student_id: s.studentId,
+          student_code: s.studentCode,
+          student_name: s.studentName || s.name || '',
+          status: s.status,
+          remarks: s.remarks,
+        })),
+      });
+      if (res?.data) {
+        const byStudent = {};
+        res.data.forEach((a) => { byStudent[String(a.studentId ?? a.studentCode)] = a._serverId; });
+        const record = this.attendanceRecords.find((r) => r.classId === classId && r.date === date);
+        if (record) {
+          record.students = record.students.map((s) => ({
+            ...s,
+            _serverId: byStudent[String(s.studentId ?? s.studentCode)] || s._serverId,
+          }));
+          this.saveData();
+        }
+      }
+    } catch (e) {
+      console.warn('[attendanceService] Server save failed:', e);
+    }
   }
 
   getAttendanceHistory(filters = {}) {
@@ -268,6 +349,7 @@ class AttendanceService {
 
   // Force refresh
   refresh() {
+    this.syncAttendance();
     this.loadData();
     this._notifyListeners();
   }

@@ -1,13 +1,13 @@
 // src/components/dashboard/teacher/TeacherProfile.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, Row, Col, Form, Button, Badge } from 'react-bootstrap';
-import { FaSave, FaUserEdit, FaKey, FaChalkboardTeacher, FaBook, FaUserGraduate } from 'react-icons/fa';
+import { FaSave, FaUserEdit, FaKey, FaChalkboardTeacher, FaBook, FaUserGraduate, FaCamera } from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
 import { useAuth } from '../../../hooks/useAuth';
 import { getInitials } from '../../../utils/helpers';
-import { teacherService } from '../../../services/teacherService';
 import api from '../../../services/api';
+import { syncGet } from '../../../services/apiSync';
 
 const TeacherProfile = () => {
   const { isArabic } = useLanguage();
@@ -22,6 +22,31 @@ const TeacherProfile = () => {
     address: user?.address || '',
     bio: user?.bio || '',
   });
+  const [avatar, setAvatar] = useState(user?.avatar || null);
+  const fileInputRef = useRef(null);
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      notify(
+        isArabic ? 'يرجى اختيار صورة بصيغة JPEG, PNG, GIF أو WEBP' : 'Please select a JPEG, PNG, GIF or WEBP image',
+        'error'
+      );
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      notify(
+        isArabic ? 'حجم الصورة يجب أن لا يتجاوز 5 ميجابايت' : 'Image size must not exceed 5MB',
+        'error'
+      );
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => setAvatar(event.target.result);
+    reader.readAsDataURL(file);
+  };
   const [passwords, setPasswords] = useState({
     current: '',
     next: '',
@@ -33,40 +58,10 @@ const TeacherProfile = () => {
   const [teacherId, setTeacherId] = useState(null);
 
   useEffect(() => {
-    // Get teacher ID from user or localStorage
+    // Get teacher ID from the authenticated user payload
     const getTeacherId = () => {
-      // Try to get from user object
       if (user?.teacherId) return user.teacherId;
       if (user?.id) return user.id;
-      
-      // Try from localStorage
-      const currentUser = localStorage.getItem('currentUser');
-      if (currentUser) {
-        try {
-          const parsed = JSON.parse(currentUser);
-          if (parsed.teacherId) return parsed.teacherId;
-          if (parsed.id) return parsed.id;
-        } catch (e) {}
-      }
-      
-      const userId = localStorage.getItem('userId');
-      if (userId) return userId;
-      
-      // Try to find teacher from school_teachers
-      try {
-        const teachers = JSON.parse(localStorage.getItem('school_teachers') || '[]');
-        if (teachers.length > 0) {
-          // If we have the user email, find matching teacher
-          const email = user?.email || localStorage.getItem('userEmail');
-          if (email) {
-            const found = teachers.find(t => t.email === email);
-            if (found) return found.id;
-          }
-          // If no email match, return first teacher (fallback)
-          return teachers[0]?.id;
-        }
-      } catch (e) {}
-      
       return null;
     };
 
@@ -78,119 +73,55 @@ const TeacherProfile = () => {
   }, [user]);
 
   // Load teacher data function
-  const loadTeacherData = (id) => {
+  const loadTeacherData = async (id) => {
     console.log('📚 Loading teacher data for ID:', id);
     
-    // Get classes - try multiple sources
     let classes = [];
     
-    // Try to get from school_teachers first
+    // The authenticated user payload (from /auth -> MySQL) is the source of
+    // truth for the teacher's own profile, subjects and assigned classes.
+    if (user?.role === 'teacher') {
+      const authClasses = (user.assignedClasses || user.assigned_classes || []).map((cls) =>
+        typeof cls === 'object' ? cls : { id: cls, name: cls }
+      );
+      if (authClasses.length > 0) {
+        classes = authClasses;
+        setAssignedClasses(authClasses);
+      }
+      if (Array.isArray(user.subjects) && user.subjects.length > 0) {
+        setAssignedSubjects(user.subjects);
+      } else if (user.subject) {
+        setAssignedSubjects([user.subject]);
+      }
+    }
+    
+    // Resolve real class names + level and count roster students from MySQL
+    // (via /api/classes and /api/students)
     try {
-      const teachers = JSON.parse(localStorage.getItem('school_teachers') || '[]');
-      let teacher = null;
-      
-      if (id) {
-        teacher = teachers.find(t => t.id === id);
+      const [classesRes, studentsRes] = await Promise.all([
+        syncGet('/classes'),
+        syncGet('/students'),
+      ]);
+      const classRows = Array.isArray(classesRes?.data) ? classesRes.data : [];
+      const studentRows = Array.isArray(studentsRes?.data) ? studentsRes.data : [];
+
+      const assignedIds = new Set(classes.map(c => String(c.id ?? c.code)));
+      const namedClasses = classRows.filter(c => assignedIds.has(String(c.id ?? c.code)));
+      if (namedClasses.length > 0) {
+        const decorated = namedClasses.map(c => ({ id: c.id ?? c.code, name: c.name, level: c.level }));
+        setAssignedClasses(decorated);
+        classes = decorated;
       }
-      
-      // If not found by ID, try by email
-      if (!teacher && user?.email) {
-        teacher = teachers.find(t => t.email === user.email);
-      }
-      
-      if (teacher) {
-        console.log('✅ Teacher found in school_teachers:', teacher);
-        
-        // Get assigned classes
-        if (teacher.assignedClasses && Array.isArray(teacher.assignedClasses)) {
-          classes = teacher.assignedClasses.map(cls => {
-            if (typeof cls === 'object') return cls;
-            return { id: cls, name: cls };
-          });
-        } else if (teacher.classes && Array.isArray(teacher.classes)) {
-          classes = teacher.classes.map(cls => {
-            if (typeof cls === 'object') return cls;
-            return { id: cls, name: cls };
-          });
-        }
-        
-        // Get assigned subjects
-        if (teacher.subjects && Array.isArray(teacher.subjects)) {
-          setAssignedSubjects(teacher.subjects);
-        } else if (teacher.subject) {
-          setAssignedSubjects([teacher.subject]);
-        }
-        
-        // Update profile with teacher data
-        setProfile({
-          name: teacher.name || teacher.firstName + ' ' + teacher.lastName || '',
-          email: teacher.email || '',
-          phone: teacher.phone || '',
-          address: teacher.address || '',
-          bio: teacher.bio || '',
-        });
-      }
+
+      const classCodes = new Set(namedClasses.length > 0
+        ? namedClasses.map(c => String(c.id ?? c.code))
+        : Array.from(assignedIds));
+      setStudentCount(studentRows.filter(s => classCodes.has(String(s.class_code))).length);
     } catch (e) {
-      console.warn('Error loading from school_teachers:', e);
+      console.warn('Error loading classes/students:', e);
     }
     
-    // If no classes found, try school_users
-    if (classes.length === 0) {
-      try {
-        const users = JSON.parse(localStorage.getItem('school_users') || '[]');
-        let userData = null;
-        
-        if (id) {
-          userData = users.find(u => u.id === id);
-        }
-        if (!userData && user?.email) {
-          userData = users.find(u => u.email === user.email);
-        }
-        
-        if (userData && userData.role === 'teacher') {
-          console.log('✅ Teacher found in school_users:', userData);
-          
-          if (userData.assignedClasses && Array.isArray(userData.assignedClasses)) {
-            classes = userData.assignedClasses.map(cls => {
-              if (typeof cls === 'object') return cls;
-              return { id: cls, name: cls };
-            });
-          }
-          
-          if (userData.subjects && Array.isArray(userData.subjects)) {
-            setAssignedSubjects(userData.subjects);
-          }
-        }
-      } catch (e) {
-        console.warn('Error loading from school_users:', e);
-      }
-    }
-    
-    // If still no classes, try teacherService
-    if (classes.length === 0) {
-      try {
-        const serviceClasses = teacherService.getAssignedClasses();
-        if (serviceClasses && serviceClasses.length > 0) {
-          classes = serviceClasses;
-        }
-      } catch (e) {
-        console.warn('Error loading from teacherService:', e);
-      }
-    }
-    
-    setAssignedClasses(classes);
-    setStudentCount(classes.length * 5); // Estimate: 5 students per class
-    
-    // Load saved profile from localStorage
-    const savedProfile = localStorage.getItem('teacherProfile');
-    if (savedProfile) {
-      try {
-        const parsed = JSON.parse(savedProfile);
-        setProfile(prev => ({ ...prev, ...parsed }));
-      } catch (e) {
-        console.error('Error loading profile:', e);
-      }
-    }
+    setAssignedClasses(classes.length > 0 ? classes : assignedClasses);
   };
 
   const handleChange = (e) => {
@@ -206,50 +137,18 @@ const TeacherProfile = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const isDemo = !token || token.startsWith('demo-');
+      // Update profile in MySQL (via PUT /profile)
+      await api.put('/profile', {
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        address: profile.address,
+        bio: profile.bio,
+        avatar: avatar ?? null,
+      });
       
-      if (!isDemo) {
-        try {
-          await api.put('/profile', {
-            name: profile.name,
-            email: profile.email,
-            phone: profile.phone,
-            address: profile.address,
-            bio: profile.bio,
-          });
-        } catch (apiError) {
-          console.warn('API update failed, saving locally:', apiError);
-        }
-      }
-      
-      // Update local storage
-      const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-      const updatedUser = { ...currentUser, ...profile };
-      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-      
-      // Update school_teachers if teacher exists
-      try {
-        const teachers = JSON.parse(localStorage.getItem('school_teachers') || '[]');
-        const teacherIndex = teachers.findIndex(t => t.id === teacherId || t.email === user?.email);
-        if (teacherIndex !== -1) {
-          teachers[teacherIndex] = { ...teachers[teacherIndex], ...profile };
-          localStorage.setItem('school_teachers', JSON.stringify(teachers));
-        }
-      } catch (e) {}
-      
-      // Update school_users
-      try {
-        const users = JSON.parse(localStorage.getItem('school_users') || '[]');
-        const userIndex = users.findIndex(u => u.id === teacherId || u.email === user?.email);
-        if (userIndex !== -1) {
-          users[userIndex] = { ...users[userIndex], ...profile };
-          localStorage.setItem('school_users', JSON.stringify(users));
-        }
-      } catch (e) {}
-      
-      if (updateUser) updateUser(profile);
-      localStorage.setItem('teacherProfile', JSON.stringify(profile));
+      // Update identity in the app store
+      if (updateUser) updateUser({ ...profile, avatar });
       
       notify(
         isArabic ? 'تم تحديث الملف الشخصي بنجاح' : 'Profile updated successfully',
@@ -284,32 +183,12 @@ const TeacherProfile = () => {
     }
     setPwdLoading(true);
     try {
-      // Try API first
-      try {
-        await api.post('/auth/change-password', {
-          current_password: passwords.current,
-          password: passwords.next,
-          password_confirmation: passwords.confirm,
-        });
-      } catch (apiError) {
-        console.warn('API password change failed, saving locally:', apiError);
-      }
-      
-      // Update local storage
-      const users = JSON.parse(localStorage.getItem('school_users') || '[]');
-      const userIndex = users.findIndex(u => u.id === teacherId || u.email === user?.email);
-      if (userIndex !== -1) {
-        users[userIndex].password = passwords.next;
-        localStorage.setItem('school_users', JSON.stringify(users));
-      }
-      
-      // Update teachers
-      const teachers = JSON.parse(localStorage.getItem('school_teachers') || '[]');
-      const teacherIndex = teachers.findIndex(t => t.id === teacherId || t.email === user?.email);
-      if (teacherIndex !== -1) {
-        teachers[teacherIndex].password = passwords.next;
-        localStorage.setItem('school_teachers', JSON.stringify(teachers));
-      }
+      // Change password in MySQL (via POST /auth/change-password)
+      await api.post('/auth/change-password', {
+        current_password: passwords.current,
+        password: passwords.next,
+        password_confirmation: passwords.confirm,
+      });
       
       setPasswords({ current: '', next: '', confirm: '' });
       notify(
@@ -369,10 +248,31 @@ const TeacherProfile = () => {
           <Card className="shadow-sm border-0 text-center">
             <Card.Body className="py-4">
               <div className="profile-avatar-container mb-3">
-                <div className="profile-avatar" style={{ background: 'linear-gradient(135deg, #2d6a4f, #1a5f7a)' }}>
-                  {getInitials(getDisplayName())}
-                </div>
+                {avatar ? (
+                  <div className="profile-avatar" style={{ background: 'linear-gradient(135deg, #2d6a4f, #1a5f7a)', overflow: 'hidden' }}>
+                    <img
+                      src={avatar}
+                      alt={getDisplayName()}
+                      className="profile-avatar-img"
+                    />
+                  </div>
+                ) : (
+                  <div className="profile-avatar" style={{ background: 'linear-gradient(135deg, #2d6a4f, #1a5f7a)' }}>
+                    {getInitials(getDisplayName())}
+                  </div>
+                )}
               </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                hidden
+                onChange={handleAvatarChange}
+              />
+              <Button size="sm" variant="outline-primary" className="mb-3" onClick={() => fileInputRef.current?.click()}>
+                <FaCamera className="me-1" />
+                {isArabic ? 'تغيير الصورة' : 'Change Photo'}
+              </Button>
               <h5 className="fw-bold">{getDisplayName()}</h5>
               <p className="text-muted">{profile.email || user?.email}</p>
               <Badge bg="primary" className="px-3 py-2">{isArabic ? 'معلم' : 'Teacher'}</Badge>
@@ -630,6 +530,12 @@ const TeacherProfile = () => {
         }
         .dashboard-wrapper.rtl .profile-avatar {
           font-family: 'Traditional Arabic', 'Arabic Typesetting', serif;
+        }
+        .profile-avatar-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 50%;
         }
         @media (max-width: 768px) {
           .profile-avatar {

@@ -1,12 +1,12 @@
 // src/components/dashboard/admin/TeachersManagement.jsx
 import React, { useState, useEffect } from 'react';
-import { 
-  Container, Row, Col, Card, Badge, Button, Table, 
-  Modal, Form, Alert, InputGroup, Pagination 
+import {
+  Container, Row, Col, Card, Badge, Button, Table,
+  Modal, Form, Alert, InputGroup, Pagination
 } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import {
-  FaUsers, FaUserPlus, FaSearch, FaFilter, FaEye, 
+  FaUsers, FaUserPlus, FaSearch, FaFilter, FaEye,
   FaEdit, FaTrash, FaEnvelope, FaPhone, FaMapMarkerAlt,
   FaCheckCircle, FaTimesCircle, FaSync, FaDownload, FaPrint,
   FaChevronDown, FaChevronUp, FaExclamationTriangle,
@@ -24,7 +24,7 @@ import {
 import { useLanguage } from '../../../context/LanguageContext';
 import { useAuth } from '../../../hooks/useAuth';
 import { useNotification } from '../../../hooks/useNotification';
-import userDataService from '../../../services/userDataService';
+import { syncGet } from '../../../services/apiSync';
 import { fetchServerClasses, toCatalogClasses } from '../../../services/classService';
 import { format, formatDistanceToNow, isValid } from 'date-fns';
 import { ar, enUS } from 'date-fns/locale';
@@ -305,35 +305,16 @@ const TeachersManagement = () => {
     return sortDirection === 'asc' ? <FaSortUp className="ms-1" /> : <FaSortDown className="ms-1" />;
   };
 
-  // ===== FETCH TEACHERS - FIXED =====
-  const fetchTeachers = () => {
+  // ===== FETCH TEACHERS =====
+  const fetchTeachers = async () => {
     setLoading(true);
     setError(null);
     
     try {
-      console.log('📚 Fetching teachers...');
-      
-      // 1. Try to get teachers from school_teachers first
-      let teachersData = JSON.parse(localStorage.getItem('school_teachers') || '[]');
-      console.log('📚 Teachers from school_teachers:', teachersData.length);
-      
-      // 2. If no teachers in school_teachers, try school_users
-      if (teachersData.length === 0) {
-        const allUsers = JSON.parse(localStorage.getItem('school_users') || '[]');
-        teachersData = allUsers.filter(u => u.role === 'teacher');
-        console.log('📚 Teachers from school_users:', teachersData.length);
-      }
-      
-      // 3. If still no teachers, try userDataService
-      if (teachersData.length === 0) {
-        try {
-          const allUsers = userDataService.getUsers();
-          teachersData = allUsers.filter(u => u.role === 'teacher');
-          console.log('📚 Teachers from userDataService:', teachersData.length);
-        } catch (e) {
-          console.warn('Could not get teachers from userDataService:', e);
-        }
-      }
+      let teachersData = [];
+      const res = await syncGet('/users', { role: 'teacher' });
+      const rows = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.data) ? res.data.data : []);
+      teachersData = rows;
 
       // Map teachers with display data
       const mappedTeachers = teachersData.map(teacher => {
@@ -454,7 +435,7 @@ const TeachersManagement = () => {
       
       console.log('✅ Teachers loaded:', filtered.length);
     } catch (error) {
-      console.error('❌ Error fetching teachers:', error);
+      console.error('Error fetching teachers:', error);
       setError(isArabic ? 'فشل في تحميل بيانات المعلمين' : 'Failed to load teachers data');
       setTeachers([]);
       setTotalTeachersCount(0);
@@ -468,36 +449,16 @@ const TeachersManagement = () => {
   useEffect(() => {
     fetchTeachers();
     
-    // Listen for user data changes
     const handleUsersUpdated = () => {
-      console.log('🔄 Users updated, refreshing teachers...');
+      console.log('Users updated, refreshing teachers...');
       fetchTeachers();
     };
     
     window.addEventListener('usersUpdated', handleUsersUpdated);
-    window.addEventListener('storage', (e) => {
-      if (e.key === 'school_users' || e.key === 'school_teachers') {
-        console.log('🔄 Storage changed, refreshing teachers...');
-        fetchTeachers();
-      }
-    });
     
-    // Try to subscribe to userDataService
-    try {
-      const unsubscribe = userDataService.addListener(() => {
-        console.log('🔄 userDataService changed, refreshing teachers...');
-        fetchTeachers();
-      });
-      return () => {
-        if (unsubscribe) unsubscribe();
-        window.removeEventListener('usersUpdated', handleUsersUpdated);
-      };
-    } catch (e) {
-      console.warn('Could not subscribe to userDataService:', e);
-      return () => {
-        window.removeEventListener('usersUpdated', handleUsersUpdated);
-      };
-    }
+    return () => {
+      window.removeEventListener('usersUpdated', handleUsersUpdated);
+    };
   }, []);
 
   // ===== SEARCH EFFECT =====

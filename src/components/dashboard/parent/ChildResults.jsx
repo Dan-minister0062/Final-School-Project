@@ -8,7 +8,6 @@ import {
   Table,
   Badge,
   Button,
-  ProgressBar,
 } from "react-bootstrap";
 import {
   FaUserGraduate,
@@ -50,6 +49,7 @@ import { getTranslation } from "../../../utils/translations";
 import { useAuth } from "../../../hooks/useAuth";
 import { useNotification } from "../../../hooks/useNotification";
 import api from "../../../services/api";
+import { syncGet } from "../../../services/apiSync";
 
 // ===== ARABIC FONT STYLE =====
 const getArabicFontStyle = (isArabic) => ({
@@ -67,218 +67,6 @@ const getArabicFontStyle = (isArabic) => ({
 const formatNumber = (num) => {
   if (num === undefined || num === null) return "0";
   return num.toString();
-};
-
-// ===== DEFAULT SUBJECTS BY LEVEL =====
-const defaultSubjectsByCategory = {
-  kindergarten: [
-    {
-      id: "quran_k",
-      name: "Qur'an",
-      nameAr: "القرآن الكريم",
-      category: "kindergarten",
-    },
-    {
-      id: "english_k",
-      name: "English",
-      nameAr: "اللغة الإنجليزية",
-      category: "kindergarten",
-    },
-    {
-      id: "french_k",
-      name: "French",
-      nameAr: "اللغة الفرنسية",
-      category: "kindergarten",
-    },
-    {
-      id: "arabic_k",
-      name: "Arabic",
-      nameAr: "اللغة العربية",
-      category: "kindergarten",
-    },
-  ],
-  primary: [
-    {
-      id: "quran_p",
-      name: "Qur'an",
-      nameAr: "القرآن الكريم",
-      category: "primary",
-    },
-    {
-      id: "arabic_p",
-      name: "Arabic",
-      nameAr: "اللغة العربية",
-      category: "primary",
-    },
-    {
-      id: "english_p",
-      name: "English",
-      nameAr: "اللغة الإنجليزية",
-      category: "primary",
-    },
-    {
-      id: "french_p",
-      name: "French",
-      nameAr: "اللغة الفرنسية",
-      category: "primary",
-    },
-    {
-      id: "mathematics_p",
-      name: "Mathematics",
-      nameAr: "الرياضيات",
-      category: "primary",
-    },
-    { id: "science_p", name: "Science", nameAr: "العلوم", category: "primary" },
-    { id: "sports_p", name: "Sports", nameAr: "الرياضة", category: "primary" },
-    {
-      id: "ict_p",
-      name: "ICT",
-      nameAr: "تكنولوجيا المعلومات",
-      category: "primary",
-    },
-    {
-      id: "art_p",
-      name: "Art & Plastic",
-      nameAr: "الفنون التشكيلية",
-      category: "primary",
-    },
-    {
-      id: "geography_p",
-      name: "Geography",
-      nameAr: "الجغرافيا",
-      category: "primary",
-    },
-  ],
-  secondary: [
-    {
-      id: "quran_s",
-      name: "Qur'an",
-      nameAr: "القرآن الكريم",
-      category: "secondary",
-    },
-    {
-      id: "arabic_s",
-      name: "Arabic",
-      nameAr: "اللغة العربية",
-      category: "secondary",
-    },
-    {
-      id: "english_s",
-      name: "English",
-      nameAr: "اللغة الإنجليزية",
-      category: "secondary",
-    },
-    {
-      id: "french_s",
-      name: "French",
-      nameAr: "اللغة الفرنسية",
-      category: "secondary",
-    },
-    {
-      id: "mathematics_s",
-      name: "Mathematics",
-      nameAr: "الرياضيات",
-      category: "secondary",
-    },
-    {
-      id: "svt_s",
-      name: "SVT (Biology)",
-      nameAr: "علوم الحياة والأرض",
-      category: "secondary",
-    },
-    {
-      id: "physics_s",
-      name: "Physics",
-      nameAr: "الفيزياء",
-      category: "secondary",
-    },
-    {
-      id: "sports_s",
-      name: "Sports",
-      nameAr: "الرياضة",
-      category: "secondary",
-    },
-    {
-      id: "ict_s",
-      name: "ICT",
-      nameAr: "تكنولوجيا المعلومات",
-      category: "secondary",
-    },
-    {
-      id: "geography_s",
-      name: "Geography",
-      nameAr: "الجغرافيا",
-      category: "secondary",
-    },
-  ],
-  high_school: [
-    {
-      id: "quran_h",
-      name: "Qur'an",
-      nameAr: "القرآن الكريم",
-      category: "high_school",
-    },
-    {
-      id: "arabic_h",
-      name: "Arabic",
-      nameAr: "اللغة العربية",
-      category: "high_school",
-    },
-    {
-      id: "english_h",
-      name: "English",
-      nameAr: "اللغة الإنجليزية",
-      category: "high_school",
-    },
-    {
-      id: "french_h",
-      name: "French",
-      nameAr: "اللغة الفرنسية",
-      category: "high_school",
-    },
-    {
-      id: "mathematics_h",
-      name: "Mathematics",
-      nameAr: "الرياضيات",
-      category: "high_school",
-    },
-    {
-      id: "svt_h",
-      name: "SVT (Biology)",
-      nameAr: "علوم الحياة والأرض",
-      category: "high_school",
-    },
-    {
-      id: "physics_h",
-      name: "Physics",
-      nameAr: "الفيزياء",
-      category: "high_school",
-    },
-    {
-      id: "sports_h",
-      name: "Sports",
-      nameAr: "الرياضة",
-      category: "high_school",
-    },
-    {
-      id: "ict_h",
-      name: "ICT",
-      nameAr: "تكنولوجيا المعلومات",
-      category: "high_school",
-    },
-    {
-      id: "geography_h",
-      name: "Geography",
-      nameAr: "الجغرافيا",
-      category: "high_school",
-    },
-    {
-      id: "philosophy_h",
-      name: "Philosophy",
-      nameAr: "الفلسفة",
-      category: "high_school",
-    },
-  ],
 };
 
 // ===== SUBJECT ICON MAPPING =====
@@ -315,7 +103,6 @@ const ChildResults = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [allStudents, setAllStudents] = useState([]);
 
   // ===== ARABIC FONT STYLE =====
   const arabicFontStyle = getArabicFontStyle(isArabic);
@@ -337,18 +124,38 @@ const ChildResults = () => {
     return () => observer.disconnect();
   }, []);
 
-  // ===== GET GRADE LETTER =====
-  const getGradeLetter = (score, totalMarks) => {
-    if (!score || score === "" || !totalMarks) return "N/A";
-    const percentage = (parseFloat(score) / totalMarks) * 100;
+  // ===== GET GRADE FROM SCORE (student panel scale) =====
+  const getGradeFromScore = (score, maxMarks) => {
+    if (score === null || score === undefined || !maxMarks) return "N/A";
+    const percentage = (Number(score) / maxMarks) * 100;
     if (percentage >= 90) return "A+";
-    if (percentage >= 85) return "A";
-    if (percentage >= 80) return "B+";
-    if (percentage >= 75) return "B";
-    if (percentage >= 70) return "C+";
-    if (percentage >= 60) return "C";
-    if (percentage >= 50) return "D";
+    if (percentage >= 80) return "A";
+    if (percentage >= 75) return "A-";
+    if (percentage >= 70) return "B+";
+    if (percentage >= 65) return "B";
+    if (percentage >= 60) return "B-";
+    if (percentage >= 55) return "C+";
+    if (percentage >= 50) return "C";
+    if (percentage >= 45) return "D";
     return "F";
+  };
+
+  // ===== GET GRADE BADGE COLOR (letter based, student panel style) =====
+  const getGradeBadgeColor = (grade) => {
+    if (!grade) return "#6c757d";
+    const gradeMap = {
+      "A+": "#28a745",
+      A: "#28a745",
+      "A-": "#40c057",
+      "B+": "#5cb85c",
+      B: "#ffc107",
+      "B-": "#ffc107",
+      "C+": "#fd7e14",
+      C: "#fd7e14",
+      D: "#dc3545",
+      F: "#dc3545",
+    };
+    return gradeMap[grade] || "#6c757d";
   };
 
   // ===== GET GRADE COLOR =====
@@ -402,131 +209,149 @@ const ChildResults = () => {
     return "#e74c3c";
   };
 
-  // ===== LOAD REAL DATA FROM LOCALSTORAGE =====
-  const loadChildrenData = () => {
+  // ===== LOAD DATA FROM DATABASE =====
+  const loadChildrenData = async () => {
     try {
       setLoading(true);
 
       console.log("📚 Loading children results data...");
 
-      const currentUser = JSON.parse(
-        localStorage.getItem("currentUser") || "{}",
-      );
-      const userId =
-        currentUser?.id || user?.id || localStorage.getItem("userId");
-
-      let allStudents = JSON.parse(
-        localStorage.getItem("school_students") || "[]",
-      );
-
-      if (allStudents.length === 0) {
-        const allUsers = JSON.parse(
-          localStorage.getItem("school_users") || "[]",
-        );
-        allStudents = allUsers.filter((u) => u.role === "student");
-      }
-
-      console.log("📚 All students found:", allStudents.length);
-      setAllStudents(allStudents);
-
-      let parentChildren = [];
-
-      if (userId) {
-        parentChildren = allStudents.filter((s) => s.parentId === userId);
-      }
-
-      if (parentChildren.length === 0) {
-        const parentName = currentUser?.name || user?.name || "";
-        if (parentName) {
-          parentChildren = allStudents.filter(
-            (s) => s.parentName === parentName,
-          );
-        }
-      }
-
-      if (parentChildren.length === 0) {
-        const parents = JSON.parse(
-          localStorage.getItem("school_parents") || "[]",
-        );
-        const currentParent = parents.find(
-          (p) => p.id === userId || p.email === currentUser?.email,
-        );
-
-        if (currentParent) {
-          const childNames = currentParent.childrenNames
-            ? currentParent.childrenNames.split(",").map((n) => n.trim())
-            : [];
-
-          if (childNames.length > 0) {
-            parentChildren = allStudents.filter((s) => {
-              const studentName = s.name || s.firstName || "";
-              return childNames.some(
-                (childName) =>
-                  studentName.includes(childName) ||
-                  childName.includes(studentName),
-              );
-            });
-          }
-        }
-      }
+      const childrenRes = await syncGet("/auth/my-children");
+      const parentChildren = Array.isArray(childrenRes?.data)
+        ? childrenRes.data
+        : [];
 
       console.log("👨‍👩‍👦 Children found for parent:", parentChildren.length);
 
       if (parentChildren.length > 0) {
+        const [classesRes, assessmentsRes, submissionsRes, attendanceRes] =
+          await Promise.all([
+            syncGet("/classes"),
+            syncGet("/assessments"),
+            syncGet("/submissions"),
+            syncGet("/attendance"),
+          ]);
+
+        const classes = Array.isArray(classesRes?.data) ? classesRes.data : [];
+        const allAssessments = Array.isArray(assessmentsRes?.data)
+          ? assessmentsRes.data
+          : [];
+        const allSubmissions = Array.isArray(submissionsRes?.data)
+          ? submissionsRes.data
+          : [];
+        const allAttendance = Array.isArray(attendanceRes?.data)
+          ? attendanceRes.data
+          : [];
+
         const enrichedChildren = parentChildren.map((child) => {
-          const classes = JSON.parse(
-            localStorage.getItem("school_classes") || "[]",
-          );
-          const classInfo = classes.find(
-            (c) => c.id === child.classId || c.id === child.class,
-          );
+          // Server-side joins (submissions, attendance) are keyed by the user id
+          // (users.id); attendance falls back to the student profile id (students.id).
+          const childUserId =
+            child.id ?? child.userId ?? child.student_id ?? child.studentId ?? null;
+          const childProfileId = child.student_id ?? child.studentId ?? null;
+          const childServerId =
+            child.student_id ?? child.studentId ?? child.id;
+          const childCode =
+            child.code ?? child.student_code ?? child.studentCode ?? null;
+          const classCode = child.class_code ?? child.classCode ?? null;
 
-          const studentLevel = child.level || child.educationLevel || "primary";
-          const defaultSubjects =
-            defaultSubjectsByCategory[studentLevel] ||
-            defaultSubjectsByCategory.primary;
-
-          // Get all assessments for this student
-          const allAssessments = JSON.parse(
-            localStorage.getItem("school_assessments") || "[]",
+          const classRow = classes.find(
+            (c) =>
+              String(c.code) === String(classCode) ||
+              String(c.name) === String(classCode) ||
+              String(c.id) === String(classCode),
           );
+          const classInfo = classRow
+            ? { ...classRow, teacher: classRow.teacher_name ?? classRow.teacher }
+            : null;
+
+          // Assessments are keyed by the canonical class code (e.g. "primary_3a"),
+          // while students.class_code may hold the class name (e.g. "Primaire 3A").
+          const assessmentClassCode = classRow?.code || classCode;
+
+          // Get all assessments for this student's class
           const studentAssessments = allAssessments.filter(
             (a) =>
-              (a.classId === child.classId || a.classId === child.class) &&
-              (a.assignedStudents
-                ? a.assignedStudents.includes(child.id)
-                : true),
+              String(a.classId ?? a.class_code ?? a.classCode ?? "") ===
+              String(assessmentClassCode),
           );
 
-          // Get submissions
-          const allSubmissions = JSON.parse(
-            localStorage.getItem("school_submissions") || "[]",
+          // Submissions are keyed by the user id (users.id) or the student
+          // profile id (students.id), so match against both plus the student code.
+          const childIds = new Set(
+            [childUserId, childProfileId, childServerId]
+              .filter((v) => v !== undefined && v !== null && v !== "")
+              .map((v) => String(v)),
           );
-          const studentSubmissions = allSubmissions.filter(
-            (s) => s.studentId === child.id,
-          );
+          if (childCode) childIds.add(String(childCode));
 
-          // Build subjects with grades from assessments
-          const subjectsWithGrades = defaultSubjects.map((sub) => {
-            const assessment = studentAssessments.find(
+          // Get submissions for this student
+          const studentSubmissions = allSubmissions.filter((s) => {
+            const key = String(
+              s.studentId ?? s.student_id ?? s.studentCode ?? s.student_code ?? "",
+            );
+            return childIds.has(key);
+          });
+          const serverSubsForChild = studentSubmissions;
+
+          // Derive the subject rows from the child's actual assessments and
+          // DB submissions - never from a hardcoded curriculum list.
+          const childSubjects = new Map();
+          studentAssessments.forEach((a) =>
+            childSubjects.set(a.subject, {
+              name: a.subject,
+              nameAr: a.subjectAr || a.subject,
+            }),
+          );
+          serverSubsForChild.forEach((s) => {
+            const subAssessment = studentAssessments.find(
+              (x) => Number(x.id) === Number(s.assessmentId),
+            );
+            const subj = subAssessment?.subject;
+            if (subj) {
+              childSubjects.set(subj, {
+                name: subj,
+                nameAr: subAssessment?.subjectAr || subj,
+              });
+            }
+          });
+          const subjectsWithGrades = [...childSubjects.values()].map((sub) => {
+            // Mirror the student panel: pick the best graded submission across
+            // all assessments of this subject.
+            const subjectAssessments = studentAssessments.filter(
               (a) => a.subject === sub.name,
             );
-            const submission = studentSubmissions.find(
-              (s) => s.assessmentId === assessment?.id,
-            );
-            const grade = assessment?.grades?.find(
-              (g) => g.studentId === child.id,
-            );
+            let bestServerSub = null;
+            let bestAssessment = null;
+            subjectAssessments.forEach((a) => {
+              const s = serverSubsForChild.find(
+                (x) => Number(x.assessmentId) === Number(a.id ?? a._serverId),
+              );
+              if (
+                s &&
+                Number(s.score) > 0 &&
+                (!bestServerSub || Number(s.score) > Number(bestServerSub.score))
+              ) {
+                bestServerSub = s;
+                bestAssessment = a;
+              }
+            });
+            const subjectServers = serverSubsForChild.filter((s) => {
+              const subAssessment = studentAssessments.find(
+                (x) => Number(x.id) === Number(s.assessmentId),
+              );
+              return subAssessment?.subject === sub.name;
+            });
 
-            const isGraded = !!grade && grade.score > 0;
-            const score = isGraded ? grade.score : 0;
-            const totalMarks = assessment?.totalMarks || 100;
+            const isGraded = bestServerSub && Number(bestServerSub.score) > 0;
+            const score = isGraded ? Number(bestServerSub.score) : 0;
+            const totalMarks = bestAssessment?.totalMarks || 100;
             const gradeLetter = isGraded
-              ? getGradeLetter(score, totalMarks)
+              ? getGradeFromScore(score, totalMarks)
               : "N/A";
             const status = isGraded
               ? "graded"
-              : submission
+              : subjectServers.length > 0
                 ? "submitted"
                 : "pending";
 
@@ -537,10 +362,25 @@ const ChildResults = () => {
               totalMarks: totalMarks,
               grade: gradeLetter,
               isGraded: isGraded,
-              hasSubmitted: !!submission,
-              assessmentId: assessment?.id || null,
+              hasSubmitted: subjectServers.length > 0,
+              assessmentId:
+                bestAssessment?.id ||
+                bestAssessment?._serverId ||
+                bestServerSub?.assessmentId ||
+                null,
               status: status,
               percentage: isGraded ? Math.round((score / totalMarks) * 100) : 0,
+              semester: bestAssessment?.semester || "First Semester",
+              teacher:
+                bestAssessment?.teacherName ||
+                bestAssessment?.teacher ||
+                classInfo?.teacher ||
+                "Teacher",
+              date: bestServerSub?.submittedAt
+                ? String(bestServerSub.submittedAt).split("T")[0]
+                : "",
+              assessmentTitle: bestAssessment?.title || "Exam",
+              isExam: isGraded,
             };
           });
 
@@ -555,9 +395,6 @@ const ChildResults = () => {
               : 0;
 
           // Calculate attendance
-          const allAttendance = JSON.parse(
-            localStorage.getItem("school_attendance") || "[]",
-          );
           let present = 0,
             absent = 0,
             late = 0,
@@ -565,12 +402,15 @@ const ChildResults = () => {
             total = 0;
 
           allAttendance.forEach((record) => {
-            const studentData = record.students?.find(
-              (s) => s.studentId === child.id,
-            );
-            if (studentData) {
+            if (
+              childIds.has(
+                String(
+                  record.studentId ?? record.student_id ?? record.student_code ?? "",
+                ),
+              )
+            ) {
               total++;
-              switch (studentData.status) {
+              switch (record.status) {
                 case "present":
                   present++;
                   break;
@@ -625,7 +465,7 @@ const ChildResults = () => {
               classInfo?.teacher ||
               (isArabic ? "المعلم المكلف" : "Assigned Teacher"),
             gradedCount: gradedSubjects.length,
-            totalSubjects: defaultSubjects.length,
+            totalSubjects: childSubjects.size,
           };
         });
 
@@ -1297,7 +1137,34 @@ const ChildResults = () => {
                           padding: "8px 16px",
                         }}
                       >
+                        #
+                      </th>
+                      <th
+                        style={{
+                          ...arabicFontStyle,
+                          fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.3px",
+                          color: darkMode ? "#adb5bd" : "#6c757d",
+                          borderBottom: `2px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
+                          padding: "8px 16px",
+                        }}
+                      >
                         {isArabic ? "المادة" : "Subject"}
+                      </th>
+                      <th
+                        className="d-none d-sm-table-cell"
+                        style={{
+                          ...arabicFontStyle,
+                          fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.3px",
+                          color: darkMode ? "#adb5bd" : "#6c757d",
+                          borderBottom: `2px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
+                          padding: "8px 16px",
+                        }}
+                      >
+                        {isArabic ? "الفصل" : "Semester"}
                       </th>
                       <th
                         className="text-center"
@@ -1314,7 +1181,7 @@ const ChildResults = () => {
                         {isArabic ? "الدرجة" : "Score"}
                       </th>
                       <th
-                        className="text-center"
+                        className="text-center d-none d-sm-table-cell"
                         style={{
                           ...arabicFontStyle,
                           fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
@@ -1342,7 +1209,7 @@ const ChildResults = () => {
                         {isArabic ? "الحالة" : "Status"}
                       </th>
                       <th
-                        className="text-end"
+                        className="d-none d-md-table-cell"
                         style={{
                           ...arabicFontStyle,
                           fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
@@ -1353,7 +1220,21 @@ const ChildResults = () => {
                           padding: "8px 16px",
                         }}
                       >
-                        {isArabic ? "الأداء" : "Performance"}
+                        {isArabic ? "المعلم" : "Teacher"}
+                      </th>
+                      <th
+                        className="d-none d-md-table-cell"
+                        style={{
+                          ...arabicFontStyle,
+                          fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.3px",
+                          color: darkMode ? "#adb5bd" : "#6c757d",
+                          borderBottom: `2px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
+                          padding: "8px 16px",
+                        }}
+                      >
+                        {isArabic ? "التاريخ" : "Date"}
                       </th>
                     </tr>
                   </thead>
@@ -1363,17 +1244,22 @@ const ChildResults = () => {
                         ? subject.nameAr
                         : subject.name;
                       const statusInfo = getStatusBadge(subject.status);
-                      const gradeColor = getGradeColor(
-                        subject.score,
-                        subject.totalMarks,
-                      );
-                      const scoreColor = getPerformanceColor(
-                        subject.score,
-                        subject.totalMarks,
-                      );
+                      const gradeColor = getGradeBadgeColor(subject.grade);
+                      const scoreColor = subject.isGraded
+                        ? gradeColor
+                        : "#6c757d";
 
                       return (
                         <tr key={index}>
+                          <td
+                            className="text-muted"
+                            style={{
+                              ...arabicFontStyle,
+                              fontSize: "clamp(0.8rem, 0.9vw, 0.95rem)",
+                            }}
+                          >
+                            {formatNumber(index + 1)}
+                          </td>
                           <td>
                             <div className="d-flex align-items-center gap-2">
                               <span
@@ -1393,8 +1279,22 @@ const ChildResults = () => {
                                 }}
                               >
                                 {subjectName}
+                                {subject.isExam && subject.isGraded && (
+                                  <span
+                                    className="text-muted ms-1"
+                                    style={{
+                                      fontSize: "0.55rem",
+                                      display: "block",
+                                    }}
+                                  >
+                                    {subject.assessmentTitle || "Exam"}
+                                  </span>
+                                )}
                               </span>
                             </div>
+                          </td>
+                          <td className="d-none d-sm-table-cell">
+                            {subject.semester || "-"}
                           </td>
                           <td className="text-center">
                             {subject.isGraded ? (
@@ -1405,7 +1305,8 @@ const ChildResults = () => {
                                   fontSize: "clamp(0.9rem, 1vw, 1.05rem)",
                                 }}
                               >
-                                {formatNumber(subject.percentage)}%
+                                {formatNumber(subject.score)}/
+                                {formatNumber(subject.totalMarks)}
                               </span>
                             ) : (
                               <span
@@ -1414,11 +1315,19 @@ const ChildResults = () => {
                                   fontSize: "clamp(0.7rem, 0.8vw, 0.85rem)",
                                 }}
                               >
-                                {isArabic ? "بانتظار" : "Pending"}
+                                -
                               </span>
                             )}
+                            {subject.isGraded && subject.percentage > 0 && (
+                              <div
+                                className="text-muted small"
+                                style={{ fontSize: "0.55rem" }}
+                              >
+                                {subject.percentage}%
+                              </div>
+                            )}
                           </td>
-                          <td className="text-center">
+                          <td className="text-center d-none d-sm-table-cell">
                             {subject.isGraded ? (
                               <Badge
                                 style={{
@@ -1444,65 +1353,28 @@ const ChildResults = () => {
                           </td>
                           <td className="text-center">
                             <Badge
-                              bg={
-                                subject.isGraded
-                                  ? "success"
-                                  : subject.hasSubmitted
-                                    ? "info"
-                                    : "secondary"
-                              }
+                              bg={statusInfo.bg}
                               className="px-2 py-1 rounded-pill"
                               style={{
                                 fontSize: "clamp(0.5rem, 0.6vw, 0.6rem)",
                               }}
                             >
-                              {subject.isGraded ? (
-                                <>
-                                  <FaCheckCircle className="me-1" />{" "}
-                                  {isArabic ? "مصحح" : "Graded"}
-                                </>
-                              ) : subject.hasSubmitted ? (
-                                <>
-                                  <FaPaperPlane className="me-1" />{" "}
-                                  {isArabic ? "مرسل" : "Submitted"}
-                                </>
-                              ) : (
-                                <>
-                                  <FaClock className="me-1" />{" "}
-                                  {isArabic ? "قيد الانتظار" : "Pending"}
-                                </>
-                              )}
+                              {statusInfo.icon}{" "}
+                              <span className="d-none d-sm-inline">
+                                {statusInfo.label}
+                              </span>
+                              <span className="d-sm-none">
+                                {statusInfo.label.substring(0, 2)}
+                              </span>
                             </Badge>
                           </td>
-                          <td className="text-end">
-                            {subject.isGraded ? (
-                              <ProgressBar
-                                now={subject.percentage}
-                                variant={
-                                  subject.percentage >= 90
-                                    ? "success"
-                                    : subject.percentage >= 75
-                                      ? "warning"
-                                      : "danger"
-                                }
-                                style={{
-                                  height: "6px",
-                                  borderRadius: "3px",
-                                  maxWidth: "120px",
-                                  marginLeft: "auto",
-                                  background: darkMode ? "#2d2d44" : "#e9ecef",
-                                }}
-                              />
-                            ) : (
-                              <span
-                                className="text-muted"
-                                style={{
-                                  fontSize: "clamp(0.6rem, 0.7vw, 0.75rem)",
-                                }}
-                              >
-                                {isArabic ? "لم يصحح بعد" : "Not graded yet"}
-                              </span>
-                            )}
+                          <td className="d-none d-md-table-cell">
+                            {subject.teacher || "-"}
+                          </td>
+                          <td className="d-none d-md-table-cell">
+                            {subject.date
+                              ? new Date(subject.date).toLocaleDateString()
+                              : "-"}
                           </td>
                         </tr>
                       );

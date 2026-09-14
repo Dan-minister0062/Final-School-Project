@@ -15,6 +15,7 @@ import { useLanguage } from '../../../context/LanguageContext';
 import { getTranslation } from '../../../utils/translations';
 import { useNotification } from '../../../hooks/useNotification';
 import api from '../../../services/api';
+import { syncGet, syncSend } from '../../../services/apiSync';
 
 // ===== ALWAYS use English numbers =====
 const formatNumber = (num) => {
@@ -81,254 +82,43 @@ const RegistrationsManagement = () => {
           : res.data?.data?.data;
         if (Array.isArray(rows)) setClassList(rows);
       } catch (e) {
-        // Fallback to localStorage classes
-        try {
-          const stored = localStorage.getItem('classes');
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed)) setClassList(parsed);
-          }
-        } catch (err) {
-          console.error('Error loading classes:', err);
-        }
+        console.error('Error loading classes:', e);
       }
     };
     loadClasses();
   }, []);
 
+  // ===== Normalize a MySQL registration into the page's record shape =====
+  const normalizeServerRegistration = (r) => ({
+    ...r,
+    id: r._serverId ?? r.id,
+    _serverId: r._serverId ?? r.id,
+    studentName: r.studentName || r.full_name || '',
+    studentDob: r.dateOfBirth || r.dob || null,
+    studentPhoto: r.studentPhoto || null,
+    requestedClass: r.requestedClass || r.requested_class || '',
+    parentName: r.parentName || '',
+    parentEmail: r.parentEmail || '',
+    parentPhone: r.parentPhone || '',
+    admin_notes: r.adminNotes || r.admin_notes || '',
+    createdAt: r.createdAt || new Date().toISOString(),
+    updatedAt: r.updatedAt || r.created_at || new Date().toISOString(),
+  });
+
   // ===== LOAD REGISTRATIONS =====
-  const loadRegistrations = () => {
+  const loadRegistrations = async () => {
     setLoading(true);
     try {
-      // First try to read from 'registrations' (from Admissions.jsx)
-      let allRegistrations = [];
-      
-      const registrationsRaw = localStorage.getItem('registrations');
-      if (registrationsRaw) {
-        try {
-          const parsed = JSON.parse(registrationsRaw);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            allRegistrations = parsed.map(r => ({
-              id: r.id || `reg-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-              studentName: r.studentName || `${r.firstName || ''} ${r.lastName || ''}`.trim() || 'Unknown Student',
-              studentDob: r.dob || r.dateOfBirth || null,
-              placeOfBirth: r.placeOfBirth || '',
-              gender: r.gender || '',
-              nationality: r.nationality || '',
-              address: r.address || '',
-              city: r.city || '',
-              studentPhoto: r.studentPhoto || null,
-              academicYear: r.academicYear || '',
-              level: r.level || '',
-              requestedClass: r.requestedClass || r.className || '',
-              admissionType: r.admissionType || '',
-              parentName: r.parentName || '',
-              relationship: r.relationship || '',
-              parentEmail: r.parentEmail || r.email || '',
-              parentPhone: r.parentPhone || r.phone || '',
-              parentAddress: r.parentAddress || r.address || '',
-              cinId: r.cinId || '',
-              parentPassword: r.parentPassword || '',
-              emergencyContact: r.emergencyContact || '',
-              emergencyRelationship: r.emergencyRelationship || '',
-              emergencyPhone: r.emergencyPhone || '',
-              message: r.additionalNotes || r.message || '',
-              previousSchool: r.previousSchool || '',
-              hasAttendedBefore: r.hasAttendedBefore ?? false,
-              specialAssistance: r.specialAssistance ?? false,
-              authorizedPickup: r.authorizedPickup || '',
-              previousGrade: r.previousGrade || '',
-              lastAcademicYear: r.lastAcademicYear || '',
-              reportCard: r.reportCard || null,
-              schoolCertificate: r.schoolCertificate || null,
-              massarNumber: r.massarNumber || '',
-              academicTrack: r.academicTrack || '',
-              termsAgreed: r.termsAgreed ?? true,
-              status: r.status || 'pending',
-              admin_notes: r.adminNotes || r.admin_notes || '',
-              classId: r.classId || r.class_id || r.requestedClass || null,
-              paymentStatus: r.paymentStatus || r.payment_status || null,
-              paymentAmount: r.paymentAmount ?? r.payment_amount ?? null,
-              paymentRequestedAt: r.paymentRequestedAt || r.payment_requested_at || null,
-              paymentPaidAt: r.paymentPaidAt || r.payment_paid_at || null,
-              createdAt: r.submittedAt || r.createdAt || new Date().toISOString(),
-              updatedAt: r.updatedAt || r.createdAt || new Date().toISOString(),
-            }));
-          }
-        } catch (e) {
-          console.error('Error parsing registrations:', e);
-        }
+      let serverRows = [];
+      const serverRes = await syncGet('/registrations');
+      if (Array.isArray(serverRes?.data)) {
+        serverRows = serverRes.data.map(normalizeServerRegistration);
       }
 
-      // If no registrations found, try 'registration_requests'
-      if (allRegistrations.length === 0) {
-        const saved = localStorage.getItem('registration_requests');
-        if (saved) {
-          try {
-            const parsed = JSON.parse(saved);
-            if (Array.isArray(parsed)) {
-              allRegistrations = parsed.map(r => ({
-                id: r.id ?? r._serverId ?? `local-${Math.random().toString(36).slice(2, 10)}`,
-                studentName: r.firstName && r.lastName
-                  ? `${r.firstName} ${r.lastName}`
-                  : r.studentName || r.firstName || '',
-                studentDob: r.dob || r.studentDob || null,
-                placeOfBirth: r.placeOfBirth || '',
-                gender: r.gender || '',
-                nationality: r.nationality || '',
-                address: r.address || '',
-                city: r.city || '',
-                studentPhoto: r.studentPhoto || null,
-                academicYear: r.academicYear || '',
-                level: r.level || '',
-                requestedClass: r.requestedClass || r.classId || '',
-                admissionType: r.admissionType || '',
-                parentName: r.parentName || '',
-                relationship: r.relationship || '',
-                parentEmail: r.parentEmail || '',
-                parentPhone: r.parentPhone || '',
-                parentAddress: r.parentAddress || '',
-                cinId: r.cinId || '',
-                parentPassword: r.parentPassword || '',
-                emergencyContact: r.emergencyContact || '',
-                emergencyRelationship: r.emergencyRelationship || '',
-                emergencyPhone: r.emergencyPhone || '',
-                message: r.additionalNotes || r.message || '',
-                previousSchool: r.previousSchool || '',
-                hasAttendedBefore: r.hasAttendedBefore ?? false,
-                specialAssistance: r.specialAssistance ?? false,
-                authorizedPickup: r.authorizedPickup || '',
-                previousGrade: r.previousGrade || '',
-                lastAcademicYear: r.lastAcademicYear || '',
-                reportCard: r.reportCard || null,
-                schoolCertificate: r.schoolCertificate || null,
-                massarNumber: r.massarNumber || '',
-                academicTrack: r.academicTrack || '',
-                termsAgreed: r.termsAgreed ?? true,
-                status: r.status || 'pending',
-                admin_notes: r.admin_notes || r.adminNotes || '',
-                classId: r.classId || r.class_id || r.requestedClass || null,
-                paymentStatus: r.paymentStatus || r.payment_status || null,
-                paymentAmount: r.paymentAmount ?? r.payment_amount ?? null,
-                paymentRequestedAt: r.paymentRequestedAt || r.payment_requested_at || null,
-                paymentPaidAt: r.paymentPaidAt || r.payment_paid_at || null,
-                createdAt: r.createdAt || new Date().toISOString(),
-                updatedAt: r.updatedAt || r.createdAt || new Date().toISOString(),
-              }));
-            }
-          } catch (e) {
-            console.error('Error parsing registration_requests:', e);
-          }
-        }
-      }
-
-      // If still no registrations, seed sample data
-      if (allRegistrations.length === 0) {
-        const sampleData = [
-          {
-            id: 1,
-            studentName: isArabic ? 'أحمد عبد الله' : 'Ahmad Abdullah',
-            studentDob: '2018-05-15',
-            level: 'primary',
-            requestedClass: '1 -A-',
-            previousSchool: isArabic ? 'مدرسة النور' : 'Al Noor School',
-            specialNeeds: '',
-            parentName: isArabic ? 'عبد الله إبراهيم' : 'Abdullah Ibrahim',
-            parentEmail: 'abdullah@email.com',
-            parentPhone: '+212 537 350 200',
-            parentAddress: 'Maghrib El Arabi B3 Oulad Oujih, Kenitra',
-            parentPassword: 'encrypted_password',
-            emergencyContact: isArabic ? 'فاطمة إبراهيم' : 'Fatimah Ibrahim',
-            emergencyPhone: '+212 537 350 201',
-            message: '',
-            status: 'pending',
-            createdAt: new Date().toISOString(),
-          },
-          {
-            id: 2,
-            studentName: isArabic ? 'فاطمة يوسف' : 'Fatimah Yusuf',
-            studentDob: '2017-08-20',
-            level: 'primary',
-            requestedClass: '2 -B-',
-            previousSchool: isArabic ? 'مدرسة الأمل' : 'Al Amal School',
-            specialNeeds: '',
-            parentName: isArabic ? 'يوسف محمد' : 'Yusuf Muhammad',
-            parentEmail: 'yusuf@email.com',
-            parentPhone: '+212 537 350 202',
-            parentAddress: '123 Street, City',
-            parentPassword: 'encrypted_password',
-            emergencyContact: isArabic ? 'مريم يوسف' : 'Maryam Yusuf',
-            emergencyPhone: '+212 537 350 203',
-            message: '',
-            status: 'pending',
-            createdAt: new Date(Date.now() - 86400000).toISOString(),
-          },
-          {
-            id: 3,
-            studentName: isArabic ? 'محمد علي' : 'Muhammad Ali',
-            studentDob: '2012-03-10',
-            level: 'secondary',
-            requestedClass: 'Secondary 1 -A-',
-            previousSchool: isArabic ? 'مدرسة التوفيق' : 'Al Tawfiq School',
-            specialNeeds: '',
-            parentName: isArabic ? 'علي حسن' : 'Ali Hassan',
-            parentEmail: 'ali@email.com',
-            parentPhone: '+212 537 350 204',
-            parentAddress: '789 Road, City',
-            parentPassword: 'encrypted_password',
-            emergencyContact: isArabic ? 'زينب علي' : 'Zainab Ali',
-            emergencyPhone: '+212 537 350 205',
-            message: '',
-            status: 'approved',
-            createdAt: new Date(Date.now() - 172800000).toISOString(),
-          },
-          {
-            id: 4,
-            studentName: isArabic ? 'عائشة إبراهيم' : 'Aisha Ibrahim',
-            studentDob: '2018-11-25',
-            level: 'primary',
-            requestedClass: '3 -A-',
-            previousSchool: '',
-            specialNeeds: isArabic ? 'حساسية من المكسرات' : 'Nut allergy',
-            parentName: isArabic ? 'إبراهيم أحمد' : 'Ibrahim Ahmad',
-            parentEmail: 'ibrahim@email.com',
-            parentPhone: '+212 537 350 206',
-            parentAddress: '321 Boulevard, City',
-            parentPassword: 'encrypted_password',
-            emergencyContact: isArabic ? 'أحمد إبراهيم' : 'Ahmad Ibrahim',
-            emergencyPhone: '+212 537 350 207',
-            message: isArabic ? 'يسعدنا انضمام ابنتنا إلى مدرسة الفتح' : 'We are happy to join Madrassat Al Fath',
-            status: 'rejected',
-            createdAt: new Date(Date.now() - 259200000).toISOString(),
-          },
-          {
-            id: 5,
-            studentName: isArabic ? 'عمر حسن' : 'Omar Hassan',
-            studentDob: '2011-09-30',
-            level: 'secondary',
-            requestedClass: 'Secondary 2 -B-',
-            previousSchool: isArabic ? 'مدرسة النجاح' : 'Al Najah School',
-            specialNeeds: '',
-            parentName: isArabic ? 'حسن عمر' : 'Hassan Omar',
-            parentEmail: 'hassan@email.com',
-            parentPhone: '+212 537 350 208',
-            parentAddress: '654 Lane, City',
-            parentPassword: 'encrypted_password',
-            emergencyContact: isArabic ? 'هدى حسن' : 'Huda Hassan',
-            emergencyPhone: '+212 537 350 209',
-            message: '',
-            status: 'pending',
-            createdAt: new Date(Date.now() - 345600000).toISOString(),
-          },
-        ];
-        allRegistrations = sampleData;
-        localStorage.setItem('registration_requests', JSON.stringify(sampleData));
-      }
-
-      allRegistrations.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      setRegistrations(allRegistrations);
-      setFilteredRegistrations(allRegistrations);
-      console.log('📊 Registrations loaded:', allRegistrations.length);
+      serverRows.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setRegistrations(serverRows);
+      setFilteredRegistrations(serverRows);
+      console.log('📊 Registrations loaded:', serverRows.length);
     } catch (e) {
       console.error('Error loading registrations:', e);
       setRegistrations([]);
@@ -514,61 +304,12 @@ const RegistrationsManagement = () => {
 const handleApprove = async () => {
   if (!selectedRegistration) return;
   try {
-    // Update local storage for registrations
-    const registrationsRaw = localStorage.getItem('registrations');
-    if (registrationsRaw) {
-      const parsed = JSON.parse(registrationsRaw);
-      const idx = parsed.findIndex(r => r.id === selectedRegistration.id);
-      if (idx !== -1) {
-        parsed[idx].status = 'approved';
-        parsed[idx].adminNotes = adminNotes || '';
-        parsed[idx].classId = selectedClass || null;
-        parsed[idx].approvedAt = new Date().toISOString();
-        parsed[idx].updatedAt = new Date().toISOString();
-        localStorage.setItem('registrations', JSON.stringify(parsed));
-      }
-    }
-
-    // Also update registration_requests
-    const requestsRaw = localStorage.getItem('registration_requests');
-    if (requestsRaw) {
-      const parsed = JSON.parse(requestsRaw);
-      const idx = parsed.findIndex(r => (r.id ?? r._serverId) === selectedRegistration.id);
-      if (idx !== -1) {
-        parsed[idx].status = 'approved';
-        parsed[idx].admin_notes = adminNotes || '';
-        parsed[idx].classId = selectedClass || null;
-        parsed[idx].approvedAt = new Date().toISOString();
-        parsed[idx].updatedAt = new Date().toISOString();
-        localStorage.setItem('registration_requests', JSON.stringify(parsed));
-      }
-    }
-
-    // ===== ADD TO PAYMENT QUEUE =====
-    const paymentQueue = JSON.parse(localStorage.getItem('payment_queue') || '[]');
-    const paymentEntry = {
-      id: `pay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      registrationId: selectedRegistration.id,
-      studentName: selectedRegistration.studentName,
-      level: selectedRegistration.level,
-      requestedClass: selectedRegistration.requestedClass || selectedClass || '',
-      parentName: selectedRegistration.parentName,
-      parentEmail: selectedRegistration.parentEmail,
-      parentPhone: selectedRegistration.parentPhone,
-      amount: 500, // Default amount - can be configured
-      status: 'pending', // pending, paid, cancelled
-      createdAt: new Date().toISOString(),
-      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-      adminNotes: adminNotes || '',
-      dateOfBirth: selectedRegistration.studentDob || '',
-      gender: selectedRegistration.gender || '',
-      address: selectedRegistration.address || selectedRegistration.parentAddress || '',
-      city: selectedRegistration.city || '',
-      phone: selectedRegistration.parentPhone || '',
-    };
-    paymentQueue.unshift(paymentEntry);
-    localStorage.setItem('payment_queue', JSON.stringify(paymentQueue));
-    console.log('✅ Added to payment queue:', paymentEntry);
+    const regId = selectedRegistration._serverId || selectedRegistration.id;
+    await syncSend('patch', `/registrations/${regId}/status`, {
+      status: 'approved',
+      admin_notes: adminNotes || '',
+      classId: selectedClass || null,
+    });
 
     setShowApproveModal(false);
     setSelectedRegistration(null);
@@ -577,15 +318,11 @@ const handleApprove = async () => {
     
     notify(
       isArabic 
-        ? `✅ تم قبول تسجيل ${selectedRegistration.studentName} وتم إضافته إلى قائمة الدفع`
-        : `✅ Registration approved for ${selectedRegistration.studentName} and added to payment queue`,
+        ? `✅ تم قبول تسجيل ${selectedRegistration.studentName}`
+        : `✅ Registration approved for ${selectedRegistration.studentName}`,
       'success'
     );
     
-    // Dispatch event for payment page to refresh
-    window.dispatchEvent(new CustomEvent('paymentQueueUpdated', { 
-      detail: { paymentEntry } 
-    }));
     window.dispatchEvent(new CustomEvent('newNotification', {
       detail: {
         title: isArabic ? `💰 طلب دفع جديد: ${selectedRegistration.studentName}` : `💰 New Payment Request: ${selectedRegistration.studentName}`,
@@ -608,29 +345,11 @@ const handleApprove = async () => {
   // ===== HANDLE MARK PAID =====
   const handleMarkPaid = async (reg) => {
     try {
-      // Update local storage
-      const registrationsRaw = localStorage.getItem('registrations');
-      if (registrationsRaw) {
-        const parsed = JSON.parse(registrationsRaw);
-        const idx = parsed.findIndex(r => r.id === reg.id);
-        if (idx !== -1) {
-          parsed[idx].paymentStatus = 'paid';
-          parsed[idx].paymentPaidAt = new Date().toISOString();
-          localStorage.setItem('registrations', JSON.stringify(parsed));
-        }
-      }
-
-      // Also update registration_requests
-      const requestsRaw = localStorage.getItem('registration_requests');
-      if (requestsRaw) {
-        const parsed = JSON.parse(requestsRaw);
-        const idx = parsed.findIndex(r => (r.id ?? r._serverId) === reg.id);
-        if (idx !== -1) {
-          parsed[idx].paymentStatus = 'paid';
-          parsed[idx].payment_paid_at = new Date().toISOString();
-          localStorage.setItem('registration_requests', JSON.stringify(parsed));
-        }
-      }
+      const regId = reg._serverId || reg.id;
+      await syncSend('patch', `/registrations/${regId}/status`, {
+        paymentStatus: 'paid',
+        paymentPaidAt: new Date().toISOString(),
+      });
 
       notify(
         isArabic ? `تم تسجيل دفع الرسوم لـ ${reg.studentName}` : `Payment recorded for ${reg.studentName}`,
@@ -648,53 +367,33 @@ const handleApprove = async () => {
   };
 
   // ===== HANDLE REJECT =====
-  const handleReject = async () => {
-    if (!selectedRegistration) return;
-    try {
-      // Update local storage
-      const registrationsRaw = localStorage.getItem('registrations');
-      if (registrationsRaw) {
-        const parsed = JSON.parse(registrationsRaw);
-        const idx = parsed.findIndex(r => r.id === selectedRegistration.id);
-        if (idx !== -1) {
-          parsed[idx].status = 'rejected';
-          parsed[idx].adminNotes = adminNotes || '';
-          parsed[idx].updatedAt = new Date().toISOString();
-          localStorage.setItem('registrations', JSON.stringify(parsed));
-        }
-      }
+const handleReject = async () => {
+  if (!selectedRegistration) return;
+  try {
+    const regId = selectedRegistration._serverId || selectedRegistration.id;
+    await syncSend('patch', `/registrations/${regId}/status`, {
+      status: 'rejected',
+      admin_notes: adminNotes || '',
+    });
 
-      // Also update registration_requests
-      const requestsRaw = localStorage.getItem('registration_requests');
-      if (requestsRaw) {
-        const parsed = JSON.parse(requestsRaw);
-        const idx = parsed.findIndex(r => (r.id ?? r._serverId) === selectedRegistration.id);
-        if (idx !== -1) {
-          parsed[idx].status = 'rejected';
-          parsed[idx].admin_notes = adminNotes || '';
-          parsed[idx].updatedAt = new Date().toISOString();
-          localStorage.setItem('registration_requests', JSON.stringify(parsed));
-        }
-      }
-
-      setShowRejectModal(false);
-      setSelectedRegistration(null);
-      setAdminNotes('');
-      
-      notify(
-        isArabic ? `تم رفض تسجيل ${selectedRegistration.studentName}` : `Rejected registration for ${selectedRegistration.studentName}`,
-        'warning'
-      );
-      
-      loadRegistrations();
-    } catch (e) {
-      console.error('Reject failed:', e);
-      notify(
-        e.message || (isArabic ? 'فشل رفض التسجيل' : 'Failed to reject registration'),
-        'error'
-      );
-    }
-  };
+    setShowRejectModal(false);
+    setSelectedRegistration(null);
+    setAdminNotes('');
+    
+    notify(
+      isArabic ? `تم رفض تسجيل ${selectedRegistration.studentName}` : `Rejected registration for ${selectedRegistration.studentName}`,
+      'warning'
+    );
+    
+    loadRegistrations();
+  } catch (e) {
+    console.error('Reject failed:', e);
+    notify(
+      e.message || (isArabic ? 'فشل رفض التسجيل' : 'Failed to reject registration'),
+      'error'
+    );
+  }
+};
 
   // ===== TOGGLE EXPAND ROW =====
   const toggleExpand = (id) => {

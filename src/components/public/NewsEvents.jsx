@@ -13,6 +13,7 @@ import {
 import { useLanguage } from '../../context/LanguageContext';
 import { getTranslation, getAnnouncementTranslation } from '../../utils/translations';
 import { useNotification } from '../../hooks/useNotification';
+import { syncGet } from '../../services/apiSync';
 
 // ALWAYS use English numbers - NO Arabic numeral conversion
 const formatNumber = (num) => {
@@ -20,32 +21,7 @@ const formatNumber = (num) => {
   return num.toString();
 };
 
-// ===== Helper to get announcements from localStorage =====
-const getAnnouncementsFromStorage = () => {
-  try {
-    const stored = localStorage.getItem('announcements');
-    if (stored) {
-      const data = JSON.parse(stored);
-      return Array.isArray(data) ? data : [];
-    }
-    return [];
-  } catch (error) {
-    console.error('Error getting announcements from localStorage:', error);
-    return [];
-  }
-};
-
-// ===== Helper to save announcements to localStorage =====
-const saveAnnouncementsToStorage = (announcements) => {
-  try {
-    localStorage.setItem('announcements', JSON.stringify(announcements));
-    return true;
-  } catch (error) {
-    console.error('Error saving announcements to localStorage:', error);
-    return false;
-  }
-};
-
+// ===== NEWS & EVENTS =====
 const NewsEvents = () => {
   const { language, isArabic } = useLanguage();
   const { notify } = useNotification();
@@ -114,15 +90,16 @@ const NewsEvents = () => {
     return item.author || 'Admin';
   };
 
-  // ===== Load announcements from localStorage =====
-  const loadAnnouncements = () => {
+  // ===== Load announcements from the API =====
+  const loadAnnouncements = async () => {
     setLoading(true);
     try {
-      // Get announcements from localStorage
-      const items = getAnnouncementsFromStorage();
+      // Fetch published announcements from MySQL (via /api/announcements/published)
+      const res = await syncGet('/announcements/published');
+      const items = Array.isArray(res?.data) ? res.data : [];
       
       // Filter only published announcements
-      const publishedItems = items.filter(a => a.status === 'published' && a.isActive !== false);
+      const publishedItems = items.filter(a => (a.status === 'published' || a.status === 'active') && a.isActive !== false);
       
       // Map to display based on current language
       const mappedItems = publishedItems.map(item => ({
@@ -170,15 +147,6 @@ const NewsEvents = () => {
   useEffect(() => {
     loadAnnouncements();
 
-    // Listen for storage changes (when admin adds/updates announcements)
-    const handleStorageChange = (e) => {
-      if (e.key === 'announcements') {
-        console.log('📦 Storage changed, reloading...');
-        loadAnnouncements();
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-
     // Listen for custom events
     const handleAnnouncementsUpdated = () => {
       console.log('📢 Announcements updated event, reloading...');
@@ -195,7 +163,6 @@ const NewsEvents = () => {
     window.addEventListener('languageChange', handleLanguageChange);
 
     return () => {
-      window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('announcementsUpdated', handleAnnouncementsUpdated);
       window.removeEventListener('newNotification', handleAnnouncementsUpdated);
       window.removeEventListener('languageChange', handleLanguageChange);
@@ -233,22 +200,7 @@ const NewsEvents = () => {
       [id]: !prev[id]
     }));
 
-    // Update the likes in localStorage
-    const allItems = getAnnouncementsFromStorage();
-    const updatedItems = allItems.map(a => {
-      if (a.id === id) {
-        const currentLikes = a.likes || 0;
-        const newLikes = isLiked ? Math.max(0, currentLikes - 1) : currentLikes + 1;
-        return {
-          ...a,
-          likes: newLikes,
-        };
-      }
-      return a;
-    });
-    saveAnnouncementsToStorage(updatedItems);
-
-    // Update state
+    // Update state only (likes are not persisted; DB has no likes endpoint)
     setAnnouncements(prev => prev.map(a => {
       if (a.id === id) {
         const currentLikes = a.likes || 0;
@@ -267,21 +219,7 @@ const NewsEvents = () => {
     setSelectedItem(item);
     setShowReadMoreModal(true);
 
-    // Increment views in localStorage
-    const allItems = getAnnouncementsFromStorage();
-    const updatedItems = allItems.map(a => {
-      if (a.id === item.id) {
-        const currentViews = a.views || 0;
-        return {
-          ...a,
-          views: currentViews + 1,
-        };
-      }
-      return a;
-    });
-    saveAnnouncementsToStorage(updatedItems);
-
-    // Update state
+    // Update state only (views are not persisted; DB has no views endpoint)
     setAnnouncements(prev => prev.map(a => {
       if (a.id === item.id) {
         const currentViews = a.views || 0;

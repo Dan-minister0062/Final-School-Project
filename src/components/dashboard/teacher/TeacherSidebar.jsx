@@ -63,8 +63,6 @@ const TeacherSidebar = () => {
     if (logout) {
       logout();
     } else {
-      // Fallback logout
-      localStorage.removeItem('currentUser');
       window.location.href = '/login';
     }
   };
@@ -101,9 +99,9 @@ const TeacherSidebar = () => {
       <div className="sidebar-footer p-3 position-absolute bottom-0 w-100">
         <div className="d-flex align-items-center">
           <div className="user-avatar me-2">
-            {user?.profilePhoto ? (
+            {user?.avatar || user?.profilePhoto ? (
               <img
-                src={user.profilePhoto}
+                src={user.avatar || user.profilePhoto}
                 alt={user.name}
                 className="rounded-circle"
                 style={{ width: "32px", height: "32px", objectFit: "cover" }}

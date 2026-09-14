@@ -1,6 +1,6 @@
 // src/components/dashboard/teacher/TeacherStudents.jsx
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Button, Table, Modal, Form, Badge, ProgressBar } from 'react-bootstrap';
+import { Card, Row, Col, Button, Modal, Form, ProgressBar } from 'react-bootstrap';
 import { 
   FaSearch, 
   FaUserGraduate, 
@@ -10,21 +10,17 @@ import {
   FaBook,
   FaSync,
   FaExclamationTriangle,
-  FaSpinner,
   FaPhone,
   FaEnvelope,
   FaMapMarkerAlt,
   FaUser,
   FaGraduationCap,
   FaUsers,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaClock,
-  FaUserCheck,
 } from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
 import { teacherService } from '../../../services/teacherService';
+import { syncGet } from '../../../services/apiSync';
 
 // ===== ALWAYS use English numbers =====
 const formatNumber = (num) => {
@@ -51,7 +47,7 @@ const TeacherStudents = () => {
   const [classes, setClasses] = useState([]);
   const [teacher, setTeacher] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [studentAttendance, setStudentAttendance] = useState({});
+  const [, setStudentAttendance] = useState({});
 
   // ===== ARABIC FONT STYLE =====
   const arabicFontStyle = {
@@ -83,14 +79,17 @@ const TeacherStudents = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // ===== CALCULATE STUDENT ATTENDANCE PERCENTAGE =====
-  const calculateStudentAttendance = (studentId) => {
+  // ===== CALCULATE STUDENT ATTENDANCE PERCENTAGE (MySQL-backed flat rows) =====
+  const calculateStudentAttendance = (student, allRecords = []) => {
     try {
-      const allRecords = JSON.parse(localStorage.getItem('school_attendance') || '[]');
+      const records = Array.isArray(allRecords) ? allRecords : [];
+      const studentId = String(
+        student.userId ?? student.user_id ?? student.studentId ?? student.student_id ?? student._serverId ?? student.id ?? ''
+      );
       
-      // Find all records that contain this student
-      const studentRecords = allRecords.filter(r => 
-        r.students && r.students.some(s => s.studentId === studentId)
+      // Flat DB rows: one row per student per (class_code, date).
+      const studentRecords = records.filter(r =>
+        String(r.studentId ?? r.student_id ?? '') === studentId
       );
       
       if (studentRecords.length === 0) {
@@ -110,33 +109,28 @@ const TeacherStudents = () => {
       let absent = 0;
       let late = 0;
       let excused = 0;
-      let total = 0;
       
-      // Count each day's status for this student
+      // Count each saved day's status for this student
       studentRecords.forEach(record => {
-        const studentData = record.students.find(s => s.studentId === studentId);
-        if (studentData) {
-          total++;
-          switch (studentData.status) {
-            case 'present':
-              present++;
-              break;
-            case 'absent':
-              absent++;
-              break;
-            case 'late':
-              late++;
-              break;
-            case 'excused':
-              excused++;
-              break;
-            default:
-              break;
-          }
+        switch (record.status) {
+          case 'present':
+            present++;
+            break;
+          case 'absent':
+            absent++;
+            break;
+          case 'late':
+            late++;
+            break;
+          case 'excused':
+            excused++;
+            break;
+          default:
+            break;
         }
       });
       
-      // Calculate percentage: (present / total) * 100
+      const total = studentRecords.length;
       const percentage = total > 0 ? (present / total) * 100 : 0;
       
       return {
@@ -164,8 +158,8 @@ const TeacherStudents = () => {
     }
   };
 
-  // ===== LOAD DATA =====
-  const loadData = () => {
+  // ===== LOAD DATA (MySQL-backed: /classes, /students, /attendance) =====
+  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -184,22 +178,60 @@ const TeacherStudents = () => {
       
       setTeacher(currentTeacher);
       
-      // Get assigned students - pass teacher ID explicitly
-      const assignedStudents = teacherService.getAssignedStudents(currentTeacher.id);
-      console.log('👨‍🎓 Assigned students loaded:', assignedStudents.length);
+      // Assigned classes come from the teacher profile (auth payload, MySQL-backed).
+      const assignedClassIds = Array.isArray(currentTeacher.assignedClasses)
+        ? currentTeacher.assignedClasses
+        : Array.isArray(currentTeacher.assigned_classes)
+          ? currentTeacher.assigned_classes
+          : Array.isArray(currentTeacher.classes)
+            ? currentTeacher.classes
+            : (Array.isArray(currentTeacher.classIds) ? currentTeacher.classIds : []);
       
-      // Get assigned classes
-      const assignedClasses = teacherService.getAssignedClasses(currentTeacher.id);
+      // Fetch classes, student roster and attendance straight from MySQL.
+      const [classesRes, studentsRes, attendanceRes] = await Promise.all([
+        syncGet('/classes'),
+        syncGet('/students'),
+        syncGet('/attendance'),
+      ]);
+      const allClasses = classesRes?.data || (Array.isArray(classesRes) ? classesRes : []);
+      const allStudents = studentsRes?.data || (Array.isArray(studentsRes) ? studentsRes : []);
+      const attendanceRecords = attendanceRes?.data || (Array.isArray(attendanceRes) ? attendanceRes : []);
+      
+      // Assigned classes (class code is the canonical id)
+      const assignedClasses = (Array.isArray(allClasses) ? allClasses : [])
+        .filter(c => assignedClassIds.includes(c.id) || assignedClassIds.includes(c.code));
       console.log('📚 Assigned classes:', assignedClasses.length);
-      
+
+      // Students may store either the class code (e.g. "primary_3a") or the
+      // class name (e.g. "Primaire 3A") in students.class_code, so match both.
+      const assignedClassKeys = new Set();
+      assignedClassIds.forEach((v) => assignedClassKeys.add(String(v)));
+      assignedClasses.forEach((c) => {
+        if (c?.id !== undefined && c?.id !== null) assignedClassKeys.add(String(c.id));
+        if (c?.code) assignedClassKeys.add(String(c.code));
+        if (c?.name) assignedClassKeys.add(String(c.name));
+      });
+
+      // Assigned students: roster rows whose class belongs to the teacher.
+      const assignedStudents = (Array.isArray(allStudents) ? allStudents : [])
+        .filter(student => {
+          const studentClassId = String(student.class_code || student.classId || student.class_id || student.class || '');
+          return assignedClassKeys.has(studentClassId);
+        });
+      console.log('👨‍🎓 Assigned students loaded:', assignedStudents.length);
+
       // Enrich students with class name and attendance data
       const enrichedStudents = assignedStudents.map(student => {
-        const classInfo = assignedClasses.find(c => c.id === student.classId || c.id === student.class);
-        const attendance = calculateStudentAttendance(student.id);
+        const classInfo = assignedClasses.find(c =>
+          String(c.id) === String(student.class_code) ||
+          String(c.code) === String(student.class_code) ||
+          String(c.name) === String(student.class_code)
+        );
+        const attendance = calculateStudentAttendance(student, attendanceRecords);
         
         return {
           ...student,
-          className: classInfo?.name || student.className || student.class || 'N/A',
+          className: classInfo?.name || student.className || student.class_code || 'N/A',
           classLevel: classInfo?.level || student.level || 'N/A',
           attendance: attendance,
         };
@@ -253,6 +285,7 @@ const TeacherStudents = () => {
     const handleStorageChange = (e) => {
       if (
         e.key === "school_students" ||
+        e.key === "students_roster" ||
         e.key === "school_classes" ||
         e.key === "school_users" ||
         e.key === "school_attendance"
@@ -360,37 +393,6 @@ const TeacherStudents = () => {
       high_school: '#9b59b6',
     };
     return colors[level] || '#6c757d';
-  };
-
-  // ===== GET STATUS BADGE =====
-  const getStatusBadge = (status) => {
-    const statusMap = {
-      'present': 'success',
-      'absent': 'danger',
-      'late': 'warning',
-      'excused': 'info'
-    };
-    return statusMap[status] || 'secondary';
-  };
-
-  const getStatusIcon = (status) => {
-    const iconMap = {
-      'present': <FaCheckCircle />,
-      'absent': <FaTimesCircle />,
-      'late': <FaClock />,
-      'excused': <FaUserCheck />
-    };
-    return iconMap[status] || <FaClock />;
-  };
-
-  const getStatusLabel = (status) => {
-    const labels = {
-      'present': isArabic ? 'حاضر' : 'Present',
-      'absent': isArabic ? 'غائب' : 'Absent',
-      'late': isArabic ? 'متأخر' : 'Late',
-      'excused': isArabic ? 'معذور' : 'Excused'
-    };
-    return labels[status] || status;
   };
 
   // ===== RENDER STATES =====

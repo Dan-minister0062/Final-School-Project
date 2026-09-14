@@ -3,42 +3,26 @@ import React, { useState, useEffect } from 'react';
 import { Card, Button, Badge, Table, Modal, Form, Row, Col, Alert } from 'react-bootstrap';
 import { 
   FaPlus, FaEdit, FaTrash, FaEye, FaCheckCircle, FaClock, 
-  FaFileAlt, FaSave, FaTimes, FaFilter, FaSearch, FaDownload,
-  FaUsers, FaSpinner, FaExclamationTriangle, FaSync, FaArrowRight,
-  FaBook, FaChalkboardTeacher, FaGraduationCap, FaUserGraduate,
-  FaUser, FaEnvelope, FaIdCard, FaFile, FaUpload,
+  FaFileAlt, FaSave, FaTimes, FaSearch, FaDownload,
+  FaUsers, FaSpinner, FaExclamationTriangle, FaSync,
+  FaBook, FaGraduationCap, FaUserGraduate,
+  FaIdCard, FaFile, FaUpload,
   FaTimesCircle, FaFilePdf, FaFileWord, FaFileImage, FaFileCode,
-  FaUserCircle, FaInfoCircle, FaPrint, FaExternalLinkAlt,
-  FaPaperPlane, FaUserCheck, FaBell, FaInbox, FaCheckDouble,
+  FaInfoCircle,
+  FaPaperPlane, FaInbox,
   FaTrashAlt, FaPen, FaCheck, FaUpload as FaUploadIcon,
   FaComment
 } from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
-import { teacherService } from '../../../services/teacherService';
+import { syncGet, syncSend } from '../../../services/apiSync';
+import { useAuth } from '../../../hooks/useAuth';
+import notificationService from '../../../services/notificationService';
 
 // ===== ALWAYS use English numbers =====
 const formatNumber = (num) => {
   if (num === undefined || num === null) return '0';
   return num.toString();
-};
-
-// ===== HELPER: Clean old notifications =====
-const cleanOldNotifications = () => {
-  try {
-    const studentNotifs = JSON.parse(localStorage.getItem('student_notifications') || '[]');
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const cleaned = studentNotifs.filter(n => {
-      const date = new Date(n.createdAt || n.sentAt || Date.now());
-      return date > thirtyDaysAgo;
-    });
-    if (cleaned.length < studentNotifs.length) {
-      localStorage.setItem('student_notifications', JSON.stringify(cleaned));
-    }
-  } catch (e) {
-    console.warn('Error cleaning notifications:', e);
-  }
 };
 
 // ===== HELPER: Get file extension =====
@@ -101,7 +85,7 @@ const downloadFile = (content, fileName, fileType) => {
       try {
         atob(content.substring(0, Math.min(content.length, 100)));
         dataUrl = `data:${mimeType};base64,${content}`;
-      } catch (e) {
+      } catch {
         dataUrl = `data:text/plain;charset=utf-8,${encodeURIComponent(content)}`;
       }
     }
@@ -124,26 +108,14 @@ const downloadFile = (content, fileName, fileType) => {
 const extractFileData = (submission) => {
   if (!submission) return null;
 
-  let content = submission.attachment || submission.content || submission.fileContent || '';
-  let fileName = submission.attachmentName || submission.fileName || 'file';
-  let fileType = submission.attachmentType || submission.fileType || '';
+  let content = submission.fileData || submission.fileUrl || submission.attachment || submission.content || submission.fileContent || '';
+  let fileName = submission.attachmentName || submission.fileName || submission.file_name || 'file';
+  let fileType = submission.attachmentType || submission.fileType || submission.file_type || '';
 
   if (!content && submission.submissionItem) {
     content = submission.submissionItem.attachment || submission.submissionItem.content || submission.submissionItem.fileContent || '';
     fileName = submission.submissionItem.attachmentName || submission.submissionItem.fileName || fileName;
     fileType = submission.submissionItem.attachmentType || submission.submissionItem.fileType || fileType;
-  }
-
-  if (!content && submission.id) {
-    try {
-      const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-      const found = allSubmissions.find(s => s.id === submission.id);
-      if (found) {
-        content = found.attachment || found.content || found.fileContent || '';
-        fileName = found.attachmentName || found.fileName || fileName;
-        fileType = found.attachmentType || found.fileType || fileType;
-      }
-    } catch (e) {}
   }
 
   if (!fileType && fileName) {
@@ -220,6 +192,7 @@ const getFileTypeLabel = (fileType) => {
 const TeacherAssessments = () => {
   const { isArabic } = useLanguage();
   const { notify } = useNotification();
+  const { user } = useAuth();
   const [darkMode, setDarkMode] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [assessments, setAssessments] = useState([]);
@@ -246,9 +219,8 @@ const TeacherAssessments = () => {
   const [selectedClassLevel, setSelectedClassLevel] = useState('');
   const [showSubmissionViewModal, setShowSubmissionViewModal] = useState(false);
   const [viewingSubmission, setViewingSubmission] = useState(null);
-  const [allSubmissions, setAllSubmissions] = useState([]);
-  const [attachmentFileName, setAttachmentFileName] = useState('');
-  const [teacherAssignedSubjects, setTeacherAssignedSubjects] = useState([]);
+  const [, setAttachmentFileName] = useState('');
+  const [, setTeacherAssignedSubjects] = useState([]);
   const [selectedSubmissionItem, setSelectedSubmissionItem] = useState(null);
   const [showSubmissionGradeModal, setShowSubmissionGradeModal] = useState(false);
   const [submissionGradeData, setSubmissionGradeData] = useState({});
@@ -307,141 +279,33 @@ const TeacherAssessments = () => {
   const [formErrors, setFormErrors] = useState({});
 
   // ===== GET TEACHER'S ASSIGNED CLASSES =====
-  const getTeacherClasses = (teacherId) => {
-    let classList = [];
-
+  const getTeacherClasses = async () => {
+    const assignedClassCodes = Array.isArray(user?.assignedClasses) ? user.assignedClasses
+      : Array.isArray(user?.assigned_classes) ? user.assigned_classes : [];
     try {
-      const teachers = JSON.parse(localStorage.getItem('school_teachers') || '[]');
-      let teacher = null;
-      
-      if (teacherId) {
-        teacher = teachers.find(t => t.id === teacherId);
+      const classesRes = await syncGet('/classes');
+      const allClasses = Array.isArray(classesRes?.data) ? classesRes.data : [];
+      if (assignedClassCodes.length > 0) {
+        return allClasses.filter(c => assignedClassCodes.some(code => String(code) === String(c.id) || String(code) === String(c.code)));
       }
-      
-      if (!teacher) {
-        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-        teacher = teachers.find(t => t.email === currentUser.email || t.id === currentUser.id);
-      }
-      
-      if (teacher) {
-        let classIds = [];
-        if (teacher.assignedClasses && Array.isArray(teacher.assignedClasses)) {
-          classIds = teacher.assignedClasses;
-        } else if (teacher.classes && Array.isArray(teacher.classes)) {
-          classIds = teacher.classes;
-        }
-        
-        if (classIds.length > 0) {
-          const allClasses = JSON.parse(localStorage.getItem('school_classes') || '[]');
-          classIds.forEach(id => {
-            const classId = typeof id === 'object' ? id.id || id : id;
-            const foundClass = allClasses.find(c => c.id === classId);
-            if (foundClass && !classList.find(c => c.id === foundClass.id)) {
-              classList.push(foundClass);
-            }
-          });
-        }
-      }
+      return allClasses;
     } catch (e) {
-      console.warn('Error loading from school_teachers:', e);
+      console.warn('Error loading classes:', e);
+      return [];
     }
-
-    if (classList.length === 0) {
-      try {
-        const users = JSON.parse(localStorage.getItem('school_users') || '[]');
-        let user = null;
-        
-        if (teacherId) {
-          user = users.find(u => u.id === teacherId);
-        }
-        
-        if (!user) {
-          const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-          user = users.find(u => u.email === currentUser.email || u.id === currentUser.id);
-        }
-        
-        if (user && user.role === 'teacher') {
-          let classIds = [];
-          if (user.assignedClasses && Array.isArray(user.assignedClasses)) {
-            classIds = user.assignedClasses;
-          }
-          
-          if (classIds.length > 0) {
-            const allClasses = JSON.parse(localStorage.getItem('school_classes') || '[]');
-            classIds.forEach(id => {
-              const classId = typeof id === 'object' ? id.id || id : id;
-              const foundClass = allClasses.find(c => c.id === classId);
-              if (foundClass && !classList.find(c => c.id === foundClass.id)) {
-                classList.push(foundClass);
-              }
-            });
-          }
-        }
-      } catch (e) {
-        console.warn('Error loading from school_users:', e);
-      }
-    }
-
-    if (classList.length === 0) {
-      try {
-        const serviceClasses = teacherService.getAssignedClasses(teacherId);
-        if (serviceClasses && serviceClasses.length > 0) {
-          classList = serviceClasses;
-        }
-      } catch (e) {
-        console.warn('Error loading from teacherService:', e);
-      }
-    }
-
-    return classList;
   };
 
   // ===== GET TEACHER'S ASSIGNED SUBJECTS =====
   const getTeacherSubjects = () => {
     try {
-      const currentTeacher = teacherService.getCurrentTeacher();
-      if (!currentTeacher) return [];
-      
       let subjects = [];
-      
-      if (currentTeacher.subjects && Array.isArray(currentTeacher.subjects)) {
-        subjects = currentTeacher.subjects;
-      } else if (currentTeacher.assignedSubjects && Array.isArray(currentTeacher.assignedSubjects)) {
-        subjects = currentTeacher.assignedSubjects;
-      } else if (currentTeacher.subject) {
-        subjects = [currentTeacher.subject];
+      if (user?.subjects && Array.isArray(user.subjects)) {
+        subjects = user.subjects;
+      } else if (user?.assignedSubjects && Array.isArray(user.assignedSubjects)) {
+        subjects = user.assignedSubjects;
+      } else if (user?.subject) {
+        subjects = [user.subject];
       }
-      
-      if (subjects.length === 0) {
-        try {
-          const teachers = JSON.parse(localStorage.getItem('school_teachers') || '[]');
-          const teacher = teachers.find(t => t.id === currentTeacher.id || t.email === currentTeacher.email);
-          if (teacher) {
-            if (teacher.subjects && Array.isArray(teacher.subjects)) {
-              subjects = teacher.subjects;
-            } else if (teacher.assignedSubjects && Array.isArray(teacher.assignedSubjects)) {
-              subjects = teacher.assignedSubjects;
-            } else if (teacher.subject) {
-              subjects = [teacher.subject];
-            }
-          }
-        } catch (e) {}
-      }
-      
-      if (subjects.length === 0) {
-        try {
-          const users = JSON.parse(localStorage.getItem('school_users') || '[]');
-          const user = users.find(u => u.id === currentTeacher.id || u.email === currentTeacher.email);
-          if (user && user.role === 'teacher') {
-            if (user.subjects && Array.isArray(user.subjects)) {
-              subjects = user.subjects;
-            } else if (user.assignedSubjects && Array.isArray(user.assignedSubjects)) {
-              subjects = user.assignedSubjects;
-            }
-          }
-        } catch (e) {}
-      }
-      
       return subjects;
     } catch (err) {
       console.error('Error getting teacher subjects:', err);
@@ -622,43 +486,56 @@ const TeacherAssessments = () => {
   };
 
   // ===== LOAD DATA =====
-  const loadData = () => {
+  const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const currentTeacher = teacherService.getCurrentTeacher();
-      
-      if (!currentTeacher) {
+      if (!user) {
         setError(isArabic ? 'لم يتم العثور على المعلم' : 'Teacher not found');
         setLoading(false);
         return;
       }
-      
-      setTeacher(currentTeacher);
-      
-      const assignedClasses = getTeacherClasses(currentTeacher.id);
+
+      setTeacher(user);
+
+      const assignedClasses = await getTeacherClasses(user.id);
       setClasses(assignedClasses);
-      
+
       const subjects = getTeacherSubjects();
       setTeacherAssignedSubjects(subjects);
-      
-      const assignedStudents = teacherService.getAssignedStudents(currentTeacher.id);
+
+      const studentsRes = await syncGet('/students');
+      const allStudents = Array.isArray(studentsRes?.data) ? studentsRes.data : [];
+
+      // Students may store either the class code or the class name in
+      // students.class_code, so match against both for each assigned class.
+      const assignedClassKeys = new Set();
+      assignedClasses.forEach((c) => {
+        if (c?.id !== undefined && c?.id !== null) assignedClassKeys.add(String(c.id));
+        if (c?.code) assignedClassKeys.add(String(c.code));
+        if (c?.name) assignedClassKeys.add(String(c.name));
+      });
+      const assignedStudents = allStudents.filter(s =>
+        assignedClassKeys.has(String(s.class_code || '')) ||
+        assignedClassKeys.has(String(s.classId || '')) ||
+        assignedClassKeys.has(String(s.className || ''))
+      );
       setStudents(assignedStudents);
-      
-      const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-      setAllSubmissions(allSubmissions);
-      
-      const storedAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
-      
-      // Get teacher's own assessments (created by this teacher)
-      const teacherAssessments = storedAssessments.filter(a => a.teacherId === currentTeacher.id);
-      
-      const enrichedAssessments = teacherAssessments.map(a => {
-        const classInfo = assignedClasses.find(c => c.id === a.classId);
-        const assessmentSubmissions = allSubmissions.filter(s => s.assessmentId === a.id);
+
+      const assessRes = await syncGet('/assessments');
+      const allAssessments = Array.isArray(assessRes?.data) ? assessRes.data : [];
+      const teacherAssessments = allAssessments;
+
+      const enrichedAssessments = await Promise.all(teacherAssessments.map(async (a) => {
+        const classInfo = assignedClasses.find(c => String(c.id) === String(a.classId) || String(c.code) === String(a.classId));
+        let assessmentSubmissions = [];
+        try {
+          const subRes = await syncGet(`/assessments/${a._serverId || a.id}/submissions`);
+          assessmentSubmissions = Array.isArray(subRes?.data) ? subRes.data : [];
+        } catch { /* ignore */ }
         const grades = a.grades || [];
-        
+
         return {
           ...a,
           className: classInfo?.name || a.className || 'N/A',
@@ -667,60 +544,55 @@ const TeacherAssessments = () => {
           grades: grades,
           submissionCount: assessmentSubmissions.length,
           gradedCount: grades.filter(g => g.score !== undefined && g.score !== null).length,
-          totalStudents: assignedStudents.filter(s => s.classId === a.classId || s.class === a.classId).length
+          totalStudents: assignedStudents.filter(s => String(s.class_code) === String(a.classId) || String(s.classId) === String(a.classId) || String(s.className) === String(a.classId)).length
         };
-      });
-      
+      }));
+
       setAssessments(enrichedAssessments);
       setFilteredAssessments(enrichedAssessments);
 
-      // ===== LOAD STUDENT SUBMISSIONS (Direct from students) =====
-      const directSubmissions = allSubmissions.filter(s => {
-        const student = assignedStudents.find(st => st.id === s.studentId);
-        const isForThisTeacher = s.teacherId === currentTeacher.id || student !== undefined;
-        return isForThisTeacher && s.status === 'submitted';
-      });
-      
-      const enrichedSubmissions = directSubmissions.map(s => {
-        const student = students.find(st => st.id === s.studentId) || 
-                       { name: s.studentName || 'Unknown', id: s.studentId };
-        const assessment = storedAssessments.find(a => a.id === s.assessmentId);
-        const isGraded = s.grade !== undefined && s.grade !== null && s.grade !== '';
-        
-        return {
-          ...s,
-          student: student,
-          studentName: student.name || s.studentName || 'Unknown',
-          assessment: assessment,
-          title: s.title || assessment?.title || 'Assessment',
-          subject: s.subject || assessment?.subject || 'N/A',
-          className: s.className || assessment?.className || 'N/A',
-          totalMarks: assessment?.totalMarks || 20,
-          isGraded: isGraded,
-          grade: s.grade || null,
-          remarks: s.remarks || '',
-          gradedAt: s.gradedAt || null,
-          gradedBy: s.gradedBy || null,
-          submittedAt: s.submittedAt || new Date().toISOString(),
-          content: s.content || '',
-          fileName: s.fileName || '',
-          fileType: s.fileType || '',
-          attachment: s.attachment || ''
-        };
-      });
-      
-      const sortedSubmissions = enrichedSubmissions.sort((a, b) => 
+      const directSubmissions = [];
+      for (const a of enrichedAssessments) {
+        for (const s of (a.submissions || [])) {
+          const student = assignedStudents.find(st =>
+            String(st.userId) === String(s.studentId) || String(st.userId) === String(s.student_id)
+          );
+          if (student && s.status === 'submitted') {
+            directSubmissions.push({
+              ...s,
+              student: student,
+              studentName: student.name || s.studentName || 'Unknown',
+              assessment: a,
+              title: s.title || a.title || 'Assessment',
+              subject: s.subject || a.subject || 'N/A',
+              className: s.className || a.className || 'N/A',
+              totalMarks: a.totalMarks || 20,
+              isGraded: s.score !== undefined && s.score !== null && s.score !== '',
+              grade: s.score || null,
+              remarks: s.remarks || s.comment || '',
+              gradedAt: s.gradedAt || null,
+              gradedBy: s.gradedBy || null,
+              submittedAt: s.submittedAt || new Date().toISOString(),
+              content: s.content || '',
+              fileName: s.fileName || s.file_name || '',
+              fileType: s.fileType || s.file_type || '',
+              attachment: s.attachment || '',
+              _serverId: s._serverId || s.id,
+            });
+          }
+        }
+      }
+
+      const sortedSubmissions = directSubmissions.sort((a, b) =>
         new Date(b.submittedAt) - new Date(a.submittedAt)
       );
-      
+
       setStudentSubmissions(sortedSubmissions);
       setFilteredSubmissions(sortedSubmissions);
-      
-      cleanOldNotifications();
-      
+
       setLoading(false);
     } catch (err) {
-      console.error('❌ Error loading assessments:', err);
+      console.error('Error loading assessments:', err);
       setError(err.message);
       setLoading(false);
     }
@@ -786,17 +658,6 @@ const TeacherAssessments = () => {
   useEffect(() => {
     loadData();
 
-    const unsubscribeTeacher = teacherService.addListener(() => {
-      loadData();
-    });
-
-    const handleStorageChange = (e) => {
-      if (e.key === "school_assessments" || e.key === "school_submissions" || e.key === "school_users" || e.key === "school_classes" || e.key === "school_teachers" || e.key === "student_assessments") {
-        loadData();
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-
     const handleAssessmentChanged = () => {
       loadData();
     };
@@ -808,8 +669,6 @@ const TeacherAssessments = () => {
     window.addEventListener("submissionChanged", handleSubmissionChanged);
 
     return () => {
-      if (unsubscribeTeacher) unsubscribeTeacher();
-      window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("assessmentChanged", handleAssessmentChanged);
       window.removeEventListener("submissionChanged", handleSubmissionChanged);
     };
@@ -818,13 +677,7 @@ const TeacherAssessments = () => {
   // ===== CHECK IF ASSESSMENT IS APPROVED BY ADMIN =====
   const isApprovedByAdmin = (assessment) => {
     if (assessment.approvedByAdmin === true) return true;
-    
-    try {
-      const pendingAssessments = JSON.parse(localStorage.getItem('pending_assessments') || '[]');
-      const pending = pendingAssessments.find(a => a.assessmentId === assessment.id);
-      if (pending && pending.status === 'approved') return true;
-    } catch (e) {}
-    
+    if (assessment.status === 'approved' || assessment.status === 'sent_to_students') return true;
     return false;
   };
 
@@ -864,7 +717,7 @@ const TeacherAssessments = () => {
       console.log('🟢 Viewing submission:', submission);
       
       // If submission has text content, show it in the modal
-      if (submission.content || submission.attachment || submission.fileName) {
+      if (submission.content || submission.fileData || submission.fileUrl || submission.attachment || submission.fileName || submission.file_name) {
         const fileData = extractFileData(submission);
         setFileViewData({
           ...fileData,
@@ -941,55 +794,27 @@ const TeacherAssessments = () => {
   };
 
   // ===== HANDLE SEND TO ADMIN =====
-  const handleSendToAdmin = (assessment) => {
+  const handleSendToAdmin = async (assessment) => {
     try {
-      const adminNotifications = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
-      
-      const notification = {
-        id: `NOTIF_${Date.now()}`,
-        assessmentId: assessment.id,
-        teacherId: assessment.teacherId,
-        teacherName: assessment.teacherName || teacher?.name || 'Unknown Teacher',
-        subject: assessment.subject,
-        className: assessment.className || assessment.classId,
-        type: assessment.type,
-        title: assessment.title,
-        description: assessment.description || '',
-        totalMarks: assessment.totalMarks,
-        dueDate: assessment.dueDate,
-        attachment: assessment.attachment || null,
-        attachmentName: assessment.attachmentName || '',
-        attachmentType: assessment.attachmentType || '',
-        status: 'pending',
-        sentAt: new Date().toISOString(),
-        read: false
-      };
-      
-      adminNotifications.push(notification);
-      localStorage.setItem('admin_notifications', JSON.stringify(adminNotifications));
-      
-      const pendingAssessments = JSON.parse(localStorage.getItem('pending_assessments') || '[]');
-      pendingAssessments.push({
-        ...notification,
-        assessmentData: assessment,
-        approvedByAdmin: false
+      const serverId = assessment._serverId || assessment.id;
+      await syncSend('patch', `/assessments/${serverId}/status`, { status: 'pending_approval' });
+
+      notificationService.addNotification({
+        title: isArabic ? '📤 تقييم جديد بانتظار المراجعة' : '📤 New Assessment Pending Review',
+        message: isArabic
+          ? `أرسل المعلم ${teacher?.name || 'معلم'} تقييم "${assessment.title}" للموافقة عليه`
+          : `Teacher ${teacher?.name || 'Teacher'} submitted assessment "${assessment.title}" for approval`,
+        type: 'assignment',
+        link: '/dashboard/admin/assessments',
+        metadata: { assessment_id: serverId, teacher_name: teacher?.name },
+        audience: 'admin',
       });
-      localStorage.setItem('pending_assessments', JSON.stringify(pendingAssessments));
-      
-      let storedAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
-      const index = storedAssessments.findIndex(a => a.id === assessment.id);
-      if (index !== -1) {
-        storedAssessments[index].status = 'pending_approval';
-        storedAssessments[index].sentToAdminAt = new Date().toISOString();
-        storedAssessments[index].approvedByAdmin = false;
-        localStorage.setItem('school_assessments', JSON.stringify(storedAssessments));
-      }
-      
+
       notify(
         isArabic ? '✅ تم إرسال التقييم إلى الإدارة للمراجعة' : '✅ Assessment sent to admin for review',
         'success'
       );
-      
+
       loadData();
     } catch (err) {
       console.error('Error sending to admin:', err);
@@ -1001,12 +826,10 @@ const TeacherAssessments = () => {
   };
 
   // ===== HANDLE SEND TO STUDENTS (After Admin Approval) =====
-  const handleSendToStudents = (assessment) => {
+  const handleSendToStudents = async (assessment) => {
     try {
-      cleanOldNotifications();
-      
-      const classStudents = students.filter(s => s.classId === assessment.classId || s.class === assessment.classId);
-      
+      const classStudents = students.filter(s => String(s.class_code) === String(assessment.classId) || String(s.classId) === String(assessment.classId));
+
       if (classStudents.length === 0) {
         notify(
           isArabic ? 'لا يوجد طلاب في هذا الفصل لإرسال التقييم' : 'No students in this class to send assessment',
@@ -1015,200 +838,109 @@ const TeacherAssessments = () => {
         return;
       }
 
-      console.log(`📤 Sending assessment "${assessment.title}" to ${classStudents.length} students`);
-
-      const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
-      const newStudentAssessments = [];
-      const studentNotifications = [];
-      
       const teacherName = teacher?.name || assessment.teacherName || 'Teacher';
-      const teacherId = teacher?.id || assessment.teacherId;
 
-      classStudents.forEach(student => {
-        const existing = studentAssessments.find(
-          sa => sa.assessmentId === assessment.id && sa.studentId === student.id
-        );
-        
-        if (!existing) {
-          const studentAssessment = {
-            id: `ST_ASSESS_${Date.now()}_${student.id}`,
-            assessmentId: assessment.id,
-            studentId: student.id,
-            teacherId: teacherId,
-            teacherName: teacherName,
-            subject: assessment.subject,
-            className: assessment.className || assessment.classId,
-            type: assessment.type,
-            title: assessment.title,
-            description: assessment.description || '',
-            totalMarks: assessment.totalMarks || 20,
-            dueDate: assessment.dueDate || '',
-            attachment: assessment.attachment || null,
-            attachmentName: assessment.attachmentName || '',
-            attachmentType: assessment.attachmentType || '',
-            sentAt: new Date().toISOString(),
-            status: 'pending',
-            submittedAt: null,
-            grade: null,
-            remarks: null,
-            gradedAt: null,
-            read: false,
-            isNew: true
-          };
-          
-          newStudentAssessments.push(studentAssessment);
-          
-          studentNotifications.push({
-            id: `ST_NOTIF_${Date.now()}_${student.id}`,
-            studentId: student.id,
-            studentName: student.name || student.firstName || 'Student',
-            assessmentId: assessment.id,
-            teacherId: teacherId,
-            teacherName: teacherName,
-            title: assessment.title,
-            subject: assessment.subject,
-            type: assessment.type,
-            description: assessment.description || '',
-            dueDate: assessment.dueDate || '',
-            sentAt: new Date().toISOString(),
-            read: false,
-            submitted: false,
-            type: 'new_assessment',
-            message: isArabic 
-              ? `📚 قام المعلم ${teacherName} بتعيين تقييم جديد: "${assessment.title}"`
-              : `📚 Teacher ${teacherName} assigned a new assessment: "${assessment.title}"`
-          });
-        }
-      });
+      const serverId = assessment._serverId || assessment.id;
+      await syncSend('patch', `/assessments/${serverId}/status`, { status: 'sent_to_students' });
 
-      if (newStudentAssessments.length > 0) {
-        const updatedStudentAssessments = [...studentAssessments, ...newStudentAssessments];
-        localStorage.setItem('student_assessments', JSON.stringify(updatedStudentAssessments));
-        console.log(`✅ Added ${newStudentAssessments.length} student assessment records`);
+      for (const student of classStudents) {
+        const studentKey = student.userId || student.id;
+        notificationService.addNotification({
+          title: isArabic ? '📚 تقييم جديد' : '📚 New Assessment',
+          message: isArabic
+            ? `قام المعلم ${teacherName} بتعيين تقييم جديد: "${assessment.title}"`
+            : `Teacher ${teacherName} assigned a new assessment: "${assessment.title}"`,
+          type: 'assignment',
+          link: '/dashboard/student/assessments',
+          metadata: { assessment_id: serverId, teacher_name: teacherName, title: assessment.title },
+          audience: 'students',
+          recipientId: studentKey,
+        });
       }
 
-      if (studentNotifications.length > 0) {
-        const existingStudentNotifications = JSON.parse(localStorage.getItem('student_notifications') || '[]');
-        const mergedNotifications = [...existingStudentNotifications, ...studentNotifications];
-        if (mergedNotifications.length > 100) {
-          const recent = mergedNotifications.slice(-100);
-          localStorage.setItem('student_notifications', JSON.stringify(recent));
-        } else {
-          localStorage.setItem('student_notifications', JSON.stringify(mergedNotifications));
-        }
-        console.log(`✅ Added ${studentNotifications.length} student notifications`);
-      }
-
-      let storedAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
-      const index = storedAssessments.findIndex(a => a.id === assessment.id);
-      if (index !== -1) {
-        storedAssessments[index].status = 'sent_to_students';
-        storedAssessments[index].sentToStudentsAt = new Date().toISOString();
-        storedAssessments[index].studentCount = classStudents.length;
-        storedAssessments[index].approvedByAdmin = true;
-        storedAssessments[index].approvedAt = new Date().toISOString();
-        localStorage.setItem('school_assessments', JSON.stringify(storedAssessments));
-        console.log('✅ Updated assessment status to sent_to_students');
-      }
-
-      const pendingAssessments = JSON.parse(localStorage.getItem('pending_assessments') || '[]');
-      const pendingIndex = pendingAssessments.findIndex(a => a.assessmentId === assessment.id);
-      if (pendingIndex !== -1) {
-        pendingAssessments[pendingIndex].status = 'approved';
-        pendingAssessments[pendingIndex].sentToStudentsAt = new Date().toISOString();
-        localStorage.setItem('pending_assessments', JSON.stringify(pendingAssessments));
-      }
-
-      const adminNotifications = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
-      adminNotifications.push({
-        id: `ADMIN_NOTIF_${Date.now()}`,
-        type: 'assessment_sent_to_students',
-        assessmentId: assessment.id,
-        title: isArabic ? `📤 تم إرسال تقييم للطلاب` : `📤 Assessment sent to students`,
-        message: isArabic 
+      notificationService.addNotification({
+        title: isArabic ? '📤 تم إرسال تقييم للطلاب' : '📤 Assessment sent to students',
+        message: isArabic
           ? `تم إرسال التقييم "${assessment.title}" إلى ${classStudents.length} طالب بواسطة ${teacherName}`
           : `Assessment "${assessment.title}" was sent to ${classStudents.length} students by ${teacherName}`,
-        teacherId: teacherId,
-        teacherName: teacherName,
-        studentCount: classStudents.length,
-        read: false,
-        createdAt: new Date().toISOString()
+        type: 'submission',
+        link: '/dashboard/admin/assessments',
+        metadata: { assessment_id: serverId, teacher_name: teacherName, student_count: classStudents.length },
+        audience: 'admin',
       });
-      localStorage.setItem('admin_notifications', JSON.stringify(adminNotifications));
 
-      window.dispatchEvent(new CustomEvent('assessmentSent', { 
+      window.dispatchEvent(new CustomEvent('assessmentSent', {
         detail: { assessment, students: classStudents }
       }));
-      
-      window.dispatchEvent(new CustomEvent('studentAssessmentsUpdated', { 
+
+      window.dispatchEvent(new CustomEvent('studentAssessmentsUpdated', {
         detail: { assessment, students: classStudents }
-      }));
-      
-      window.dispatchEvent(new CustomEvent('notificationAdded', { 
-        detail: { type: 'assessment_sent', count: classStudents.length }
       }));
 
       notify(
         isArabic ? `✅ تم إرسال التقييم إلى ${classStudents.length} طالب بنجاح` : `✅ Assessment sent to ${classStudents.length} students successfully`,
         'success'
       );
-      
+
       loadData();
     } catch (err) {
       console.error('Error sending to students:', err);
-      if (err.name === 'QuotaExceededError' || err.code === 22) {
-        try {
-          cleanOldNotifications();
-          notify(
-            isArabic ? '🔄 جاري تنظيف البيانات القديمة وإعادة المحاولة...' : '🔄 Cleaning old data and retrying...',
-            'info'
-          );
-          setTimeout(() => handleSendToStudents(assessment), 500);
-        } catch (retryErr) {
-          notify(
-            isArabic ? '❌ مساحة التخزين ممتلئة. الرجاء حذف بعض البيانات القديمة.' : '❌ Storage is full. Please delete some old data.',
-            'error'
-          );
-        }
-      } else {
-        notify(
-          isArabic ? '❌ حدث خطأ أثناء إرسال التقييم للطلاب' : '❌ Error sending assessment to students',
-          'error'
-        );
-      }
+      notify(
+        isArabic ? '❌ حدث خطأ أثناء إرسال التقييم للطلاب' : '❌ Error sending assessment to students',
+        'error'
+      );
     }
   };
 
   // ===== HANDLE VIEW SUBMISSION (for My Assessments tab) =====
-  const handleViewSubmissions = (assessment) => {
+  const handleViewSubmissions = async (assessment) => {
     setSelectedAssessment(assessment);
-    
-    const freshSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-    const assessmentSubmissions = freshSubmissions.filter(s => s.assessmentId === assessment.id);
-    
-    const classStudents = students.filter(s => s.classId === assessment.classId || s.class === assessment.classId);
+
+    let serverSubmissions = [];
+    const serverId = assessment._serverId;
+    if (serverId) {
+      const res = await syncGet(`/assessments/${serverId}/submissions`);
+      if (Array.isArray(res?.data)) serverSubmissions = res.data;
+    }
+
+    const classStudents = students.filter(s => String(s.class_code) === String(assessment.classId) || String(s.classId) === String(assessment.classId));
     const grades = assessment.grades || [];
-    
+
+    const matchesStudent = (row, student) => {
+      const rowId = String(row?.studentId ?? row?.student_id ?? '');
+      if (!rowId) return false;
+      return [student.userId, student.user_id, student._serverId, student.id, student.code, student.studentNumber]
+        .some(id => id !== undefined && id !== null && String(id) === rowId);
+    };
+
     const studentResults = classStudents.map(student => {
-      const submission = assessmentSubmissions.find(s => s.studentId === student.id);
-      const grade = grades.find(g => g.studentId === student.id);
-      
+      const submission =
+        serverSubmissions.find(s => matchesStudent(s, student));
+      const grade = grades.find(g => matchesStudent(g, student));
+
+      const score =
+        submission && submission.score !== undefined && submission.score !== null && submission.score !== ''
+          ? submission.score
+          : grade && grade.score !== undefined && grade.score !== null && grade.score !== ''
+            ? grade.score
+            : '';
+
       return {
         student: student,
         submitted: !!submission,
-        submissionDate: submission?.submittedAt || null,
+        submissionDate: submission?.submittedAt || submission?.submitted_at || null,
         submissionContent: submission?.content || null,
-        submissionFileType: submission?.fileType || null,
-        submissionFileName: submission?.fileName || null,
-        score: grade?.score || '',
-        graded: !!grade,
-        remarks: submission?.remarks || grade?.remarks || '',
-        gradeLetter: getGradeLetter(grade?.score, assessment.totalMarks),
-        gradeColor: getGradeColor(grade?.score, assessment.totalMarks),
+        submissionFileType: submission?.fileType || submission?.file_type || null,
+        submissionFileName: submission?.fileName || submission?.file_name || null,
+        score: score,
+        graded: score !== '',
+        remarks: submission?.comment || submission?.feedback || grade?.remarks || grade?.feedback || '',
+        gradeLetter: getGradeLetter(score, assessment.totalMarks),
+        gradeColor: getGradeColor(score, assessment.totalMarks),
         submissionData: submission
       };
     });
-    
+
     setSelectedStudentGrades(studentResults);
     setShowSubmissionModal(true);
   };
@@ -1236,13 +968,6 @@ const TeacherAssessments = () => {
     }
   };
 
-  // ===== HANDLE VIEW STUDENT SUBMISSION (from Submissions tab) =====
-  const handleViewStudentSubmission = (submissionItem) => {
-    setSelectedSubmissionItem(submissionItem);
-    // Use the new view submission handler
-    handleViewSubmission(submissionItem);
-  };
-
   // ===== HANDLE GRADE STUDENT SUBMISSION (from Submissions tab) =====
   const handleGradeStudentSubmission = (submissionItem) => {
     setSelectedSubmissionItem(submissionItem);
@@ -1255,7 +980,7 @@ const TeacherAssessments = () => {
   };
 
   // ===== SUBMIT GRADE FOR STUDENT SUBMISSION =====
-  const handleSubmitStudentGrade = () => {
+  const handleSubmitStudentGrade = async () => {
     if (!selectedSubmissionItem) return;
     
     try {
@@ -1270,137 +995,47 @@ const TeacherAssessments = () => {
         return;
       }
       
-      const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-      const submissionIndex = allSubmissions.findIndex(s => s.id === selectedSubmissionItem.id);
-      
-      if (submissionIndex !== -1) {
-        allSubmissions[submissionIndex].grade = parseFloat(score);
-        allSubmissions[submissionIndex].remarks = submissionRemarks || '';
-        allSubmissions[submissionIndex].gradedAt = new Date().toISOString();
-        allSubmissions[submissionIndex].gradedBy = teacher?.name || 'Teacher';
-        allSubmissions[submissionIndex].status = 'graded';
-        localStorage.setItem('school_submissions', JSON.stringify(allSubmissions));
+      const submissionServerId = selectedSubmissionItem._serverId || selectedSubmissionItem.id;
+      if (submissionServerId) {
+        await syncSend('put', `/submissions/${submissionServerId}`, {
+          score: parseFloat(score),
+          comment: submissionRemarks || '',
+          status: 'graded',
+        });
       }
       
-      const assessmentId = selectedSubmissionItem.assessment?.id || selectedSubmissionItem.assessmentId;
-      const assessmentType = selectedSubmissionItem.type || 'homework';
-      const subject = selectedSubmissionItem.subject || 'N/A';
-      const teacherName = teacher?.name || 'Teacher';
-      const teacherId = teacher?.id || 'unknown';
-      
-      if (assessmentId) {
-        const storedAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
-        const assessmentIndex = storedAssessments.findIndex(a => a.id === assessmentId);
-        
-        if (assessmentIndex !== -1) {
-          const grades = storedAssessments[assessmentIndex].grades || [];
-          const existingIndex = grades.findIndex(g => g.studentId === studentId);
-          
-          if (existingIndex !== -1) {
-            grades[existingIndex].score = parseFloat(score);
-            grades[existingIndex].remarks = submissionRemarks || '';
-            grades[existingIndex].gradedAt = new Date().toISOString();
-          } else {
-            grades.push({
-              studentId: studentId,
-              score: parseFloat(score),
-              remarks: submissionRemarks || '',
-              gradedAt: new Date().toISOString()
-            });
-          }
-          
-          storedAssessments[assessmentIndex].grades = grades;
-          localStorage.setItem('school_assessments', JSON.stringify(storedAssessments));
-        }
-      }
-      
-      // Update student assessment record
-      const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
-      const studentAssessIndex = studentAssessments.findIndex(
-        sa => sa.assessmentId === assessmentId && sa.studentId === studentId
-      );
-      
-      if (studentAssessIndex !== -1) {
-        studentAssessments[studentAssessIndex].grade = parseFloat(score);
-        studentAssessments[studentAssessIndex].remarks = submissionRemarks || '';
-        studentAssessments[studentAssessIndex].status = 'graded';
-        studentAssessments[studentAssessIndex].gradedAt = new Date().toISOString();
-        localStorage.setItem('student_assessments', JSON.stringify(studentAssessments));
-      }
-      
-      // ===== RECORD IN STUDENT RESULTS (for exams) =====
-      if (assessmentType === 'exam' || assessmentType === 'test') {
-        try {
-          const studentResults = JSON.parse(localStorage.getItem('student_results') || '[]');
-          
-          const examResult = {
-            id: `RESULT_${Date.now()}`,
-            studentId: studentId,
-            studentName: selectedSubmissionItem.studentName || 'Student',
-            subject: subject,
-            teacherId: teacherId,
-            teacherName: teacherName,
-            assessmentId: assessmentId,
-            assessmentTitle: selectedSubmissionItem.title || 'Exam',
+      const gradeRecipientId = Number(
+        selectedSubmissionItem.studentId ??
+          selectedSubmissionItem.student_id ??
+          selectedSubmissionItem.student?.userId ??
+          selectedSubmissionItem.student?.user_id ??
+          selectedSubmissionItem.student?._serverId ??
+          selectedSubmissionItem.student?.id ??
+          0
+      ) || null;
+
+      if (gradeRecipientId) {
+        const gradeMessage = isArabic
+          ? `تم تصحيح تقديمك في "${selectedSubmissionItem.title}" وحصلت على ${score}/${selectedSubmissionItem.totalMarks}`
+          : `Your submission for "${selectedSubmissionItem.title}" has been graded: ${score}/${selectedSubmissionItem.totalMarks}`;
+        const remarksMessage = submissionRemarks ? (isArabic ? `\nملاحظات المعلم: ${submissionRemarks}` : `\nTeacher's remarks: ${submissionRemarks}`) : '';
+
+        notificationService.addNotification({
+          title: isArabic ? '📝 تم تصحيح تقديمك' : '📝 Your submission has been graded',
+          message: gradeMessage + remarksMessage,
+          type: 'grade',
+          link: '/dashboard/student/assessments',
+          metadata: {
             score: parseFloat(score),
             totalMarks: selectedSubmissionItem.totalMarks || 20,
-            percentage: ((parseFloat(score) / (selectedSubmissionItem.totalMarks || 20)) * 100).toFixed(1),
             remarks: submissionRemarks || '',
-            grade: getGradeLetter(parseFloat(score), selectedSubmissionItem.totalMarks || 20),
-            type: assessmentType,
-            date: new Date().toISOString(),
-            semester: new Date().getMonth() < 6 ? 'Semester 1' : 'Semester 2',
-            academicYear: new Date().getFullYear().toString()
-          };
-          
-          const existingResultIndex = studentResults.findIndex(
-            r => r.assessmentId === assessmentId && r.studentId === studentId
-          );
-          
-          if (existingResultIndex !== -1) {
-            studentResults[existingResultIndex] = { ...studentResults[existingResultIndex], ...examResult };
-          } else {
-            studentResults.push(examResult);
-          }
-          
-          localStorage.setItem('student_results', JSON.stringify(studentResults));
-          console.log('✅ Exam result recorded for student:', studentId);
-        } catch (resultErr) {
-          console.warn('Could not record student result:', resultErr);
-        }
+          },
+          recipientId: gradeRecipientId,
+        });
       }
-      
-      // Notify student with grade and remarks
-      const studentNotifications = JSON.parse(localStorage.getItem('student_notifications') || '[]');
-      if (studentNotifications.length > 100) {
-        const recent = studentNotifications.slice(-50);
-        localStorage.setItem('student_notifications', JSON.stringify(recent));
-      }
-      
-      const updatedNotifications = JSON.parse(localStorage.getItem('student_notifications') || '[]');
-      const gradeMessage = isArabic 
-        ? `تم تصحيح تقديمك في "${selectedSubmissionItem.title}" وحصلت على ${score}/${selectedSubmissionItem.totalMarks}`
-        : `Your submission for "${selectedSubmissionItem.title}" has been graded: ${score}/${selectedSubmissionItem.totalMarks}`;
-      
-      const remarksMessage = submissionRemarks ? (isArabic ? `\nملاحظات المعلم: ${submissionRemarks}` : `\nTeacher's remarks: ${submissionRemarks}`) : '';
-      
-      updatedNotifications.push({
-        id: `NOTIF_${Date.now()}`,
-        studentId: studentId,
-        type: 'grade_received',
-        title: isArabic ? '📝 تم تصحيح تقديمك' : '📝 Your submission has been graded',
-        message: gradeMessage + remarksMessage,
-        score: parseFloat(score),
-        totalMarks: selectedSubmissionItem.totalMarks || 20,
-        remarks: submissionRemarks || '',
-        read: false,
-        createdAt: new Date().toISOString(),
-        link: `/dashboard/student/assessments`
-      });
-      localStorage.setItem('student_notifications', JSON.stringify(updatedNotifications));
-      
+
       notify(
-        isArabic ? `✅ تم حفظ درجة الطالب: ${score}/${selectedSubmissionItem.totalMarks}` : `✅ Student grade saved: ${score}/${selectedSubmissionItem.totalMarks}`,
+        isArabic ? `✅ تم حفظ درجة الطالب: ${score}/${selectedSubmissionItem.totalMarks || 20}` : `✅ Student grade saved: ${score}/${selectedSubmissionItem.totalMarks || 20}`,
         'success'
       );
       
@@ -1424,13 +1059,14 @@ const TeacherAssessments = () => {
     setShowDeleteSubmissionModal(true);
   };
 
-  const confirmDeleteSubmission = () => {
+  const confirmDeleteSubmission = async () => {
     if (!submissionItemToDelete) return;
     
     try {
-      const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-      const updatedSubmissions = allSubmissions.filter(s => s.id !== submissionItemToDelete.id);
-      localStorage.setItem('school_submissions', JSON.stringify(updatedSubmissions));
+      if (submissionItemToDelete._serverId || submissionItemToDelete.id) {
+        const serverId = submissionItemToDelete._serverId || submissionItemToDelete.id;
+        await syncSend('delete', `/submissions/${serverId}`);
+      }
       
       notify(
         isArabic ? '✅ تم حذف التقديم بنجاح' : '✅ Submission deleted successfully',
@@ -1666,52 +1302,46 @@ const TeacherAssessments = () => {
   };
 
   // ===== HANDLE SUBMIT =====
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validateForm()) return;
 
     setSubmitting(true);
     try {
-      const now = new Date().toISOString();
-      const assessmentData = {
-        ...formData,
-        teacherId: teacher?.id,
-        teacherName: teacher?.name || teacher?.firstName || 'Unknown',
+      const payload = {
+        title: formData.title,
+        type: formData.type,
+        class_code: formData.classId,
+        class_name: classes.find(c => String(c.id) === String(formData.classId))?.name || formData.classId,
+        subject_code: formData.subject,
+        subject: formData.subject,
+        description: formData.description,
+        max_score: parseFloat(formData.totalMarks),
         totalMarks: parseFloat(formData.totalMarks),
-        createdAt: editingAssessment?.createdAt || now,
-        updatedAt: now,
-        id: editingAssessment?.id || `ASSESS${String(Date.now()).slice(-6)}`,
-        assignedStudents: formData.assignedStudents || [],
-        attachment: formData.attachment || null,
-        attachmentName: formData.attachmentName || '',
-        attachmentType: formData.attachmentType || '',
-        approvedByAdmin: false,
-        sentToAdminAt: null,
-        sentToStudentsAt: null
+        due_date: formData.dueDate,
+        status: formData.status || 'draft',
+        teacher_name: user?.name || user?.firstName || 'Teacher',
+        attachment_data: formData.attachment || null,
+        attachment_name: formData.attachmentName || '',
+        attachment_type: formData.attachmentType || '',
       };
 
-      let storedAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
-      
       if (editingAssessment) {
-        const index = storedAssessments.findIndex(a => a.id === editingAssessment.id);
-        if (index !== -1) {
-          storedAssessments[index] = { ...storedAssessments[index], ...assessmentData };
-        }
+        const serverId = editingAssessment._serverId || editingAssessment.id;
+        await syncSend('put', `/assessments/${serverId}`, payload);
         notify(
           isArabic ? 'تم تحديث التقييم بنجاح' : 'Assessment updated successfully',
           'success'
         );
       } else {
-        storedAssessments.push(assessmentData);
+        await syncSend('post', '/assessments', payload);
         notify(
           isArabic ? 'تم إنشاء التقييم بنجاح' : 'Assessment created successfully',
           'success'
         );
       }
       
-      localStorage.setItem('school_assessments', JSON.stringify(storedAssessments));
-      
       window.dispatchEvent(new CustomEvent('assessmentChanged', { 
-        detail: { assessment: assessmentData, action: editingAssessment ? 'update' : 'create' }
+        detail: { action: editingAssessment ? 'update' : 'create' }
       }));
       
       handleCloseModal();
@@ -1729,7 +1359,7 @@ const TeacherAssessments = () => {
   };
 
   // ===== HANDLE DELETE ASSESSMENT =====
-  const handleDeleteAssessment = (id) => {
+  const handleDeleteAssessment = async (id) => {
     const assessment = assessments.find(a => a.id === id);
     const title = assessment?.title || 'Unknown';
     
@@ -1741,42 +1371,8 @@ const TeacherAssessments = () => {
     }
     
     try {
-      let storedAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
-      const filteredAssessments = storedAssessments.filter(a => a.id !== id);
-      
-      if (filteredAssessments.length === storedAssessments.length) {
-        notify(
-          isArabic ? '❌ لم يتم العثور على التقييم' : '❌ Assessment not found',
-          'warning'
-        );
-        return;
-      }
-      
-      localStorage.setItem('school_assessments', JSON.stringify(filteredAssessments));
-      
-      let pendingAssessments = JSON.parse(localStorage.getItem('pending_assessments') || '[]');
-      const pendingFiltered = pendingAssessments.filter(a => a.assessmentId !== id && a.id !== id);
-      if (pendingFiltered.length < pendingAssessments.length) {
-        localStorage.setItem('pending_assessments', JSON.stringify(pendingFiltered));
-      }
-      
-      let adminNotifications = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
-      const notifFiltered = adminNotifications.filter(n => n.assessmentId !== id && n.id !== id);
-      if (notifFiltered.length < adminNotifications.length) {
-        localStorage.setItem('admin_notifications', JSON.stringify(notifFiltered));
-      }
-      
-      let allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-      const subFiltered = allSubmissions.filter(s => s.assessmentId !== id);
-      if (subFiltered.length < allSubmissions.length) {
-        localStorage.setItem('school_submissions', JSON.stringify(subFiltered));
-      }
-      
-      let studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
-      const studentFiltered = studentAssessments.filter(sa => sa.assessmentId !== id);
-      if (studentFiltered.length < studentAssessments.length) {
-        localStorage.setItem('student_assessments', JSON.stringify(studentFiltered));
-      }
+      const serverId = assessment?._serverId || id;
+      await syncSend('delete', `/assessments/${serverId}`);
       
       notify(
         isArabic ? `✅ تم حذف التقييم "${title}" بنجاح` : `✅ Assessment "${title}" deleted successfully`,
@@ -1798,26 +1394,22 @@ const TeacherAssessments = () => {
   };
 
   // ===== HANDLE STATUS CHANGE =====
-  const handleStatusChange = (id, newStatus) => {
+  const handleStatusChange = async (id, newStatus) => {
     try {
-      let storedAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
-      const index = storedAssessments.findIndex(a => a.id === id);
-      if (index !== -1) {
-        storedAssessments[index].status = newStatus;
-        storedAssessments[index].updatedAt = new Date().toISOString();
-        localStorage.setItem('school_assessments', JSON.stringify(storedAssessments));
-        
-        notify(
-          isArabic ? 'تم تحديث حالة التقييم' : 'Assessment status updated',
-          'info'
-        );
-        
-        window.dispatchEvent(new CustomEvent('assessmentChanged', { 
-          detail: { id, status: newStatus, action: 'statusChange' }
-        }));
-        
-        loadData();
-      }
+      const assessment = assessments.find(a => a.id === id);
+      const serverId = assessment?._serverId || id;
+      await syncSend('patch', `/assessments/${serverId}/status`, { status: newStatus });
+      
+      notify(
+        isArabic ? 'تم تحديث حالة التقييم' : 'Assessment status updated',
+        'info'
+      );
+      
+      window.dispatchEvent(new CustomEvent('assessmentChanged', { 
+        detail: { id, status: newStatus, action: 'statusChange' }
+      }));
+      
+      loadData();
     } catch (err) {
       console.error('Error updating status:', err);
       notify(
@@ -2328,7 +1920,8 @@ const TeacherAssessments = () => {
                             {assessment.status !== 'pending_approval' && 
                              assessment.status !== 'sent_to_students' && 
                              assessment.status !== 'closed' && 
-                             assessment.status !== 'rejected' && (
+                             assessment.status !== 'rejected' && 
+                             assessment.status !== 'approved' && (
                               <Button 
                                 variant="primary" 
                                 size="sm"
@@ -3032,6 +2625,42 @@ const TeacherAssessments = () => {
                   {isArabic ? ' المادة: ' : ' Subject: '}{selectedAssessment.subject} • 
                   {isArabic ? 'الدرجة الكلية: ' : 'Total Marks: '}{formatNumber(selectedAssessment.totalMarks)}
                 </p>
+                {selectedAssessment.attachmentName && (
+                  <div className="d-flex align-items-center gap-2 flex-wrap" style={{
+                    background: darkMode ? '#1a1a2e' : '#f8f9fa',
+                    border: `1px solid ${darkMode ? '#2d2d44' : '#e9ecef'}`,
+                    borderRadius: '12px',
+                    padding: '8px 12px'
+                  }}>
+                    <FaFile className="text-info me-1" size={14} />
+                    <span className="fw-semibold small" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
+                      {selectedAssessment.attachmentName}
+                    </span>
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      className="ms-auto"
+                      onClick={() => handleViewFile(selectedAssessment)}
+                      title={isArabic ? 'عرض الملف' : 'View File'}
+                    >
+                      <FaEye size={12} className="me-1" />
+                      {isArabic ? 'عرض' : 'View'}
+                    </Button>
+                    <Button
+                      variant="outline-success"
+                      size="sm"
+                      onClick={() => downloadFile(
+                        selectedAssessment.attachment,
+                        selectedAssessment.attachmentName,
+                        selectedAssessment.attachmentType,
+                      )}
+                      title={isArabic ? 'تحميل الملف' : 'Download File'}
+                    >
+                      <FaDownload size={12} className="me-1" />
+                      {isArabic ? 'تحميل' : 'Download'}
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <div className="table-responsive">

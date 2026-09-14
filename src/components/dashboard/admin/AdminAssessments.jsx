@@ -1,5 +1,6 @@
 // src/components/dashboard/admin/AdminAssessments.jsx
 import React, { useState, useEffect } from 'react';
+import { syncGet, syncSend } from '../../../services/apiSync';
 import { Card, Button, Badge, Table, Modal, Form, Row, Col, Alert, Nav, Tab } from 'react-bootstrap';
 import { 
   FaFileAlt, FaEye, FaCheck, FaTimes, FaSearch, FaSync, 
@@ -208,33 +209,49 @@ const AdminAssessments = () => {
   }, []);
 
   // ===== LOAD DATA =====
-  const loadData = () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      
-      // 1. Load pending assessments (from teachers waiting for admin approval)
-      const pendingAssessments = JSON.parse(localStorage.getItem('pending_assessments') || '[]');
-      const pending = pendingAssessments.filter(a => a.status === 'pending');
+
+      const [assessRes, submissionsRes] = await Promise.all([
+        syncGet('/assessments'),
+        syncGet('/submissions'),
+      ]);
+
+      const allAssessments = Array.isArray(assessRes?.data) ? assessRes.data : [];
+      const allSubmissions = Array.isArray(submissionsRes?.data) ? submissionsRes.data : [];
+
+      const pending = allAssessments.filter(a => a.status === 'pending_approval');
       console.log('📋 Pending assessments:', pending.length);
       setPendingAssessments(pending);
       setFilteredPending(pending);
 
-      // 2. Load all assessments (from school_assessments)
-      const allAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
       console.log('📝 All assessments:', allAssessments.length);
       setAllAssessments(allAssessments);
       setFilteredAll(allAssessments);
 
-      // 3. Load student submissions (direct from students to teachers)
-      // Admin can see all submissions that students send to teachers
-      const submissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-      // Only show submissions that are submitted (not drafts)
-      const submittedSubmissions = submissions.filter(s => s.status === 'submitted');
+      const submittedSubmissions = allSubmissions
+        .filter(s => s.status === 'submitted')
+        .map(s => {
+          const assessment = allAssessments.find(a => String(a.id) === String(s.assessment_id || s.assessmentId));
+          return {
+            ...s,
+            title: s.title || assessment?.title || 'Assessment',
+            subject: s.subject || assessment?.subject || 'N/A',
+            className: s.className || assessment?.className || 'N/A',
+            type: s.type || assessment?.type || 'assignment',
+            teacherName: s.teacherName || assessment?.teacherName || 'Unknown',
+            studentName: s.studentName || s.student_name || 'Student',
+            submittedAt: s.submittedAt || s.submitted_at || new Date().toISOString(),
+            fileName: s.fileName || s.file_name || '',
+            fileType: s.fileType || s.file_type || '',
+            attachment: s.attachment || s.file_data || '',
+          };
+        });
       console.log('📤 Student submissions:', submittedSubmissions.length);
       setStudentSubmissions(submittedSubmissions);
       setFilteredSubmissions(submittedSubmissions);
 
-      // 4. Check for new notifications
       checkForNewNotifications(pending, submittedSubmissions);
 
       setLoading(false);
@@ -247,18 +264,8 @@ const AdminAssessments = () => {
   // ===== CHECK FOR NEW NOTIFICATIONS =====
   const checkForNewNotifications = (pending, submissions) => {
     try {
-      const adminNotifications = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
-      const unreadNotifications = adminNotifications.filter(n => !n.read);
-      
-      // Check for new submissions that admin hasn't seen
-      const seenSubmissions = JSON.parse(localStorage.getItem('admin_seen_submissions') || '[]');
-      const newSubmissions = submissions.filter(s => {
-        return !seenSubmissions.find(f => f.submissionId === s.id);
-      });
-      
-      const hasNew = unreadNotifications.length > 0 || newSubmissions.length > 0;
+      const hasNew = pending.length > 0 || submissions.length > 0;
       setHasNewNotifications(hasNew);
-      
       console.log('🔔 New notifications:', hasNew);
     } catch (e) {
       console.warn('Error checking notifications:', e);
@@ -319,16 +326,6 @@ const AdminAssessments = () => {
   useEffect(() => {
     loadData();
 
-    const handleStorageChange = (e) => {
-      if (e.key === "pending_assessments" || 
-          e.key === "school_assessments" || 
-          e.key === "school_submissions" ||
-          e.key === "admin_notifications") {
-        loadData();
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-
     const handleAssessmentSent = () => {
       loadData();
     };
@@ -339,14 +336,12 @@ const AdminAssessments = () => {
     };
     window.addEventListener("submissionChanged", handleSubmissionChanged);
 
-    // Listen for new student submissions
     const handleStudentSubmission = () => {
       loadData();
     };
     window.addEventListener("studentSubmission", handleStudentSubmission);
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("assessmentSent", handleAssessmentSent);
       window.removeEventListener("submissionChanged", handleSubmissionChanged);
       window.removeEventListener("studentSubmission", handleStudentSubmission);
@@ -424,23 +419,9 @@ const AdminAssessments = () => {
       return;
     }
 
-    // Try multiple possible content sources
-    let content = item.attachment || item.content || item.fileContent || '';
-    let fileName = item.attachmentName || item.fileName || 'file';
-    let fileType = item.attachmentType || item.fileType || 'text/plain';
-
-    // If content is not found, try to get from localStorage by id
-    if (!content && item.id) {
-      try {
-        const allSubmissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-        const found = allSubmissions.find(s => s.id === item.id);
-        if (found) {
-          content = found.attachment || found.content || found.fileContent || '';
-          fileName = found.attachmentName || found.fileName || fileName;
-          fileType = found.attachmentType || found.fileType || fileType;
-        }
-      } catch (e) {}
-    }
+    let content = item.attachment || item.content || item.file_data || item.fileContent || '';
+    let fileName = item.attachmentName || item.fileName || item.file_name || 'file';
+    let fileType = item.attachmentType || item.fileType || item.file_type || 'text/plain';
 
     if (!content) {
       notify(
@@ -471,68 +452,27 @@ const AdminAssessments = () => {
     setShowDeleteModal(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (!itemToDelete) return;
     
     setDeleting(true);
     try {
-      let deleted = false;
-      
-      // Check if it's a pending assessment
-      if (selectedItemType === 'pending' || itemToDelete._type === 'pending') {
-        let pendingAssessments = JSON.parse(localStorage.getItem('pending_assessments') || '[]');
-        const index = pendingAssessments.findIndex(a => a.id === itemToDelete.id);
-        if (index !== -1) {
-          pendingAssessments.splice(index, 1);
-          localStorage.setItem('pending_assessments', JSON.stringify(pendingAssessments));
-          deleted = true;
-        }
-        
-        // Also remove from admin notifications
-        let adminNotifications = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
-        const notifIndex = adminNotifications.findIndex(n => n.id === itemToDelete.id);
-        if (notifIndex !== -1) {
-          adminNotifications.splice(notifIndex, 1);
-          localStorage.setItem('admin_notifications', JSON.stringify(adminNotifications));
+      const serverId = itemToDelete._serverId || itemToDelete.id;
+      if (serverId) {
+        if (selectedItemType === 'pending' || itemToDelete._type === 'pending' || selectedItemType === 'assessment' || itemToDelete._type === 'assessment') {
+          await syncSend('delete', `/assessments/${serverId}`);
+        } else if (selectedItemType === 'submission' || itemToDelete._type === 'submission') {
+          await syncSend('delete', `/submissions/${serverId}`);
         }
       }
-      
-      // Check if it's an assessment
-      if (selectedItemType === 'assessment' || itemToDelete._type === 'assessment') {
-        let allAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
-        const index = allAssessments.findIndex(a => a.id === itemToDelete.id);
-        if (index !== -1) {
-          allAssessments.splice(index, 1);
-          localStorage.setItem('school_assessments', JSON.stringify(allAssessments));
-          deleted = true;
-        }
-      }
-      
-      // Check if it's a submission
-      if (selectedItemType === 'submission' || itemToDelete._type === 'submission') {
-        let submissions = JSON.parse(localStorage.getItem('school_submissions') || '[]');
-        const index = submissions.findIndex(s => s.id === itemToDelete.id);
-        if (index !== -1) {
-          submissions.splice(index, 1);
-          localStorage.setItem('school_submissions', JSON.stringify(submissions));
-          deleted = true;
-        }
-      }
-      
-      if (deleted) {
-        notify(
-          isArabic ? '✅ تم الحذف بنجاح' : '✅ Deleted successfully',
-          'success'
-        );
-        loadData();
-        setShowDeleteModal(false);
-        setItemToDelete(null);
-      } else {
-        notify(
-          isArabic ? '❌ لم يتم العثور على العنصر' : '❌ Item not found',
-          'warning'
-        );
-      }
+
+      notify(
+        isArabic ? '✅ تم الحذف بنجاح' : '✅ Deleted successfully',
+        'success'
+      );
+      loadData();
+      setShowDeleteModal(false);
+      setItemToDelete(null);
     } catch (err) {
       console.error('Error deleting item:', err);
       notify(
@@ -545,33 +485,16 @@ const AdminAssessments = () => {
   };
 
   // ===== HANDLE APPROVE =====
-  const handleApprove = (assessment) => {
+  const handleApprove = async (assessment) => {
     setActionLoading(true);
     try {
-      let pendingAssessments = JSON.parse(localStorage.getItem('pending_assessments') || '[]');
-      const index = pendingAssessments.findIndex(a => a.id === assessment.id);
-      if (index !== -1) {
-        pendingAssessments[index].status = 'approved';
-        pendingAssessments[index].reviewedAt = new Date().toISOString();
-        pendingAssessments[index].reviewedBy = 'Admin';
-        localStorage.setItem('pending_assessments', JSON.stringify(pendingAssessments));
-      }
+      const serverId = assessment._serverId
+        || (typeof assessment.id === 'number' ? assessment.id : null)
+        || assessment.assessmentData?._serverId
+        || null;
 
-      let adminNotifications = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
-      const notifIndex = adminNotifications.findIndex(n => n.id === assessment.id);
-      if (notifIndex !== -1) {
-        adminNotifications[notifIndex].status = 'approved';
-        adminNotifications[notifIndex].reviewedAt = new Date().toISOString();
-        localStorage.setItem('admin_notifications', JSON.stringify(adminNotifications));
-      }
-
-      let storedAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
-      const assessIndex = storedAssessments.findIndex(a => a.id === assessment.assessmentId);
-      if (assessIndex !== -1) {
-        storedAssessments[assessIndex].status = 'pending_approval';
-        storedAssessments[assessIndex].approvedByAdmin = true;
-        storedAssessments[assessIndex].approvedAt = new Date().toISOString();
-        localStorage.setItem('school_assessments', JSON.stringify(storedAssessments));
+      if (serverId) {
+        await syncSend('post', `/assessments/${serverId}/approve`);
       }
 
       notify(
@@ -593,37 +516,20 @@ const AdminAssessments = () => {
   };
 
   // ===== HANDLE REJECT =====
-  const handleReject = (assessment) => {
+  const handleReject = async (assessment) => {
     if (!window.confirm(isArabic ? 'هل أنت متأكد من رفض هذا التقييم؟' : 'Are you sure you want to reject this assessment?')) {
       return;
     }
 
     setActionLoading(true);
     try {
-      let pendingAssessments = JSON.parse(localStorage.getItem('pending_assessments') || '[]');
-      const index = pendingAssessments.findIndex(a => a.id === assessment.id);
-      if (index !== -1) {
-        pendingAssessments[index].status = 'rejected';
-        pendingAssessments[index].reviewedAt = new Date().toISOString();
-        pendingAssessments[index].reviewedBy = 'Admin';
-        localStorage.setItem('pending_assessments', JSON.stringify(pendingAssessments));
-      }
+      const serverId = assessment._serverId
+        || (typeof assessment.id === 'number' ? assessment.id : null)
+        || assessment.assessmentData?._serverId
+        || null;
 
-      let adminNotifications = JSON.parse(localStorage.getItem('admin_notifications') || '[]');
-      const notifIndex = adminNotifications.findIndex(n => n.id === assessment.id);
-      if (notifIndex !== -1) {
-        adminNotifications[notifIndex].status = 'rejected';
-        adminNotifications[notifIndex].reviewedAt = new Date().toISOString();
-        localStorage.setItem('admin_notifications', JSON.stringify(adminNotifications));
-      }
-
-      let storedAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
-      const assessIndex = storedAssessments.findIndex(a => a.id === assessment.assessmentId);
-      if (assessIndex !== -1) {
-        storedAssessments[assessIndex].status = 'rejected';
-        storedAssessments[assessIndex].rejectedByAdmin = true;
-        storedAssessments[assessIndex].rejectedAt = new Date().toISOString();
-        localStorage.setItem('school_assessments', JSON.stringify(storedAssessments));
+      if (serverId) {
+        await syncSend('post', `/assessments/${serverId}/reject`);
       }
 
       notify(
@@ -645,19 +551,8 @@ const AdminAssessments = () => {
   };
 
   // ===== MARK SUBMISSION AS SEEN =====
-  const markSubmissionAsSeen = (submissionId) => {
-    try {
-      const seenSubmissions = JSON.parse(localStorage.getItem('admin_seen_submissions') || '[]');
-      if (!seenSubmissions.find(s => s.submissionId === submissionId)) {
-        seenSubmissions.push({
-          submissionId: submissionId,
-          seenAt: new Date().toISOString()
-        });
-        localStorage.setItem('admin_seen_submissions', JSON.stringify(seenSubmissions));
-      }
-    } catch (e) {
-      console.warn('Error marking submission as seen:', e);
-    }
+  const markSubmissionAsSeen = () => {
+    // Notifications come from the server; nothing to persist locally.
   };
 
   // ===== FORMAT DATE =====
@@ -1704,7 +1599,7 @@ const AdminAssessments = () => {
               )}
 
               {/* Action buttons for pending */}
-              {selectedItemType === 'pending' && selectedItem.status === 'pending' && (
+              {selectedItemType === 'pending' && (selectedItem.status === 'pending' || selectedItem.status === 'pending_approval') && (
                 <div className="action-section mt-3 d-flex gap-2 justify-content-end">
                   <Button 
                     variant="danger" 

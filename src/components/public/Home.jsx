@@ -28,6 +28,9 @@ import {
 import { useLanguage } from '../../context/LanguageContext';
 import { getTranslation } from '../../utils/translations';
 import SocialButtons from '../../components/common/SocialButtons';
+import imageSlideOne from '../../assets/images/Img2.png';
+import imageSlideTwo from '../../assets/images/Education-Summit.jpg';
+import imageSlideThree from '../../assets/images/Qur\'an3.jpg';
 
 const Home = () => {
   const { language, isArabic } = useLanguage();
@@ -269,7 +272,7 @@ const Home = () => {
                   </Col>
                   <Col lg={5} className="text-center">
                     <img
-                      src="/src/assets/images/Img2.png"
+                      src={imageSlideOne}
                       alt="Madrassat Al Fath"
                       className="img-fluid rounded-4 shadow-lg hero-image"
                       style={{
@@ -334,7 +337,7 @@ const Home = () => {
                   </Col>
                   <Col lg={5} className="text-center">
                     <img
-                      src="/src/assets/images/Education-Summit.jpg"
+                      src={imageSlideTwo}
                       alt="Excellence in Education"
                       className="img-fluid rounded-4 shadow-lg hero-image"
                       style={{
@@ -397,7 +400,7 @@ const Home = () => {
                   </Col>
                   <Col lg={5} className="text-center">
                     <img
-                      src="/src/assets/images/Qur'an3.jpg"
+                      src={imageSlideThree}
                       alt="Islamic Values"
                       className="img-fluid rounded-4 shadow-lg hero-image"
                       style={{

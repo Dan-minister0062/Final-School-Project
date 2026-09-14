@@ -1,5 +1,6 @@
 // src/components/dashboard/admin/UsersManagement.jsx
 import React, { useState, useEffect, useRef } from "react";
+import { syncGet, syncSend } from '../../../services/apiSync';
 import {
   Container,
   Row,
@@ -103,8 +104,7 @@ import {
 import { useLanguage } from "../../../context/LanguageContext";
 import { useAuth } from "../../../hooks/useAuth";
 import { useNotification } from "../../../hooks/useNotification";
-import userDataService from "../../../services/userDataService";
-import { teacherService } from "../../../services/teacherService";
+import notificationService from "../../../services/notificationService";
 import {
   fetchServerClasses,
   toCatalogClasses,
@@ -475,19 +475,6 @@ const UsersManagement = () => {
   // ===== GET SUBJECTS FOR LEVEL WITH ARABIC SUPPORT =====
   const getSubjectsForLevel = (level) => {
     try {
-      // First try to get from localStorage
-      const storedSubjects = localStorage.getItem('school_subjects');
-      if (storedSubjects) {
-        const parsed = JSON.parse(storedSubjects);
-        if (parsed && parsed[level]) {
-          const subjectsList = parsed[level];
-          return subjectsList.map((s) => ({
-            value: s.value,
-            label: isArabic ? (s.labelAr || s.label) : s.label,
-          }));
-        }
-      }
-      
       // Fallback to completeSubjectsList
       const subjectsList = completeSubjectsList[level] || [];
       return subjectsList.map((s) => ({
@@ -515,22 +502,6 @@ const UsersManagement = () => {
       }
     }
     
-    // Try localStorage
-    try {
-      const storedSubjects = localStorage.getItem('school_subjects');
-      if (storedSubjects) {
-        const parsed = JSON.parse(storedSubjects);
-        for (const [level, subjects] of Object.entries(parsed)) {
-          const found = subjects.find((s) => s.value === subjectValue);
-          if (found) {
-            return isArabic ? (found.labelAr || found.label) : found.label;
-          }
-        }
-      }
-    } catch (e) {
-      console.error('Error getting subject from localStorage:', e);
-    }
-    
     return subjectValue;
   };
 
@@ -546,17 +517,6 @@ const UsersManagement = () => {
     const found = classes.find((c) => c.id === classId);
     if (found) {
       return isArabic ? (found.nameAr || found.name) : found.name;
-    }
-    
-    // Try localStorage
-    try {
-      const storedClasses = JSON.parse(localStorage.getItem('school_classes') || '[]');
-      const stored = storedClasses.find(c => c.id === classId);
-      if (stored) {
-        return isArabic ? (stored.nameAr || stored.name) : stored.name;
-      }
-    } catch (e) {
-      console.error('Error getting class from localStorage:', e);
     }
     
     return classId;
@@ -715,57 +675,45 @@ const UsersManagement = () => {
     },
   ];
 
-  // ===== SUBSCRIBE TO USER DATA SERVICE =====
+  // ===== LOAD USERS =====
   useEffect(() => {
     loadUsers();
 
-    if (userDataService && typeof userDataService.addListener === "function") {
-      const unsubscribe = userDataService.addListener(
-        (action, data, updatedUsers) => {
-          console.log("📢 User data changed:", action);
-          setUsers([...updatedUsers]);
-          updateStats(updatedUsers);
-        },
-      );
+    const handleUsersUpdated = () => {
+      loadUsers();
+    };
+    window.addEventListener('usersUpdated', handleUsersUpdated);
 
-      return () => {
-        if (unsubscribe) unsubscribe();
-      };
-    } else {
-      console.warn("userDataService.addListener is not available");
-      return () => {};
-    }
+    return () => {
+      window.removeEventListener('usersUpdated', handleUsersUpdated);
+    };
   }, []);
 
-  const loadUsers = () => {
+  const loadUsers = async () => {
     setLoading(true);
     try {
-      // Load from school_users first
-      const usersData = JSON.parse(localStorage.getItem("school_users") || "[]");
-      
-      // Also load from role-specific storage for completeness
-      const teachers = JSON.parse(localStorage.getItem("school_teachers") || "[]");
-      const parents = JSON.parse(localStorage.getItem("school_parents") || "[]");
-      
-      // Merge data (usersData should have all, but we ensure completeness)
-      let allUsers = [...usersData];
-      
-      // Add any teachers not in usersData
-      teachers.forEach(teacher => {
-        if (!allUsers.find(u => u.id === teacher.id)) {
-          allUsers.push(teacher);
-        }
-      });
-      
-      // Add any parents not in usersData
-      parents.forEach(parent => {
-        if (!allUsers.find(u => u.id === parent.id)) {
-          allUsers.push(parent);
-        }
-      });
-      
-      setUsers([...allUsers]);
-      updateStats(allUsers);
+      const res = await syncGet('/users');
+      const rows = Array.isArray(res?.data) ? res.data : [];
+      const usersData = rows.map((r) => ({
+        ...r,
+        id: r._serverId ?? r.id,
+        _serverId: r._serverId ?? r.id,
+        name: r.name || r.full_name || '',
+        firstName: r.first_name || r.name?.split(' ')[0] || '',
+        lastName: r.last_name || r.name?.split(' ').slice(1).join(' ') || '',
+        role: r.role || 'student',
+        email: r.email || '',
+        phone: r.phone || '',
+        status: r.status || 'active',
+        level: r.level || '',
+        subjects: r.subjects || [],
+        assignedClasses: r.assigned_classes || r.assignedClasses || [],
+        createdAt: r.created_at || r.createdAt || new Date().toISOString(),
+        updatedAt: r.updated_at || r.updatedAt || new Date().toISOString(),
+      }));
+
+      setUsers(usersData);
+      updateStats(usersData);
       setError(null);
     } catch (err) {
       console.error("Error loading users:", err);
@@ -837,24 +785,46 @@ const UsersManagement = () => {
     fetchSubjects();
   }, []);
 
+  // ===== NORMALIZE SUBJECTS TO CATALOG CODES (labels -> codes) =====
+  const toSubjectCodes = (level, list) => {
+    if (!Array.isArray(list)) return [];
+    const options = level ? completeSubjectsList[level] || [] : [];
+    return list
+      .map((s) => {
+        const exact = options.find((o) => o.value === s);
+        if (exact) return exact.value;
+        const byLabel = options.find((o) => o.label === s || o.labelAr === s);
+        if (byLabel) return byLabel.value;
+        return s;
+      })
+      .filter((v, i, arr) => arr.indexOf(v) === i);
+  };
+
+  // ===== DERIVE TEACHER LEVEL FROM ASSIGNED CLASSES =====
+  const deriveTeacherLevel = (user, classList) => {
+    const lvl = (user?.level || "").trim();
+    const assigned = Array.isArray(user?.assignedClasses)
+      ? user.assignedClasses
+      : [];
+    if (assigned.length > 0) {
+      const classLevels = assigned
+        .map((id) => (classList.find((c) => c.id === id) || {}).level)
+        .filter(Boolean);
+      if (classLevels.length > 0 && !classLevels.includes(lvl)) {
+        return classLevels[0];
+      }
+    }
+    return lvl;
+  };
+
   // ===== MAP ASSIGNED CLASS IDs =====
   const mapAssignedClassIds = (assignedIds) => {
     try {
-      const allClasses = JSON.parse(localStorage.getItem('school_classes') || '[]');
-      
-      if (!allClasses || allClasses.length === 0) {
-        return assignedIds;
-      }
-      
       const mappedIds = assignedIds.map(assignedId => {
-        // First try exact match
-        let found = allClasses.find(c => c.id === assignedId);
-        if (found) return found.id;
-        
         // Try matching by name or Arabic name
         const classMapping = completeClassesList.find(c => c.id === assignedId);
         if (classMapping) {
-          const nameMatch = allClasses.find(c => 
+          const nameMatch = classes.find(c => 
             c.name === classMapping.name || 
             c.nameAr === classMapping.nameAr
           );
@@ -871,142 +841,63 @@ const UsersManagement = () => {
     }
   };
 
-  // ===== SAVE USER TO STORAGE =====
-  const saveUserToStorage = (userData) => {
+  // ===== SAVE USER TO SERVER =====
+  const saveUserToStorage = async (userData) => {
     try {
-      console.log("💾 Saving user to storage:", userData);
-      
-      const userToSave = {
-        ...userData,
-        id: userData.id || `USR${String(Date.now()).slice(-6)}`,
+      const isEdit = Boolean(userData._serverId || (userData.id && /^\d+$/.test(String(userData.id))));
+      const serverId = userData._serverId || (isEdit ? userData.id : null);
+
+      const payload = {
         name: userData.name || `${userData.firstName || ''} ${userData.lastName || ''}`.trim(),
-        createdAt: userData.createdAt || new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        email: userData.email || '',
+        role: userData.role || 'student',
+        phone: userData.phone || '',
+        address: userData.address || '',
+        city: userData.city || '',
+        gender: userData.gender || '',
+        nationality: userData.nationality || '',
+        cin: userData.cin || '',
+        dateOfBirth: userData.dateOfBirth || '',
+        avatar: userData.avatar || userData.profilePhoto || '',
+        password: userData.password || 'password123',
         status: userData.status || 'active',
+        emergencyContactName: userData.emergencyContactName || '',
+        emergencyContactRelationship: userData.emergencyContactRelationship || '',
+        emergencyContactPhone: userData.emergencyContactPhone || '',
+        level: userData.level || '',
+        subjects: userData.subjects || [],
+        qualifications: userData.qualifications || [],
+        specialization: userData.specialization || '',
+        experienceYears: userData.experienceYears || '',
+        experience: userData.experience || userData.experienceYears || '',
+        employmentType: userData.employmentType || '',
+        previousSchool: userData.previousSchool || '',
+        assignedClasses: userData.assignedClasses || userData.classes || [],
+        assigned_classes: userData.assignedClasses || userData.classes || [],
+        childrenNames: userData.childrenNames || [],
+        relationship: userData.relationship || '',
+        occupation: userData.occupation || '',
+        employer: userData.employer || '',
       };
 
-      // Save to school_users
-      const users = JSON.parse(localStorage.getItem("school_users") || "[]");
-      const existingUserIndex = users.findIndex((u) => u.id === userToSave.id);
-      
-      if (existingUserIndex === -1) {
-        users.push(userToSave);
-        localStorage.setItem("school_users", JSON.stringify(users));
+      let result;
+      if (serverId) {
+        result = await syncSend('put', `/users/${serverId}`, payload);
       } else {
-        users[existingUserIndex] = {
-          ...users[existingUserIndex],
-          ...userToSave,
-        };
-        localStorage.setItem("school_users", JSON.stringify(users));
+        result = await syncSend('post', '/users', payload);
       }
 
-      // If user is a teacher, save to school_teachers
-      if (userToSave.role === "teacher") {
-        const teachers = JSON.parse(localStorage.getItem("school_teachers") || "[]");
-        const existingTeacherIndex = teachers.findIndex((t) => t.id === userToSave.id);
-        
-        const teacherData = {
-          id: userToSave.id,
-          name: userToSave.name,
-          firstName: userToSave.firstName || '',
-          lastName: userToSave.lastName || '',
-          email: userToSave.email || '',
-          phone: userToSave.phone || '',
-          address: userToSave.address || '',
-          city: userToSave.city || '',
-          dateOfBirth: userToSave.dateOfBirth || '',
-          gender: userToSave.gender || '',
-          nationality: userToSave.nationality || '',
-          cin: userToSave.cin || '',
-          role: 'teacher',
-          status: userToSave.status || 'active',
-          password: userToSave.password || 'password123',
-          level: userToSave.level || '',
-          educationLevel: userToSave.level || '',
-          subjects: userToSave.subjects || [],
-          qualifications: userToSave.qualifications || [],
-          specialization: userToSave.specialization || '',
-          experienceYears: userToSave.experienceYears || '',
-          employmentType: userToSave.employmentType || '',
-          previousSchool: userToSave.previousSchool || '',
-          assignedClasses: userToSave.assignedClasses || [],
-          classes: userToSave.assignedClasses || [],
-          emergencyContactName: userToSave.emergencyContactName || '',
-          emergencyContactRelationship: userToSave.emergencyContactRelationship || '',
-          emergencyContactPhone: userToSave.emergencyContactPhone || '',
-          createdAt: userToSave.createdAt,
-          updatedAt: new Date().toISOString(),
-        };
-        
-        if (existingTeacherIndex === -1) {
-          teachers.push(teacherData);
-          localStorage.setItem("school_teachers", JSON.stringify(teachers));
-        } else {
-          teachers[existingTeacherIndex] = {
-            ...teachers[existingTeacherIndex],
-            ...teacherData,
-          };
-          localStorage.setItem("school_teachers", JSON.stringify(teachers));
-        }
+      const serverRow = result?.data?.data || result?.data || {};
+      const savedUser = { ...userData, ...serverRow, _serverId: serverRow.id };
 
-        try {
-          teacherService.saveTeacher(teacherData);
-        } catch (e) {
-          console.warn("Could not save to teacherService:", e);
-        }
-      }
-
-      // If user is a parent, save to school_parents
-      if (userToSave.role === "parent") {
-        const parents = JSON.parse(localStorage.getItem("school_parents") || "[]");
-        const existingParentIndex = parents.findIndex((p) => p.id === userToSave.id);
-        
-        const parentData = {
-          id: userToSave.id,
-          name: userToSave.name,
-          firstName: userToSave.firstName || '',
-          lastName: userToSave.lastName || '',
-          email: userToSave.email || '',
-          phone: userToSave.phone || '',
-          address: userToSave.address || '',
-          city: userToSave.city || '',
-          dateOfBirth: userToSave.dateOfBirth || '',
-          gender: userToSave.gender || '',
-          nationality: userToSave.nationality || '',
-          cin: userToSave.cin || '',
-          role: 'parent',
-          status: userToSave.status || 'active',
-          password: userToSave.password || 'password123',
-          childrenNames: userToSave.childrenNames || '',
-          occupation: userToSave.occupation || '',
-          employer: userToSave.employer || '',
-          emergencyContactName: userToSave.emergencyContactName || '',
-          emergencyContactRelationship: userToSave.emergencyContactRelationship || '',
-          emergencyContactPhone: userToSave.emergencyContactPhone || '',
-          createdAt: userToSave.createdAt,
-          updatedAt: new Date().toISOString(),
-        };
-        
-        if (existingParentIndex === -1) {
-          parents.push(parentData);
-          localStorage.setItem("school_parents", JSON.stringify(parents));
-        } else {
-          parents[existingParentIndex] = {
-            ...parents[existingParentIndex],
-            ...parentData,
-          };
-          localStorage.setItem("school_parents", JSON.stringify(parents));
-        }
-      }
-
-      window.dispatchEvent(new CustomEvent('usersUpdated', { 
-        detail: { user: userToSave, action: 'save' }
+      window.dispatchEvent(new CustomEvent('usersUpdated', {
+        detail: { user: savedUser, action: 'save' }
       }));
 
-      return true;
+      return savedUser;
     } catch (error) {
-      console.error("❌ Error saving user to storage:", error);
-      return false;
+      console.error("❌ Error saving user:", error);
+      return null;
     }
   };
 
@@ -1254,45 +1145,25 @@ const UsersManagement = () => {
         userData = {
           ...userData,
           childrenNames: formData.childrenNames || "",
+          relationship: formData.relationship || "",
           occupation: formData.occupation || "",
           employer: formData.employer || "",
         };
       }
 
-      const saved = saveUserToStorage(userData);
+      const saved = await saveUserToStorage(userData);
       
       if (saved) {
-        try {
-          userDataService.addUser(userData);
-        } catch (e) {
-          console.warn("Could not add to userDataService:", e);
-        }
-
-        const notifications = JSON.parse(
-          localStorage.getItem("school_notifications") || "[]",
-        );
-        const notification = {
-          id: `NOT${String(notifications.length + 1).padStart(3, "0")}`,
+        notificationService.addNotification({
           title: `👤 New ${getRoleDisplay(formData.role)} Added`,
           message: `${fullName} has been added as a ${getRoleDisplay(formData.role)}.`,
           type: "user",
-          read: false,
-          recipientRole: "admin",
-          createdAt: new Date().toISOString(),
-          time: new Date().toLocaleString(),
           link: "/dashboard/admin/users",
-        };
-        notifications.push(notification);
-        localStorage.setItem(
-          "school_notifications",
-          JSON.stringify(notifications),
-        );
+          audience: "admin",
+        });
 
         window.dispatchEvent(new CustomEvent('usersUpdated', { 
-          detail: { user: userData, action: 'add' }
-        }));
-        window.dispatchEvent(new CustomEvent('notificationAdded', { 
-          detail: notification 
+          detail: { user: saved, action: 'add' }
         }));
 
         notify(
@@ -1360,6 +1231,10 @@ const UsersManagement = () => {
 
   // ===== HANDLE EDIT USER =====
   const handleEditUser = (user) => {
+    const teacherLevel =
+      user.role === "teacher"
+        ? deriveTeacherLevel(user, completeClassesList)
+        : user.level || "";
     setSelectedUser(user);
     setEditFormData({
       firstName: user.firstName || user.name?.split(" ")[0] || "",
@@ -1375,8 +1250,8 @@ const UsersManagement = () => {
       profilePhoto: user.profilePhoto || user.avatar || null,
       role: user.role || "",
       status: user.status || "",
-      level: user.level || "",
-      subjects: user.subjects || [],
+      level: teacherLevel,
+      subjects: toSubjectCodes(teacherLevel, user.subjects || []),
       qualifications: user.qualifications || [],
       specialization: user.specialization || "",
       experienceYears: user.experienceYears || "",
@@ -1384,6 +1259,7 @@ const UsersManagement = () => {
       previousSchool: user.previousSchool || "",
       assignedClasses: user.assignedClasses || [],
       childrenNames: user.childrenNames || "",
+      relationship: user.relationship || "",
       occupation: user.occupation || "",
       employer: user.employer || "",
       emergencyContactName: user.emergencyContactName || "",
@@ -1421,9 +1297,14 @@ const UsersManagement = () => {
 
       if (editFormData.role === "teacher") {
         const mappedAssignedClasses = mapAssignedClassIds(editFormData.assignedClasses || []);
-        updatedUser.level = editFormData.level;
-        updatedUser.educationLevel = editFormData.level;
-        updatedUser.subjects = editFormData.subjects;
+        const classLevels = mappedAssignedClasses
+          .map((id) => (completeClassesList.find((c) => c.id === id) || {}).level)
+          .filter(Boolean);
+        const effectiveLevel =
+          classLevels.length > 0 ? classLevels[0] : editFormData.level;
+        updatedUser.level = effectiveLevel;
+        updatedUser.educationLevel = effectiveLevel;
+        updatedUser.subjects = toSubjectCodes(effectiveLevel, editFormData.subjects);
         updatedUser.qualifications = editFormData.qualifications;
         updatedUser.specialization = editFormData.specialization;
         updatedUser.experienceYears = editFormData.experienceYears;
@@ -1435,11 +1316,12 @@ const UsersManagement = () => {
 
       if (editFormData.role === "parent") {
         updatedUser.childrenNames = editFormData.childrenNames;
+        updatedUser.relationship = editFormData.relationship;
         updatedUser.occupation = editFormData.occupation;
         updatedUser.employer = editFormData.employer;
       }
 
-      const saved = saveUserToStorage(updatedUser);
+      const saved = await saveUserToStorage(updatedUser);
       
       if (saved) {
         notify(
@@ -1469,26 +1351,9 @@ const UsersManagement = () => {
   const handleDeleteUser = async () => {
     setProcessingAction(true);
     try {
-      const users = JSON.parse(localStorage.getItem("school_users") || "[]");
-      const updatedUsers = users.filter((u) => u.id !== selectedUser.id);
-      localStorage.setItem("school_users", JSON.stringify(updatedUsers));
-
-      if (selectedUser.role === "teacher") {
-        const teachers = JSON.parse(localStorage.getItem("school_teachers") || "[]");
-        const updatedTeachers = teachers.filter((t) => t.id !== selectedUser.id);
-        localStorage.setItem("school_teachers", JSON.stringify(updatedTeachers));
-      }
-
-      if (selectedUser.role === "parent") {
-        const parents = JSON.parse(localStorage.getItem("school_parents") || "[]");
-        const updatedParents = parents.filter((p) => p.id !== selectedUser.id);
-        localStorage.setItem("school_parents", JSON.stringify(updatedParents));
-      }
-
-      try {
-        userDataService.deleteUser(selectedUser.id);
-      } catch (e) {
-        console.warn("Could not delete from userDataService:", e);
+      const serverId = selectedUser._serverId || selectedUser.id;
+      if (serverId) {
+        await syncSend('delete', `/users/${serverId}`);
       }
 
       notify(
@@ -1512,38 +1377,15 @@ const UsersManagement = () => {
   const handleToggleStatus = async (userId, currentStatus) => {
     const newStatus = currentStatus === "active" ? "inactive" : "active";
     try {
-      const users = JSON.parse(localStorage.getItem("school_users") || "[]");
-      const index = users.findIndex((u) => u.id === userId);
-      if (index !== -1) {
-        users[index].status = newStatus;
-        localStorage.setItem("school_users", JSON.stringify(users));
-        
-        const user = users[index];
-        if (user.role === "teacher") {
-          const teachers = JSON.parse(localStorage.getItem("school_teachers") || "[]");
-          const tIndex = teachers.findIndex((t) => t.id === userId);
-          if (tIndex !== -1) {
-            teachers[tIndex].status = newStatus;
-            localStorage.setItem("school_teachers", JSON.stringify(teachers));
-          }
-        }
-        if (user.role === "parent") {
-          const parents = JSON.parse(localStorage.getItem("school_parents") || "[]");
-          const pIndex = parents.findIndex((p) => p.id === userId);
-          if (pIndex !== -1) {
-            parents[pIndex].status = newStatus;
-            localStorage.setItem("school_parents", JSON.stringify(parents));
-          }
-        }
+      await syncSend('put', `/users/${userId}`, { status: newStatus });
 
-        notify(
-          isArabic
-            ? `تم ${newStatus === "active" ? "تفعيل" : "تعطيل"} المستخدم بنجاح`
-            : `User ${newStatus === "active" ? "activated" : "deactivated"} successfully`,
-          "success",
-        );
-        loadUsers();
-      }
+      notify(
+        isArabic
+          ? `تم ${newStatus === "active" ? "تفعيل" : "تعطيل"} المستخدم بنجاح`
+          : `User ${newStatus === "active" ? "activated" : "deactivated"} successfully`,
+        "success",
+      );
+      loadUsers();
     } catch (error) {
       console.error("Error toggling status:", error);
       notify(isArabic ? "❌ حدث خطأ" : "❌ Error occurred", "error");
@@ -1554,21 +1396,43 @@ const UsersManagement = () => {
   const handleResetPassword = async () => {
     setProcessingAction(true);
     try {
-      const users = JSON.parse(localStorage.getItem("school_users") || "[]");
-      const index = users.findIndex((u) => u.id === selectedUser.id);
-      if (index !== -1) {
-        const newPassword = "password123";
-        users[index].password = newPassword;
-        localStorage.setItem("school_users", JSON.stringify(users));
-        
+      const serverId = selectedUser?._serverId ?? null;
+      if (!serverId) {
         notify(
           isArabic
-            ? `تم إعادة تعيين كلمة المرور إلى: ${newPassword}`
-            : `Password reset to: ${newPassword}`,
-          "success",
+            ? "❌ لا يمكن إعادة تعيين كلمة المرور: لا يوجد حساب على الخادم لهذا المستخدم"
+            : "❌ Cannot reset password: no server account found for this user",
+          "error",
         );
         setShowResetPasswordModal(false);
+        return;
       }
+
+      const response = await syncSend(
+        "post",
+        `/admin/users/${serverId}/reset-password`,
+      );
+
+      if (!response?.data?.tempPassword) {
+        notify(
+          isArabic
+            ? "❌ فشل إعادة تعيين كلمة المرور على الخادم"
+            : "❌ Server failed to reset the password",
+          "error",
+        );
+        setShowResetPasswordModal(false);
+        return;
+      }
+
+      const newPassword = response.data.tempPassword;
+
+      notify(
+        isArabic
+          ? `✅ تم إعادة تعيين كلمة المرور إلى: ${newPassword}`
+          : `✅ Password reset to: ${newPassword}`,
+        "success",
+      );
+      setShowResetPasswordModal(false);
     } catch (error) {
       console.error("Error resetting password:", error);
       notify(
@@ -1610,13 +1474,25 @@ const UsersManagement = () => {
   const handleBulkAction = async () => {
     setProcessingAction(true);
     try {
-      const results = userDataService.bulkAction(selectedUsers, bulkAction);
+      let completed = 0;
+      for (const userId of selectedUsers) {
+        const target = users.find((u) => String(u.id) === String(userId));
+        if (!target) continue;
+        const serverId = target._serverId || target.id;
+        if (bulkAction === 'delete') {
+          await syncSend('delete', `/users/${serverId}`);
+        } else {
+          const statusMap = { activate: 'active', deactivate: 'inactive', suspend: 'suspended' };
+          await syncSend('put', `/users/${serverId}`, { status: statusMap[bulkAction] || 'active' });
+        }
+        completed += 1;
+      }
 
-      if (results && results.length > 0) {
+      if (completed > 0) {
         notify(
           isArabic
-            ? `تم تنفيذ الإجراء بنجاح على ${results.length} مستخدم`
-            : `Action completed for ${results.length} users`,
+            ? `تم تنفيذ الإجراء بنجاح على ${completed} مستخدم`
+            : `Action completed for ${completed} users`,
           "success",
         );
         setSelectedUsers([]);
@@ -2181,6 +2057,42 @@ const UsersManagement = () => {
                   fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
                 }}
               />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label
+                className="fw-semibold"
+                style={{
+                  ...arabicFontStyle,
+                  color: darkMode ? "#e9ecef" : "#212529",
+                }}
+              >
+                <FaUsers className="me-2" />{" "}
+                {isArabic ? "علاقة ولي الأمر" : "Relationship"}
+              </Form.Label>
+              <Form.Select
+                value={formData.relationship}
+                onChange={(e) =>
+                  setFormData({ ...formData, relationship: e.target.value })
+                }
+                className="form-select-lg"
+                style={{
+                  ...arabicFontStyle,
+                  background: darkMode ? "#2d2d44" : "white",
+                  color: darkMode ? "#e9ecef" : "#212529",
+                  borderRadius: "12px",
+                  fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                }}
+              >
+                <option value="">
+                  {isArabic ? "اختر العلاقة" : "Select Relationship"}
+                </option>
+                {relationshipOptions.map((rel) => (
+                  <option key={rel.value} value={rel.value}>
+                    {rel.label}
+                  </option>
+                ))}
+              </Form.Select>
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -5413,7 +5325,12 @@ const UsersManagement = () => {
                   <Form.Select
                     value={editFormData.level}
                     onChange={(e) =>
-                      setEditFormData({ ...editFormData, level: e.target.value })
+                      setEditFormData({
+                        ...editFormData,
+                        level: e.target.value,
+                        subjects: [],
+                        assignedClasses: [],
+                      })
                     }
                     style={{
                       ...arabicFontStyle,
@@ -5445,25 +5362,59 @@ const UsersManagement = () => {
                     <FaBook className="me-1" />{" "}
                     {isArabic ? "المواد" : "Subjects"}
                   </Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    value={editFormData.subjects?.join(", ") || ""}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        subjects: e.target.value.split(",").map(s => s.trim()).filter(Boolean),
-                      })
-                    }
-                    placeholder={isArabic ? "افصل المواد بفواصل" : "Separate subjects with commas"}
+                  <div
+                    className="subjects-grid p-3 rounded-3"
                     style={{
-                      ...arabicFontStyle,
-                      background: darkMode ? "#2d2d44" : "white",
-                      color: darkMode ? "#e9ecef" : "#212529",
+                      background: darkMode ? "#1a1a2e" : "#f8f9fa",
+                      border: `1px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
                       borderRadius: "12px",
-                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(auto-fill, minmax(160px, 1fr))",
+                      gap: "6px",
                     }}
-                  />
+                  >
+                    {getSubjectsForLevel(editFormData.level).map((subject) => (
+                      <Form.Check
+                        key={subject.value}
+                        type="checkbox"
+                        id={`edit-subject-${subject.value}`}
+                        label={subject.label}
+                        checked={editFormData.subjects.includes(subject.value)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setEditFormData({
+                              ...editFormData,
+                              subjects: [
+                                ...editFormData.subjects,
+                                subject.value,
+                              ],
+                            });
+                          } else {
+                            setEditFormData({
+                              ...editFormData,
+                              subjects: editFormData.subjects.filter(
+                                (s) => s !== subject.value,
+                              ),
+                            });
+                          }
+                        }}
+                        className="subject-check"
+                        style={{
+                          ...arabicFontStyle,
+                          color: darkMode ? "#e9ecef" : "#212529",
+                          fontSize: "clamp(0.7rem, 0.85vw, 0.9rem)",
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <Form.Text className="text-muted" style={arabicFontStyle}>
+                    {isArabic
+                      ? "اختر مادة أو أكثر حسب المستوى التعليمي"
+                      : "Select one or more subjects"}
+                  </Form.Text>
                 </Form.Group>
 
                 <Form.Group className="mb-3">
@@ -5642,29 +5593,67 @@ const UsersManagement = () => {
                     <FaBuilding className="me-1" />{" "}
                     {isArabic ? "الفصول المكلف بها" : "Assigned Classes"}
                   </Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={2}
-                    value={editFormData.assignedClasses?.join(", ") || ""}
-                    onChange={(e) =>
-                      setEditFormData({
-                        ...editFormData,
-                        assignedClasses: e.target.value.split(",").map(c => c.trim()).filter(Boolean),
-                      })
-                    }
-                    placeholder={isArabic ? "افصل الفصول بفواصل" : "Separate classes with commas"}
+                  <div
+                    className="classes-grid p-3 rounded-3"
                     style={{
-                      ...arabicFontStyle,
-                      background: darkMode ? "#2d2d44" : "white",
-                      color: darkMode ? "#e9ecef" : "#212529",
+                      background: darkMode ? "#1a1a2e" : "#f8f9fa",
+                      border: `1px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
                       borderRadius: "12px",
-                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(auto-fill, minmax(140px, 1fr))",
+                      gap: "6px",
                     }}
-                  />
+                  >
+                    {classes
+                      .filter((c) => c.level === editFormData.level)
+                      .map((c) => {
+                        const className = isArabic
+                          ? c.nameAr || c.name
+                          : c.name;
+                        return (
+                          <Form.Check
+                            key={c.id}
+                            type="checkbox"
+                            id={`edit-class-${c.id}`}
+                            label={className}
+                            checked={editFormData.assignedClasses.includes(
+                              c.id,
+                            )}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setEditFormData({
+                                  ...editFormData,
+                                  assignedClasses: [
+                                    ...editFormData.assignedClasses,
+                                    c.id,
+                                  ],
+                                });
+                              } else {
+                                setEditFormData({
+                                  ...editFormData,
+                                  assignedClasses: editFormData.assignedClasses.filter(
+                                    (id) => id !== c.id,
+                                  ),
+                                });
+                              }
+                            }}
+                            className="class-check"
+                            style={{
+                              ...arabicFontStyle,
+                              color: darkMode ? "#e9ecef" : "#212529",
+                              fontSize: "clamp(0.7rem, 0.85vw, 0.9rem)",
+                            }}
+                          />
+                        );
+                      })}
+                  </div>
                   <Form.Text className="text-muted" style={arabicFontStyle}>
                     {isArabic
-                      ? "أدخل معرفات الفصول مفصولة بفواصل (مثال: primary_1a, primary_1b)"
-                      : "Enter class IDs separated by commas (e.g., primary_1a, primary_1b)"}
+                      ? "يمكنك اختيار فصل واحد أو أكثر حسب المستوى التعليمي"
+                      : "You can select one or more classes"}
                   </Form.Text>
                 </Form.Group>
               </>
@@ -5709,6 +5698,44 @@ const UsersManagement = () => {
                       fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
                     }}
                   />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label
+                    style={{
+                      ...arabicFontStyle,
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                    }}
+                  >
+                    <FaUsers className="me-1" />{" "}
+                    {isArabic ? "علاقة ولي الأمر" : "Relationship"}
+                  </Form.Label>
+                  <Form.Select
+                    value={editFormData.relationship}
+                    onChange={(e) =>
+                      setEditFormData({
+                        ...editFormData,
+                        relationship: e.target.value,
+                      })
+                    }
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? "#2d2d44" : "white",
+                      color: darkMode ? "#e9ecef" : "#212529",
+                      borderRadius: "12px",
+                      fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                    }}
+                  >
+                    <option value="">
+                      {isArabic ? "اختر العلاقة" : "Select Relationship"}
+                    </option>
+                    {relationshipOptions.map((rel) => (
+                      <option key={rel.value} value={rel.value}>
+                        {rel.label}
+                      </option>
+                    ))}
+                  </Form.Select>
                 </Form.Group>
 
                 <Form.Group className="mb-3">
@@ -5934,8 +5961,8 @@ const UsersManagement = () => {
             }}
           >
             {isArabic
-              ? `سيتم إعادة تعيين كلمة المرور للمستخدم "${selectedUser?.firstName ? `${selectedUser.firstName} ${selectedUser.lastName || ""}`.trim() : selectedUser?.name}" إلى "password123"`
-              : `The password for user "${selectedUser?.firstName ? `${selectedUser.firstName} ${selectedUser.lastName || ""}`.trim() : selectedUser?.name}" will be reset to "password123"`}
+              ? `سيتم إعادة تعيين كلمة المرور للمستخدم "${selectedUser?.firstName ? `${selectedUser.firstName} ${selectedUser.lastName || ""}`.trim() : selectedUser?.name}" وإنشاء كلمة مرور مؤقتة جديدة سيتم عرضها بعد التأكيد.`
+              : `The password for user "${selectedUser?.firstName ? `${selectedUser.firstName} ${selectedUser.lastName || ""}`.trim() : selectedUser?.name}" will be reset; a new temporary password will be shown after confirmation.`}
           </p>
         </Modal.Body>
         <Modal.Footer

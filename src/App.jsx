@@ -1,18 +1,22 @@
 // src/App.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   BrowserRouter as Router,
   Routes,
   Route,
   Navigate,
 } from "react-router-dom";
-import { Provider } from "react-redux";
+import { Provider, useDispatch } from "react-redux";
 import { ToastContainer } from "react-toastify";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "react-toastify/dist/ReactToastify.css";
 import "./assets/styles/global.css";
 import { store } from "./store";
+import {
+  fetchMe,
+  clearSession,
+} from "./store/slices/authSlice";
 
 // ===== IMPORTS FOR ADMIN PAGES =====
 import { Card, Table, Badge, Button, Row, Col, Form } from "react-bootstrap";
@@ -35,6 +39,7 @@ import {
   FaExclamationTriangle,
   FaArchive,
   FaBell,
+  FaCamera,
 } from "react-icons/fa";
 import { useLanguage } from "./context/LanguageContext";
 import { useNotification } from "./hooks/useNotification";
@@ -61,7 +66,7 @@ import ForgotPassword from "./components/auth/ForgotPassword";
 
 // ===== ADMIN PAGES =====
 import AdminDashboard from "./components/dashboard/admin/AdminDashboard";
-import DirectorDashboard from "./components/dashboard/director/DirectorDashboard";
+
 import StudentsManagement from "./components/dashboard/admin/StudentsManagement";
 import ClassesManagement from "./components/dashboard/admin/ClassesManagement";
 import TeachersManagement from "./components/dashboard/admin/TeachersManagement";
@@ -75,6 +80,7 @@ import SubjectsManagement from "./components/dashboard/admin/SubjectsManagement"
 import AdmissionManagement from "./components/dashboard/admin/AdmissionManagement";
 import PaymentsManagement from "./components/dashboard/admin/PaymentsManagement";
 import AdminAssessments from './components/dashboard/admin/AdminAssessments';
+import Settings from './components/dashboard/admin/Settings';
 // ===== TEACHER PAGES =====
 import TeacherDashboard from "./components/dashboard/teacher/TeacherDashboard";
 import TeacherStudents from "./components/dashboard/teacher/TeacherStudents";
@@ -96,24 +102,10 @@ import StudentDashboard from "./components/dashboard/student/StudentDashboard";
 import StudentResults from "./components/dashboard/student/StudentResults";
 // ✅ FIXED: Changed from '../components/dashboard/student/StudentAnnouncements' to './components/dashboard/student/StudentAnnouncements'
 import StudentAnnouncements from "./components/dashboard/student/StudentAnnouncements";
+import StudentPayments from "./components/dashboard/student/StudentPayments";
 
 // ===== ACCEPT INVITE PAGE =====
 import AcceptInvite from "./pages/AcceptInvite";
-
-// ===== TEACHER DEBUG PAGE (temporary placeholder) =====
-const TeacherDebug = () => {
-  const { isArabic } = useLanguage();
-  return (
-    <div className="container py-4">
-      <h4>{isArabic ? "صفحة التصحيح" : "Debug Page"}</h4>
-      <p className="text-muted">
-        {isArabic 
-          ? "هذه صفحة تصحيح للمعلم" 
-          : "This is a teacher debug page"}
-      </p>
-    </div>
-  );
-};
 
 // ===== PROFILE COMPONENT =====
 const Profile = () => {
@@ -130,11 +122,45 @@ const Profile = () => {
   const [profile, setProfile] = useState({
     name: user?.name || "Admin",
     email: user?.email || "admin@school.com",
-    phone: "+123 456 7890",
-    address: "123 Street, City",
-    bio: "",
+    phone: user?.phone || "",
+    address: user?.address || "",
+    bio: user?.bio || "",
     role: user?.role || "Admin",
   });
+  const [avatar, setAvatar] = useState(user?.avatar || null);
+  const fileInputRef = useRef(null);
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const validTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
+    if (!validTypes.includes(file.type)) {
+      notify(
+        isArabic
+          ? "يرجى اختيار صورة بصيغة JPEG, PNG, GIF أو WEBP"
+          : "Please select a JPEG, PNG, GIF or WEBP image",
+        "error",
+      );
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      notify(
+        isArabic
+          ? "حجم الصورة يجب أن لا يتجاوز 5 ميجابايت"
+          : "Image size must not exceed 5MB",
+        "error",
+      );
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => setAvatar(event.target.result);
+    reader.readAsDataURL(file);
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -149,19 +175,15 @@ const Profile = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("token");
-      const isDemo = !token || token.startsWith("demo-");
-      if (!isDemo) {
-        await api.put("/profile", {
-          name: profile.name,
-          email: profile.email,
-          phone: profile.phone,
-          address: profile.address,
-          bio: profile.bio,
-        });
-      }
-      if (updateUser) updateUser(profile);
-      localStorage.setItem("userProfile", JSON.stringify(profile));
+      await api.put("/profile", {
+        name: profile.name,
+        email: profile.email,
+        phone: profile.phone,
+        address: profile.address,
+        bio: profile.bio,
+        avatar: avatar ?? null,
+      });
+      if (updateUser) updateUser({ ...profile, avatar });
       notify(
         isArabic
           ? "تم تحديث الملف الشخصي بنجاح"
@@ -220,16 +242,21 @@ const Profile = () => {
   };
 
   useEffect(() => {
-    const savedProfile = localStorage.getItem("userProfile");
-    if (savedProfile) {
-      try {
-        const parsed = JSON.parse(savedProfile);
-        setProfile((prev) => ({ ...prev, ...parsed }));
-      } catch (e) {
-        console.error("Error loading profile:", e);
-      }
+    // Prefill the form from the authenticated server profile (auth context)
+    // when it arrives after session restore.
+    if (user) {
+      setProfile((prev) => ({
+        ...prev,
+        name: user.name ?? prev.name,
+        email: user.email ?? prev.email,
+        phone: user.phone ?? prev.phone,
+        address: user.address ?? prev.address,
+        bio: user.bio ?? prev.bio,
+        role: user.role ?? prev.role,
+      }));
+      if (user.avatar !== undefined) setAvatar(user.avatar);
     }
-  }, []);
+  }, [user]);
 
   return (
     <div className="container py-4">
@@ -266,10 +293,36 @@ const Profile = () => {
           <Card className="shadow-sm border-0 text-center">
             <Card.Body className="py-4">
               <div className="profile-avatar-container mb-3">
-                <div className="profile-avatar">
-                  {getInitials(profile.name)}
-                </div>
+                {avatar ? (
+                  <div className="profile-avatar" style={{ overflow: "hidden" }}>
+                    <img
+                      src={avatar}
+                      alt={profile.name}
+                      className="profile-avatar-img"
+                    />
+                  </div>
+                ) : (
+                  <div className="profile-avatar">
+                    {getInitials(profile.name)}
+                  </div>
+                )}
               </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                hidden
+                onChange={handleAvatarChange}
+              />
+              <Button
+                size="sm"
+                variant="outline-primary"
+                className="mb-3"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <FaCamera className="me-1" />
+                {isArabic ? "تغيير الصورة" : "Change Photo"}
+              </Button>
               <h5 className="fw-bold">{profile.name}</h5>
               <p className="text-muted">{profile.email}</p>
               <Badge bg="primary" className="px-3 py-2">
@@ -497,421 +550,46 @@ const Profile = () => {
         .dashboard-wrapper.rtl .profile-avatar {
           font-family: 'Traditional Arabic', 'Arabic Typesetting', serif;
         }
+        .profile-avatar-img {
+          width: 100%; height: 100%;
+          object-fit: cover; border-radius: 50%;
+        }
       `}</style>
-    </div>
-  );
-};
-
-// ===== SETTINGS COMPONENT =====
-const Settings = () => {
-  const { isArabic } = useLanguage();
-  const { notify } = useNotification();
-  const [loading, setLoading] = useState(false);
-  const [settings, setSettings] = useState({
-    schoolName: "Madrassat Al Fath",
-    schoolEmail: "info@madrassatalfath.edu",
-    schoolPhone: "+123 456 7890",
-    schoolAddress: "123 Education Street, City",
-    schoolDescription: "Nurturing Young Minds with Islamic Values",
-    schoolWebsite: "www.madrassatalfath.edu",
-    academicYearStart: "2026-09-01",
-    academicYearEnd: "2027-06-30",
-    weekendDays: ["Friday", "Saturday"],
-    language: "en",
-    currency: "USD",
-    enableRegistration: true,
-    enableAttendance: true,
-    enableGrades: true,
-    enableNotifications: true,
-    maintenanceMode: false,
-  });
-
-  useEffect(() => {
-    const savedSettings = localStorage.getItem("schoolSettings");
-    if (savedSettings) {
-      try {
-        const parsed = JSON.parse(savedSettings);
-        setSettings((prev) => ({ ...prev, ...parsed }));
-      } catch (e) {
-        console.error("Error loading settings:", e);
-      }
-    }
-  }, []);
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setSettings((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : value,
-    }));
-  };
-
-  const handleSave = () => {
-    setLoading(true);
-    setTimeout(() => {
-      localStorage.setItem("schoolSettings", JSON.stringify(settings));
-      setLoading(false);
-      notify(
-        isArabic ? "تم حفظ الإعدادات بنجاح" : "Settings saved successfully",
-        "success",
-      );
-    }, 1000);
-  };
-
-  const handleReset = () => {
-    if (
-      window.confirm(
-        isArabic
-          ? "هل أنت متأكد من إعادة تعيين الإعدادات؟"
-          : "Are you sure you want to reset settings?",
-      )
-    ) {
-      localStorage.removeItem("schoolSettings");
-      setSettings({
-        schoolName: "Madrassat Al Fath",
-        schoolEmail: "info@madrassatalfath.edu",
-        schoolPhone: "+123 456 7890",
-        schoolAddress: "123 Education Street, City",
-        schoolDescription: "Nurturing Young Minds with Islamic Values",
-        schoolWebsite: "www.madrassatalfath.edu",
-        academicYearStart: "2026-09-01",
-        academicYearEnd: "2027-06-30",
-        weekendDays: ["Friday", "Saturday"],
-        language: "en",
-        currency: "USD",
-        enableRegistration: true,
-        enableAttendance: true,
-        enableGrades: true,
-        enableNotifications: true,
-        maintenanceMode: false,
-      });
-      notify(
-        isArabic ? "تم إعادة تعيين الإعدادات" : "Settings reset successfully",
-        "info",
-      );
-    }
-  };
-
-  return (
-    <div className="container py-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h2 className="fw-bold">{isArabic ? "الإعدادات" : "Settings"}</h2>
-          <p className="text-muted">
-            {isArabic ? "تكوين إعدادات المدرسة" : "Configure school settings"}
-          </p>
-        </div>
-        <div className="d-flex gap-2">
-          <Button
-            variant="outline-secondary"
-            onClick={handleReset}
-            disabled={loading}
-          >
-            {isArabic ? "إعادة تعيين" : "Reset"}
-          </Button>
-          <Button variant="primary" onClick={handleSave} disabled={loading}>
-            {loading ? (
-              <>
-                <span
-                  className="spinner-border spinner-border-sm me-2"
-                  role="status"
-                  aria-hidden="true"
-                ></span>
-                {isArabic ? "جاري الحفظ..." : "Saving..."}
-              </>
-            ) : (
-              <>
-                <FaSave className="me-2" />{" "}
-                {isArabic ? "حفظ الإعدادات" : "Save Settings"}
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-
-      <Row className="g-4">
-        <Col md={6}>
-          <Card className="shadow-sm border-0 h-100">
-            <Card.Header className="bg-transparent border-bottom">
-              <h6 className="fw-bold mb-0">
-                <FaSchool className="me-2 text-primary" />
-                {isArabic ? "معلومات المدرسة" : "School Information"}
-              </h6>
-            </Card.Header>
-            <Card.Body>
-              <Form>
-                <Form.Group className="mb-3">
-                  <Form.Label>
-                    {isArabic ? "اسم المدرسة" : "School Name"}
-                  </Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="schoolName"
-                    value={settings.schoolName}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>
-                    {isArabic ? "البريد الإلكتروني" : "School Email"}
-                  </Form.Label>
-                  <Form.Control
-                    type="email"
-                    name="schoolEmail"
-                    value={settings.schoolEmail}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>
-                    {isArabic ? "رقم الهاتف" : "School Phone"}
-                  </Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="schoolPhone"
-                    value={settings.schoolPhone}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>
-                    {isArabic ? "العنوان" : "School Address"}
-                  </Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="schoolAddress"
-                    value={settings.schoolAddress}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>
-                    {isArabic ? "الموقع الإلكتروني" : "Website"}
-                  </Form.Label>
-                  <Form.Control
-                    type="text"
-                    name="schoolWebsite"
-                    value={settings.schoolWebsite}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>
-                    {isArabic ? "وصف المدرسة" : "School Description"}
-                  </Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    name="schoolDescription"
-                    value={settings.schoolDescription}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-              </Form>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col md={6}>
-          <Card className="shadow-sm border-0 h-100">
-            <Card.Header className="bg-transparent border-bottom">
-              <h6 className="fw-bold mb-0">
-                <FaCalendarAlt className="me-2 text-success" />
-                {isArabic ? "الإعدادات الأكاديمية" : "Academic Settings"}
-              </h6>
-            </Card.Header>
-            <Card.Body>
-              <Form>
-                <Form.Group className="mb-3">
-                  <Form.Label>
-                    {isArabic ? "بداية العام الدراسي" : "Academic Year Start"}
-                  </Form.Label>
-                  <Form.Control
-                    type="date"
-                    name="academicYearStart"
-                    value={settings.academicYearStart}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>
-                    {isArabic ? "نهاية العام الدراسي" : "Academic Year End"}
-                  </Form.Label>
-                  <Form.Control
-                    type="date"
-                    name="academicYearEnd"
-                    value={settings.academicYearEnd}
-                    onChange={handleChange}
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>{isArabic ? "العملة" : "Currency"}</Form.Label>
-                  <Form.Select
-                    name="currency"
-                    value={settings.currency}
-                    onChange={handleChange}
-                  >
-                    <option value="USD">USD ($)</option>
-                    <option value="EUR">EUR (€)</option>
-                    <option value="GBP">GBP (£)</option>
-                    <option value="MAD">MAD (د.م.)</option>
-                  </Form.Select>
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>
-                    {isArabic ? "اللغة الافتراضية" : "Default Language"}
-                  </Form.Label>
-                  <Form.Select
-                    name="language"
-                    value={settings.language}
-                    onChange={handleChange}
-                  >
-                    <option value="en">English</option>
-                    <option value="ar">العربية</option>
-                  </Form.Select>
-                </Form.Group>
-              </Form>
-            </Card.Body>
-          </Card>
-        </Col>
-
-        <Col md={12}>
-          <Card className="shadow-sm border-0">
-            <Card.Header className="bg-transparent border-bottom">
-              <h6 className="fw-bold mb-0">
-                <FaCog className="me-2 text-warning" />
-                {isArabic ? "الميزات والإعدادات" : "Features & Settings"}
-              </h6>
-            </Card.Header>
-            <Card.Body>
-              <Row>
-                <Col md={3}>
-                  <Form.Check
-                    type="switch"
-                    id="enableRegistration"
-                    label={isArabic ? "تفعيل التسجيل" : "Enable Registration"}
-                    name="enableRegistration"
-                    checked={settings.enableRegistration}
-                    onChange={handleChange}
-                    className="mb-2"
-                  />
-                </Col>
-                <Col md={3}>
-                  <Form.Check
-                    type="switch"
-                    id="enableAttendance"
-                    label={isArabic ? "تفعيل الحضور" : "Enable Attendance"}
-                    name="enableAttendance"
-                    checked={settings.enableAttendance}
-                    onChange={handleChange}
-                    className="mb-2"
-                  />
-                </Col>
-                <Col md={3}>
-                  <Form.Check
-                    type="switch"
-                    id="enableGrades"
-                    label={isArabic ? "تفعيل الدرجات" : "Enable Grades"}
-                    name="enableGrades"
-                    checked={settings.enableGrades}
-                    onChange={handleChange}
-                    className="mb-2"
-                  />
-                </Col>
-                <Col md={3}>
-                  <Form.Check
-                    type="switch"
-                    id="enableNotifications"
-                    label={
-                      isArabic ? "تفعيل الإشعارات" : "Enable Notifications"
-                    }
-                    name="enableNotifications"
-                    checked={settings.enableNotifications}
-                    onChange={handleChange}
-                    className="mb-2"
-                  />
-                </Col>
-              </Row>
-              <Row className="mt-3">
-                <Col md={6}>
-                  <Form.Check
-                    type="switch"
-                    id="maintenanceMode"
-                    label={
-                      <span
-                        className={
-                          settings.maintenanceMode ? "text-danger" : ""
-                        }
-                      >
-                        {isArabic ? "وضع الصيانة" : "Maintenance Mode"}
-                      </span>
-                    }
-                    name="maintenanceMode"
-                    checked={settings.maintenanceMode}
-                    onChange={handleChange}
-                  />
-                  {settings.maintenanceMode && (
-                    <div className="text-danger small mt-2">
-                      <FaExclamationTriangle className="me-1" />
-                      {isArabic
-                        ? "المدرسة في وضع الصيانة. سيتم تعطيل الوصول."
-                        : "School is in maintenance mode. Access will be disabled."}
-                    </div>
-                  )}
-                </Col>
-                <Col md={6}>
-                  <Form.Group>
-                    <Form.Label>
-                      {isArabic ? "أيام العطلة" : "Weekend Days"}
-                    </Form.Label>
-                    <Form.Select
-                      name="weekendDays"
-                      value={settings.weekendDays.join(",")}
-                      onChange={(e) => {
-                        const value = e.target.value.split(",").filter(Boolean);
-                        setSettings((prev) => ({
-                          ...prev,
-                          weekendDays: value,
-                        }));
-                      }}
-                    >
-                      <option value="Friday,Saturday">
-                        {isArabic ? "الجمعة والسبت" : "Friday, Saturday"}
-                      </option>
-                      <option value="Saturday,Sunday">
-                        {isArabic ? "السبت والأحد" : "Saturday, Sunday"}
-                      </option>
-                      <option value="Friday">
-                        {isArabic ? "الجمعة فقط" : "Friday only"}
-                      </option>
-                      <option value="Sunday">
-                        {isArabic ? "الأحد فقط" : "Sunday only"}
-                      </option>
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
-              </Row>
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
     </div>
   );
 };
 
 // ===== PROTECTED ROUTE =====
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
-  const token = localStorage.getItem("token");
-  const role = localStorage.getItem("role");
+  const { status, isAuthenticated, role } = useAuth();
 
-  if (!token) {
+  if (status === "checking") {
+    return (
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ minHeight: "60vh" }}
+      >
+        <div className="text-center">
+          <div
+            className="spinner-border text-primary mb-2"
+            style={{ width: "3rem", height: "3rem" }}
+            role="status"
+          >
+            <span className="visually-hidden">Loading...</span>
+          </div>
+          <div className="text-muted small">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
     return <Navigate to="/login" />;
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(role)) {
     const roleDashboards = {
       admin: "/dashboard/admin",
-      director: "/dashboard/director",
       teacher: "/dashboard/teacher",
       parent: "/dashboard/parent",
       student: "/dashboard/student",
@@ -924,10 +602,9 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 
 // ===== DASHBOARD REDIRECT =====
 const DashboardRedirect = () => {
-  const role = localStorage.getItem("role") || "admin";
+  const role = useAuth().role || "admin";
   const roleDashboards = {
     admin: "/dashboard/admin",
-    director: "/dashboard/director",
     teacher: "/dashboard/teacher",
     parent: "/dashboard/parent",
     student: "/dashboard/student",
@@ -935,23 +612,39 @@ const DashboardRedirect = () => {
   return <Navigate to={roleDashboards[role] || "/dashboard/admin"} />;
 };
 
-// ===== APP =====
-function App() {
+// ===== APP ROUTES =====
+function AppRoutes() {
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    // Restore the server-side session (SANCTUM cookie) on boot.
+    dispatch(fetchMe());
+
+    // Reacts to auth:sanctum 401 responses by clearing in-memory state.
+    const handleSessionExpired = () => dispatch(clearSession());
+    window.addEventListener("session:expired", handleSessionExpired);
+    window.addEventListener("session:ended", handleSessionExpired);
+
+    return () => {
+      window.removeEventListener("session:expired", handleSessionExpired);
+      window.removeEventListener("session:ended", handleSessionExpired);
+    };
+  }, [dispatch]);
+
   return (
-    <Provider store={store}>
-      <Router>
-        <ToastContainer
-          position="top-right"
-          autoClose={3000}
-          hideProgressBar={false}
-          newestOnTop
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="light"
-        />
+    <Router>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        rtl={false}
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
 
         <Routes>
           {/* ===== ACCEPT INVITE ROUTE ===== */}
@@ -1002,19 +695,6 @@ function App() {
             <Route path="payments" element={<PaymentsManagement />} />
           </Route>
 
-          {/* ===== DIRECTOR ROUTES ===== */}
-          <Route
-            path="/dashboard/director"
-            element={
-              <ProtectedRoute allowedRoles={["director", "admin"]}>
-                <DashboardLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<DirectorDashboard />} />
-            <Route path="profile" element={<Profile />} />
-          </Route>
-
           {/* ===== TEACHER ROUTES ===== */}
           <Route
             path="/dashboard/teacher"
@@ -1031,7 +711,6 @@ function App() {
             <Route path="classes" element={<TeacherClasses />} />
             <Route path="notifications" element={<TeacherNotifications />} />
             <Route path="profile" element={<TeacherProfile />} />
-            <Route path="debug" element={<TeacherDebug />} />
           </Route>
 
           {/* ===== PARENT ROUTES ===== */}
@@ -1064,12 +743,21 @@ function App() {
             <Route path="profile" element={<Profile />} />
             {/* ✅ FIXED: StudentAnnouncements route with correct path */}
             <Route path="announcements" element={<StudentAnnouncements />} />
+            <Route path="payments" element={<StudentPayments />} />
           </Route>
 
           {/* ===== FALLBACK ===== */}
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </Router>
+  );
+}
+
+// ===== APP =====
+function App() {
+  return (
+    <Provider store={store}>
+      <AppRoutes />
     </Provider>
   );
 }

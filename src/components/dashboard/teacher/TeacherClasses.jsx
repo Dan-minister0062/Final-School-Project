@@ -1,7 +1,6 @@
 // src/components/dashboard/teacher/TeacherClasses.jsx
 import React, { useState, useEffect } from "react";
-import { Card, Row, Col, Button, Badge, Table, Modal, Form } from "react-bootstrap";
-import { Link } from "react-router-dom";
+import { Card, Row, Col, Button, Badge, Modal } from "react-bootstrap";
 import {
   FaChalkboardTeacher,
   FaUserGraduate,
@@ -10,10 +9,6 @@ import {
   FaSync,
   FaSearch,
   FaEye,
-  FaEdit,
-  FaTrash,
-  FaPlus,
-  FaSpinner,
   FaExclamationTriangle,
   FaBuilding,
   FaBook,
@@ -24,6 +19,7 @@ import {
 import { useLanguage } from "../../../context/LanguageContext";
 import { useNotification } from "../../../hooks/useNotification";
 import { teacherService } from "../../../services/teacherService";
+import { syncGet } from "../../../services/apiSync";
 
 // ===== ALWAYS use English numbers =====
 const formatNumber = (num) => {
@@ -121,7 +117,7 @@ const TeacherClasses = () => {
   }, []);
 
   // ===== LOAD CLASSES DATA =====
-  const loadClassesData = () => {
+  const loadClassesData = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -141,19 +137,39 @@ const TeacherClasses = () => {
       
       setTeacher(currentTeacher);
       
-      // Get the teacher's assigned classes using the teacherService
-      // IMPORTANT: We pass the language to the service so it automatically localizes it
-      const assignedClasses = teacherService.getAssignedClasses(currentTeacher.id, null, isArabic ? 'ar' : 'en');
-      console.log('📚 Assigned classes:', assignedClasses);
+      // Assigned class ids come from the authenticated user payload
+      const assignedList = currentTeacher.assignedClasses || currentTeacher.assigned_classes || [];
+      const assignedClassIds = new Set(
+        assignedList.map(c => (typeof c === 'object' ? (c.id ?? c.code) : c)).map(String)
+      );
       
-      // Get students for each class and ensure names are localized (just in case)
-      const classesWithStudents = assignedClasses.map(cls => {
-        const students = teacherService.getAssignedStudents(currentTeacher.id, [cls]);
-        // Localize the class name just in case the service missed it
+      // Get classes + roster from MySQL (via /api/classes, /api/students)
+      const [classesRes, studentsRes] = await Promise.all([
+        syncGet('/classes'),
+        syncGet('/students'),
+      ]);
+      const classRows = Array.isArray(classesRes?.data) ? classesRes.data : [];
+      const studentRows = Array.isArray(studentsRes?.data) ? studentsRes.data : [];
+      
+      const assignedRows = classRows.filter(c => assignedClassIds.has(String(c.id ?? c.code)));
+      
+      // Attach real roster + localize class names
+      const classesWithStudents = assignedRows.map(cls => {
+        const classKeys = new Set([String(cls.id), String(cls.code), String(cls.name)].filter(Boolean));
+        const students = studentRows.filter(s =>
+          classKeys.has(String(s.class_code)) ||
+          classKeys.has(String(s.classId)) ||
+          classKeys.has(String(s.className))
+        );
         const localizedName = getLocalizedClassName(cls.name, cls.level);
         return {
-          ...cls,
-          name: localizedName, 
+          id: cls.id ?? cls.code,
+          code: cls.code ?? cls.id,
+          name: localizedName,
+          level: cls.level,
+          schedule: cls.schedule || null,
+          capacity: cls.capacity || 30,
+          isActive: cls.is_active !== false && cls.status !== 'inactive',
           students: students || [],
           studentCount: students ? students.length : 0,
         };
@@ -189,25 +205,6 @@ const TeacherClasses = () => {
   useEffect(() => {
     loadClassesData();
 
-    // Listen for teacher data changes
-    const unsubscribeTeacher = teacherService.addListener((data) => {
-      console.log('👨‍🏫 Teacher data changed, refreshing classes:', data);
-      loadClassesData();
-    });
-
-    // Listen for storage changes
-    const handleStorageChange = (e) => {
-      if (
-        e.key === "school_students" ||
-        e.key === "school_classes" ||
-        e.key === "school_users"
-      ) {
-        console.log("🔄 Storage changed, refreshing classes");
-        loadClassesData();
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-
     // Listen for custom events
     const handleClassAssigned = () => {
       console.log("📚 Class assigned, refreshing classes");
@@ -229,8 +226,6 @@ const TeacherClasses = () => {
     window.addEventListener("languageChanged", handleLanguageChange);
 
     return () => {
-      if (unsubscribeTeacher) unsubscribeTeacher();
-      window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("classAssigned", handleClassAssigned);
       window.removeEventListener("usersUpdated", handleUsersUpdated);
       window.removeEventListener("languageChanged", handleLanguageChange);

@@ -3,7 +3,6 @@ import { useSelector } from 'react-redux';
 export const useRole = () => {
   const role = useSelector((state) => state.auth.role);
 
-  const isDirector = role === 'director';
   const isAdmin = role === 'admin';
   const isTeacher = role === 'teacher';
   const isParent = role === 'parent';
@@ -16,7 +15,6 @@ export const useRole = () => {
 
   return {
     role,
-    isDirector,
     isAdmin,
     isTeacher,
     isParent,

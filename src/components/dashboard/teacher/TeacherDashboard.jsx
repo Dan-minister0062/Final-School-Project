@@ -21,9 +21,8 @@ import { useLanguage } from "../../../context/LanguageContext";
 import { useNotification } from "../../../hooks/useNotification";
 import { teacherService } from "../../../services/teacherService";
 import { assessmentService } from "../../../services/assessmentService";
-import { attendanceService } from "../../../services/attendanceService";
 import notificationService from "../../../services/notificationService";
-import LoadingSpinner from "../../common/LoadingSpinner";
+import { syncGet } from "../../../services/apiSync";
 import EmptyState from "../../common/EmptyState";
 
 // ===== ALWAYS use English numbers =====
@@ -75,8 +74,8 @@ const TeacherDashboard = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // ===== LOAD DASHBOARD DATA =====
-  const loadDashboardData = () => {
+  // ===== LOAD DASHBOARD DATA (MySQL-backed: API direct) =====
+  const loadDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
@@ -94,18 +93,73 @@ const TeacherDashboard = () => {
         return;
       }
 
-      // Get dashboard statistics
-      const dashboardStats = teacherService.getDashboardStats(teacher.id);
+      const assignedClassIds = Array.isArray(teacher.assignedClasses)
+        ? teacher.assignedClasses
+        : Array.isArray(teacher.assigned_classes)
+          ? teacher.assigned_classes
+          : (Array.isArray(teacher.classes) ? teacher.classes : []);
+
+      // Fetch everything straight from MySQL (endpoints are role-scoped).
+      const [classesRes, studentsRes, assessmentsRes, , attendanceRes] = await Promise.all([
+        syncGet('/classes'),
+        syncGet('/students'),
+        syncGet('/assessments'),
+        syncGet('/submissions'),
+        syncGet('/attendance'),
+        notificationService.pull(),
+      ]);
+      const allClasses = classesRes?.data || (Array.isArray(classesRes) ? classesRes : []);
+      const allStudents = studentsRes?.data || (Array.isArray(studentsRes) ? studentsRes : []);
+      const assessments = assessmentsRes?.data || (Array.isArray(assessmentsRes) ? assessmentsRes : []);
+      const attendanceRecords = attendanceRes?.data || (Array.isArray(attendanceRes) ? attendanceRes : []);
+
+      const assignedClasses = allClasses.filter(c => assignedClassIds.includes(c.id) || assignedClassIds.includes(c.code));
+
+      // Students may store either the class code or the class name in
+      // students.class_code, so match against both (plus the raw ids).
+      const assignedClassKeys = new Set();
+      assignedClassIds.forEach((v) => assignedClassKeys.add(String(v)));
+      assignedClasses.forEach((c) => {
+        if (c?.id !== undefined && c?.id !== null) assignedClassKeys.add(String(c.id));
+        if (c?.code) assignedClassKeys.add(String(c.code));
+        if (c?.name) assignedClassKeys.add(String(c.name));
+      });
+
+      const classStudents = allStudents.filter(s => assignedClassKeys.has(String(s.class_code || s.classId || s.class_id || s.class || '')));
+      const notifications = notificationService.getNotifications();
+
+      // Dashboard statistics
+      const activeAssessments = assessments.filter(a => a.status === 'published' || a.status === 'active').length;
+      const pendingMarking = assessments.filter(a => a.status === 'submitted' || a.status === 'pending').length;
+      const unreadNotifications = notifications.filter(n => !n.read).length;
+
+      // Today's attendance (flat DB rows)
+      const today = new Date().toISOString().split('T')[0];
+      const todayAttendance = attendanceRecords.filter(a => a.date === today && assignedClassKeys.has(String(a.class_code || a.classCode || a.class_id || '')));
+      let todayAttendanceLabel = 'Not Marked';
+      if (todayAttendance.length > 0) {
+        const presentToday = todayAttendance.filter(a => a.status === 'present').length;
+        todayAttendanceLabel = `${Math.round((presentToday / todayAttendance.length) * 100)}%`;
+      }
+
+      const dashboardStats = {
+        totalClasses: assignedClasses.length,
+        totalStudents: classStudents.length,
+        activeAssessments,
+        pendingMarking,
+        todayAttendance: todayAttendanceLabel,
+        unreadNotifications,
+        classNames: assignedClasses.map(c => c.name),
+        classIds: assignedClasses.map(c => c.id),
+      };
       console.log("📊 Dashboard stats:", dashboardStats);
       setStats(dashboardStats);
 
-      // Get notifications
-      const notifications = teacherService.getTeacherNotifications(teacher.id);
+      // Notifications
       console.log("🔔 Notifications:", notifications.length);
       setRecentNotifications(notifications.slice(0, 5));
 
-      // Get assessments
-      const assessments = teacherService.getTeacherAssessments(teacher.id);
+      // Assessments
       console.log("📝 Assessments:", assessments.length);
       const upcoming = assessments
         .filter((a) => a.dueDate && new Date(a.dueDate) > new Date())
@@ -114,7 +168,7 @@ const TeacherDashboard = () => {
       setUpcomingAssessments(upcoming);
 
       // Get recent activity
-      const activity = getRecentActivity();
+      const activity = getRecentActivity(assessments, attendanceRecords);
       setRecentActivity(activity);
 
       setLoading(false);
@@ -125,16 +179,12 @@ const TeacherDashboard = () => {
     }
   };
 
-  // ===== GET RECENT ACTIVITY =====
-  const getRecentActivity = () => {
+  // ===== GET RECENT ACTIVITY (from MySQL-drawn data) =====
+  const getRecentActivity = (assessmentsData = [], attendanceData = []) => {
     const activities = [];
 
     try {
-      const currentTeacher = teacherService.getCurrentTeacher();
-      if (!currentTeacher) return activities;
-      
-      const assessments = teacherService.getTeacherAssessments(currentTeacher.id);
-      assessments.slice(0, 3).forEach((a) => {
+      (Array.isArray(assessmentsData) ? assessmentsData : []).slice(0, 3).forEach((a) => {
         activities.push({
           id: `act_${a.id}`,
           type: "assessment",
@@ -146,11 +196,9 @@ const TeacherDashboard = () => {
         });
       });
 
-      const attendanceRecords = attendanceService.getAttendanceHistory ? 
-        attendanceService.getAttendanceHistory().slice(0, 3) : [];
-      attendanceRecords.forEach((r) => {
+      (Array.isArray(attendanceData) ? attendanceData : []).slice(0, 3).forEach((r) => {
         activities.push({
-          id: `act_${r.classId}_${r.date}`,
+          id: `act_${r.classCode || r.class_code || r.classId}_${r.date}`,
           type: "attendance",
           description: isArabic
             ? `تسجيل الحضور للفصل في ${r.date}`

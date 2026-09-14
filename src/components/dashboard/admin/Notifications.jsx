@@ -43,7 +43,7 @@ const Notifications = () => {
 
   // Get user role
   const getUserRole = () => {
-    return user?.role || localStorage.getItem('role') || 'admin';
+    return user?.role || 'admin';
   };
 
   const userRole = getUserRole();
@@ -51,10 +51,10 @@ const Notifications = () => {
   // Get role-specific notification types
   const getNotificationTypes = () => {
     const types = {
-      admin: ['registration', 'system', 'announcement', 'reminder'],
+      admin: ['registration', 'payment', 'system', 'announcement', 'reminder'],
       teacher: ['assignment', 'submission', 'schedule', 'announcement'],
-      parent: ['grade', 'attendance', 'announcement'],
-      student: ['grade', 'announcement', 'assignment']
+      parent: ['grade', 'attendance', 'announcement', 'payment'],
+      student: ['grade', 'announcement', 'assignment', 'payment']
     };
     return types[userRole] || ['announcement'];
   };
@@ -82,6 +82,7 @@ const Notifications = () => {
       schedule: isArabic ? 'جدول' : 'Schedule',
       system: isArabic ? 'نظام' : 'System',
       reminder: isArabic ? 'تذكير' : 'Reminder',
+      payment: isArabic ? 'دفع' : 'Payment',
       profile: isArabic ? 'ملف' : 'Profile'
     };
     return labels[type] || type;
@@ -99,6 +100,7 @@ const Notifications = () => {
       schedule: <FaClock />,
       system: <FaCog />,
       reminder: <FaBell />,
+      payment: <FaFileAlt />,
       profile: <FaUser />
     };
     return icons[type] || <FaBell />;
@@ -116,6 +118,7 @@ const Notifications = () => {
       schedule: '#e74c3c',
       system: '#4a9eff',
       reminder: '#f39c12',
+      payment: '#2ecc71',
       profile: '#4a9eff'
     };
     return colors[type] || '#6c757d';
@@ -132,7 +135,8 @@ const Notifications = () => {
       attendance: isArabic ? 'حضور' : 'Attendance',
       schedule: isArabic ? 'جدول' : 'Schedule',
       system: isArabic ? 'نظام' : 'System',
-      reminder: isArabic ? 'تذكير' : 'Reminder'
+      reminder: isArabic ? 'تذكير' : 'Reminder',
+      payment: isArabic ? 'دفع' : 'Payment'
     };
     const allowedTypes = getNotificationTypes();
     const options = {};

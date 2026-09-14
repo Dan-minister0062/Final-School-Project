@@ -1,5 +1,6 @@
 // src/components/dashboard/parent/ParentDashboard.jsx
 import React, { useState, useEffect } from "react";
+import { syncGet, syncSend } from "../../../services/apiSync";
 import {
   Container,
   Row,
@@ -12,6 +13,7 @@ import {
   Nav,
   Form,
   Modal,
+  Spinner,
 } from "react-bootstrap";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -140,218 +142,6 @@ const getSubjectIcon = (subjectName) => {
   return <FaBookOpen />;
 };
 
-// ===== DEFAULT SUBJECTS BY LEVEL =====
-const defaultSubjectsByCategory = {
-  kindergarten: [
-    {
-      id: "quran_k",
-      name: "Qur'an",
-      nameAr: "القرآن الكريم",
-      category: "kindergarten",
-    },
-    {
-      id: "english_k",
-      name: "English",
-      nameAr: "اللغة الإنجليزية",
-      category: "kindergarten",
-    },
-    {
-      id: "french_k",
-      name: "French",
-      nameAr: "اللغة الفرنسية",
-      category: "kindergarten",
-    },
-    {
-      id: "arabic_k",
-      name: "Arabic",
-      nameAr: "اللغة العربية",
-      category: "kindergarten",
-    },
-  ],
-  primary: [
-    {
-      id: "quran_p",
-      name: "Qur'an",
-      nameAr: "القرآن الكريم",
-      category: "primary",
-    },
-    {
-      id: "arabic_p",
-      name: "Arabic",
-      nameAr: "اللغة العربية",
-      category: "primary",
-    },
-    {
-      id: "english_p",
-      name: "English",
-      nameAr: "اللغة الإنجليزية",
-      category: "primary",
-    },
-    {
-      id: "french_p",
-      name: "French",
-      nameAr: "اللغة الفرنسية",
-      category: "primary",
-    },
-    {
-      id: "mathematics_p",
-      name: "Mathematics",
-      nameAr: "الرياضيات",
-      category: "primary",
-    },
-    { id: "science_p", name: "Science", nameAr: "العلوم", category: "primary" },
-    { id: "sports_p", name: "Sports", nameAr: "الرياضة", category: "primary" },
-    {
-      id: "ict_p",
-      name: "ICT",
-      nameAr: "تكنولوجيا المعلومات",
-      category: "primary",
-    },
-    {
-      id: "art_p",
-      name: "Art & Plastic",
-      nameAr: "الفنون التشكيلية",
-      category: "primary",
-    },
-    {
-      id: "geography_p",
-      name: "Geography",
-      nameAr: "الجغرافيا",
-      category: "primary",
-    },
-  ],
-  secondary: [
-    {
-      id: "quran_s",
-      name: "Qur'an",
-      nameAr: "القرآن الكريم",
-      category: "secondary",
-    },
-    {
-      id: "arabic_s",
-      name: "Arabic",
-      nameAr: "اللغة العربية",
-      category: "secondary",
-    },
-    {
-      id: "english_s",
-      name: "English",
-      nameAr: "اللغة الإنجليزية",
-      category: "secondary",
-    },
-    {
-      id: "french_s",
-      name: "French",
-      nameAr: "اللغة الفرنسية",
-      category: "secondary",
-    },
-    {
-      id: "mathematics_s",
-      name: "Mathematics",
-      nameAr: "الرياضيات",
-      category: "secondary",
-    },
-    {
-      id: "svt_s",
-      name: "SVT (Biology)",
-      nameAr: "علوم الحياة والأرض",
-      category: "secondary",
-    },
-    {
-      id: "physics_s",
-      name: "Physics",
-      nameAr: "الفيزياء",
-      category: "secondary",
-    },
-    {
-      id: "sports_s",
-      name: "Sports",
-      nameAr: "الرياضة",
-      category: "secondary",
-    },
-    {
-      id: "ict_s",
-      name: "ICT",
-      nameAr: "تكنولوجيا المعلومات",
-      category: "secondary",
-    },
-    {
-      id: "geography_s",
-      name: "Geography",
-      nameAr: "الجغرافيا",
-      category: "secondary",
-    },
-  ],
-  high_school: [
-    {
-      id: "quran_h",
-      name: "Qur'an",
-      nameAr: "القرآن الكريم",
-      category: "high_school",
-    },
-    {
-      id: "arabic_h",
-      name: "Arabic",
-      nameAr: "اللغة العربية",
-      category: "high_school",
-    },
-    {
-      id: "english_h",
-      name: "English",
-      nameAr: "اللغة الإنجليزية",
-      category: "high_school",
-    },
-    {
-      id: "french_h",
-      name: "French",
-      nameAr: "اللغة الفرنسية",
-      category: "high_school",
-    },
-    {
-      id: "mathematics_h",
-      name: "Mathematics",
-      nameAr: "الرياضيات",
-      category: "high_school",
-    },
-    {
-      id: "svt_h",
-      name: "SVT (Biology)",
-      nameAr: "علوم الحياة والأرض",
-      category: "high_school",
-    },
-    {
-      id: "physics_h",
-      name: "Physics",
-      nameAr: "الفيزياء",
-      category: "high_school",
-    },
-    {
-      id: "sports_h",
-      name: "Sports",
-      nameAr: "الرياضة",
-      category: "high_school",
-    },
-    {
-      id: "ict_h",
-      name: "ICT",
-      nameAr: "تكنولوجيا المعلومات",
-      category: "high_school",
-    },
-    {
-      id: "geography_h",
-      name: "Geography",
-      nameAr: "الجغرافيا",
-      category: "high_school",
-    },
-    {
-      id: "philosophy_h",
-      name: "Philosophy",
-      nameAr: "الفلسفة",
-      category: "high_school",
-    },
-  ],
-};
-
 const ParentDashboard = () => {
   const { language, isArabic } = useLanguage();
   const t = (key) => getTranslation(key, language);
@@ -366,6 +156,7 @@ const ParentDashboard = () => {
   const [darkMode, setDarkMode] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [children, setChildren] = useState([]);
+  const [loadingChildren, setLoadingChildren] = useState(true);
 
   // ===== Arabic Font Style =====
   const arabicFontStyle = getArabicFontStyle(isArabic);
@@ -466,258 +257,319 @@ const ParentDashboard = () => {
   };
 
   // ===== LOAD CHILDREN DATA =====
-  const loadChildrenData = () => {
+  const loadChildrenData = async () => {
     try {
       console.log("📚 Loading children data for parent...");
+      setLoadingChildren(true);
 
-      const currentUser = JSON.parse(
-        localStorage.getItem("currentUser") || "{}",
-      );
-      const userId =
-        currentUser?.id || user?.id || localStorage.getItem("userId");
-
-      let allStudents = JSON.parse(
-        localStorage.getItem("school_students") || "[]",
-      );
-
-      if (allStudents.length === 0) {
-        const allUsers = JSON.parse(
-          localStorage.getItem("school_users") || "[]",
-        );
-        allStudents = allUsers.filter((u) => u.role === "student");
-      }
-
-      let parentChildren = [];
-
-      if (userId) {
-        parentChildren = allStudents.filter((s) => s.parentId === userId);
-      }
-
-      if (parentChildren.length === 0) {
-        const parentName = currentUser?.name || user?.name || "";
-        if (parentName) {
-          parentChildren = allStudents.filter(
-            (s) => s.parentName === parentName,
-          );
-        }
-      }
-
-      if (parentChildren.length === 0) {
-        const parents = JSON.parse(
-          localStorage.getItem("school_parents") || "[]",
-        );
-        const currentParent = parents.find(
-          (p) => p.id === userId || p.email === currentUser?.email,
-        );
-
-        if (currentParent) {
-          const childNames = currentParent.childrenNames
-            ? currentParent.childrenNames.split(",").map((n) => n.trim())
-            : [];
-
-          if (childNames.length > 0) {
-            parentChildren = allStudents.filter((s) => {
-              const studentName = s.name || s.firstName || "";
-              return childNames.some(
-                (childName) =>
-                  studentName.includes(childName) ||
-                  childName.includes(studentName),
-              );
-            });
-          }
-        }
-      }
+      const childrenRes = await syncGet("/auth/my-children");
+      const parentChildren = Array.isArray(childrenRes?.data)
+        ? childrenRes.data
+        : [];
 
       if (parentChildren.length > 0) {
-        const enrichedChildren = parentChildren.map((child) => {
-          const classes = JSON.parse(
-            localStorage.getItem("school_classes") || "[]",
-          );
-          const classInfo = classes.find(
-            (c) => c.id === child.classId || c.id === child.class,
-          );
+        let enrichedChildren;
+        try {
+          const [classesRes, assessmentsRes, submissionsRes, attendanceRes, announcementsRes] =
+            await Promise.all([
+              syncGet("/classes"),
+              syncGet("/assessments"),
+              syncGet("/submissions"),
+              syncGet("/attendance"),
+              syncGet("/announcements/published"),
+            ]);
 
-          const studentLevel = child.level || child.educationLevel || "primary";
-          const defaultSubjects =
-            defaultSubjectsByCategory[studentLevel] ||
-            defaultSubjectsByCategory.primary;
+          const classes = Array.isArray(classesRes?.data) ? classesRes.data : [];
+          const allAssessments = Array.isArray(assessmentsRes?.data)
+            ? assessmentsRes.data
+            : [];
+          const allSubmissions = Array.isArray(submissionsRes?.data)
+            ? submissionsRes.data
+            : [];
+          const allAttendance = Array.isArray(attendanceRes?.data)
+            ? attendanceRes.data
+            : [];
+          const allAnnouncements = Array.isArray(announcementsRes)
+            ? announcementsRes
+            : Array.isArray(announcementsRes?.data)
+              ? announcementsRes.data
+              : [];
 
-          const allAssessments = JSON.parse(
-            localStorage.getItem("school_assessments") || "[]",
-          );
-          const studentAssessments = allAssessments.filter(
-            (a) =>
-              (a.classId === child.classId || a.classId === child.class) &&
-              (a.assignedStudents
-                ? a.assignedStudents.includes(child.id)
-                : true),
-          );
+          enrichedChildren = parentChildren.map((child) => {
+            // Server-side joins (submissions, attendance) are keyed by the
+            // user id (users.id); attendance falls back to the student profile
+            // id (students.id).
+            const childUserId =
+              child.id ?? child.userId ?? child.student_id ?? child.studentId ?? null;
+            const childProfileId = child.student_id ?? child.studentId ?? null;
+            const childServerId =
+              child.student_id ?? child.studentId ?? child.id;
+            const childCode =
+              child.code ?? child.student_code ?? child.studentCode ?? null;
+            const classCode = child.class_code ?? child.classCode ?? null;
 
-          const allSubmissions = JSON.parse(
-            localStorage.getItem("school_submissions") || "[]",
-          );
-          const studentSubmissions = allSubmissions.filter(
-            (s) => s.studentId === child.id,
-          );
-
-          const subjectsWithGrades = defaultSubjects.map((sub) => {
-            const assessment = studentAssessments.find(
-              (a) => a.subject === sub.name,
+            const classRow = classes.find(
+              (c) =>
+                String(c.code) === String(classCode) ||
+                String(c.name) === String(classCode) ||
+                String(c.id) === String(classCode),
             );
-            const submission = studentSubmissions.find(
-              (s) => s.assessmentId === assessment?.id,
+            const classInfo = classRow
+              ? { ...classRow, teacher: classRow.teacher_name ?? classRow.teacher }
+              : null;
+
+            // Assessments are keyed by the canonical class code (e.g.
+            // "primary_3a"), while students.class_code may hold the class name
+            // (e.g. "Primaire 3A").
+            const assessmentClassCode = classRow?.code || classCode;
+
+            const studentAssessments = allAssessments.filter(
+              (a) =>
+                String(a.classId ?? a.class_code ?? a.classCode ?? "") ===
+                String(assessmentClassCode),
             );
-            const grade = assessment?.grades?.find(
-              (g) => g.studentId === child.id,
+
+            // Submissions are keyed by the user id (users.id) or the student
+            // profile id (students.id), so match against both plus the code.
+            const childIds = new Set(
+              [childUserId, childProfileId, childServerId]
+                .filter((v) => v !== undefined && v !== null && v !== "")
+                .map((v) => String(v)),
             );
+            if (childCode) childIds.add(String(childCode));
+
+            const studentSubmissions = allSubmissions.filter((s) => {
+              const key = String(
+                s.studentId ?? s.student_id ?? s.studentCode ?? s.student_code ?? "",
+              );
+              return childIds.has(key);
+            });
+
+            // Row list comes from the child's actual MySQL-backed assessments,
+            // never a hardcoded curriculum fallback.
+            const childSubjects = new Map();
+            studentAssessments.forEach((a) =>
+              childSubjects.set(a.subject, {
+                name: a.subject,
+                nameAr: a.subjectAr || a.subject,
+              }),
+            );
+            studentSubmissions.forEach((s) => {
+              const a = studentAssessments.find(
+                (x) => Number(x.id) === Number(s.assessmentId),
+              );
+              if (a && a.subject) {
+                childSubjects.set(a.subject, {
+                  name: a.subject,
+                  nameAr: a.subjectAr || a.subject,
+                });
+              }
+            });
+
+            const subjectsWithGrades = [...childSubjects.values()].map((sub) => {
+              const assessment = studentAssessments.find(
+                (a) => a.subject === sub.name,
+              );
+              const submission = studentSubmissions.find(
+                (s) => Number(s.assessmentId) === Number(assessment?.id),
+              );
+              const grade = submission && Number(submission.score) > 0
+                ? submission
+                : null;
+              const score = grade ? Number(grade.score) : 0;
+
+              return {
+                name: sub.name,
+                nameAr: sub.nameAr || sub.name,
+                score: score,
+                grade: grade
+                  ? getGradeLetter(score, assessment?.totalMarks || 100)
+                  : "N/A",
+                isGraded: !!grade,
+                hasSubmitted: !!submission,
+                assessmentId: assessment?.id || null,
+                totalMarks: assessment?.totalMarks || 100,
+              };
+            });
+
+            let present = 0,
+              absent = 0,
+              late = 0,
+              excused = 0,
+              total = 0;
+
+            allAttendance.forEach((record) => {
+              if (
+                childIds.has(
+                  String(
+                    record.studentId ?? record.student_id ?? record.student_code ?? "",
+                  ),
+                )
+              ) {
+                total++;
+                switch (record.status) {
+                  case "present":
+                    present++;
+                    break;
+                  case "absent":
+                    absent++;
+                    break;
+                  case "late":
+                    late++;
+                    break;
+                  case "excused":
+                    excused++;
+                    break;
+                  default:
+                    break;
+                }
+              }
+            });
+
+            const attendanceRate =
+              total > 0 ? Math.round((present / total) * 100) : 0;
+
+            const studentNotifications = allAnnouncements
+              .filter((n) => {
+                const audiences = Array.isArray(n.targetAudience)
+                  ? n.targetAudience
+                  : [n.targetAudience || "all"];
+                return audiences.some((au) =>
+                  ["all", "parent", "parents"].includes(
+                    String(au).toLowerCase(),
+                  ),
+                );
+              })
+              .map((n) => ({
+                id: n.id || `NOT${Date.now()}`,
+                title:
+                  n.title ||
+                  (n.type === "submission"
+                    ? "📤 " + (isArabic ? "تقديم واجب" : "Assignment Submitted")
+                    : "📢 " + (isArabic ? "إشعار جديد" : "New Announcement")),
+                content: n.message || n.content || "",
+                date: n.date
+                  ? new Date(n.date).toLocaleDateString()
+                  : n.createdAt
+                    ? new Date(n.createdAt).toLocaleDateString()
+                    : new Date().toLocaleDateString(),
+                time: n.time
+                  ? n.time
+                  : n.createdAt
+                    ? new Date(n.createdAt).toLocaleTimeString()
+                    : "",
+                priority: n.priority || "medium",
+                teacher: n.author || classInfo?.teacher || "Teacher",
+                type: n.type || "announcement",
+                read: false,
+              }));
+
+            const recentActivities = [];
+
+            studentAssessments.forEach((a) => {
+              recentActivities.push({
+                date:
+                  a.dueDate || a.createdAt
+                    ? new Date(a.dueDate || a.createdAt).toLocaleDateString()
+                    : new Date().toLocaleDateString(),
+                activity: `${a.title} - ${a.subject}`,
+                type: "assessment",
+              });
+            });
+
+            studentSubmissions.forEach((s) => {
+              const assessment = studentAssessments.find(
+                (ar) => Number(ar.id) === Number(s.assessmentId),
+              );
+              recentActivities.push({
+                date: s.submittedAt
+                  ? new Date(s.submittedAt).toLocaleDateString()
+                  : new Date().toLocaleDateString(),
+                activity: `Submitted: ${assessment?.title || "Assignment"}`,
+                type: "submission",
+              });
+            });
+
+            recentActivities.sort((a, b) => new Date(b.date) - new Date(a.date));
+            const topActivities = recentActivities.slice(0, 10);
 
             return {
-              name: sub.name,
-              nameAr: sub.nameAr || sub.name,
-              score: grade?.score || 0,
-              grade: grade?.score
-                ? getGradeLetter(grade.score, assessment?.totalMarks || 100)
-                : "N/A",
-              isGraded: !!grade,
-              hasSubmitted: !!submission,
-              assessmentId: assessment?.id || null,
-              totalMarks: assessment?.totalMarks || 100,
+              id: child.id,
+              name: child.name || child.firstName || "Student",
+              class: classInfo?.name || child.className || child.class || "N/A",
+              level:
+                classInfo?.level || child.level || child.educationLevel || "N/A",
+              status: child.status || "active",
+              attendance: attendanceRate,
+              attendanceCount: { present, absent, late, excused, total },
+              subjects: subjectsWithGrades,
+              recentActivities:
+                topActivities.length > 0
+                  ? topActivities
+                  : [
+                      {
+                        date: new Date().toISOString().split("T")[0],
+                        activity: isArabic
+                          ? "لا توجد أنشطة حديثة"
+                          : "No recent activities",
+                      },
+                    ],
+              announcements: studentNotifications,
+              teacher:
+                child.teacherName ||
+                classInfo?.teacher ||
+                (isArabic ? "المعلم المكلف" : "Assigned Teacher"),
+              parentId: child.parentId,
+              parentName: child.parentName,
+              assessments: studentAssessments,
+              submissions: studentSubmissions,
+              gradedCount: studentSubmissions.filter(
+                (s) => Number(s.score) > 0,
+              ).length,
+              totalAssessments: studentAssessments.length,
+              hasNewAnnouncements: studentNotifications.some((n) => !n.read),
             };
           });
-
-          const allAttendance = JSON.parse(
-            localStorage.getItem("school_attendance") || "[]",
-          );
-          let present = 0,
-            absent = 0,
-            late = 0,
-            excused = 0,
-            total = 0;
-
-          allAttendance.forEach((record) => {
-            const studentData = record.students?.find(
-              (s) => s.studentId === child.id,
-            );
-            if (studentData) {
-              total++;
-              switch (studentData.status) {
-                case "present":
-                  present++;
-                  break;
-                case "absent":
-                  absent++;
-                  break;
-                case "late":
-                  late++;
-                  break;
-                case "excused":
-                  excused++;
-                  break;
-                default:
-                  break;
-              }
-            }
+        } catch (err) {
+          console.warn("⚠️ Enrichment failed; rendering safe child rows:", err);
+          enrichedChildren = parentChildren.map((child) => {
+            return {
+              id: child.id,
+              name: child.name || child.firstName || "Student",
+              class: child.className || child.class || "N/A",
+              level: child.level || child.educationLevel || "",
+              status: child.status || "active",
+              attendance: 0,
+              attendanceCount: {
+                present: 0,
+                absent: 0,
+                late: 0,
+                excused: 0,
+                total: 0,
+              },
+              subjects: [],
+              recentActivities: [
+                {
+                  date: new Date().toISOString().split("T")[0],
+                  activity: isArabic
+                    ? "لا توجد أنشطة حديثة"
+                    : "No recent activities",
+                },
+              ],
+              announcements: [],
+              teacher:
+                child.teacherName ||
+                (isArabic ? "المعلم المكلف" : "Assigned Teacher"),
+              parentId: child.parentId,
+              parentName: child.parentName,
+              assessments: [],
+              submissions: [],
+              gradedCount: 0,
+              totalAssessments: 0,
+              hasNewAnnouncements: false,
+            };
           });
-
-          const attendanceRate =
-            total > 0 ? Math.round((present / total) * 100) : 0;
-
-          const allNotifications = JSON.parse(
-            localStorage.getItem("school_notifications") || "[]",
-          );
-          const studentNotifications = allNotifications
-            .filter(
-              (n) =>
-                n.studentId === child.id ||
-                n.recipientRole === "parent" ||
-                n.studentName === child.name,
-            )
-            .map((n) => ({
-              id: n.id || `NOT${Date.now()}`,
-              title:
-                n.title ||
-                (n.type === "submission"
-                  ? "📤 " + (isArabic ? "تقديم واجب" : "Assignment Submitted")
-                  : "📢 " + (isArabic ? "إشعار جديد" : "New Announcement")),
-              content: n.message || n.content || "",
-              date: n.createdAt
-                ? new Date(n.createdAt).toLocaleDateString()
-                : new Date().toLocaleDateString(),
-              time: n.createdAt
-                ? new Date(n.createdAt).toLocaleTimeString()
-                : "",
-              priority: n.priority || "medium",
-              teacher: n.teacherName || classInfo?.teacher || "Teacher",
-              type: n.type || "announcement",
-              read: n.read || false,
-            }));
-
-          const recentActivities = [];
-
-          studentAssessments.forEach((a) => {
-            recentActivities.push({
-              date:
-                a.dueDate || a.createdAt
-                  ? new Date(a.dueDate || a.createdAt).toLocaleDateString()
-                  : new Date().toLocaleDateString(),
-              activity: `${a.title} - ${a.subject}`,
-              type: "assessment",
-            });
-          });
-
-          studentSubmissions.forEach((s) => {
-            const assessment = studentAssessments.find(
-              (a) => a.id === s.assessmentId,
-            );
-            recentActivities.push({
-              date: s.submittedAt
-                ? new Date(s.submittedAt).toLocaleDateString()
-                : new Date().toLocaleDateString(),
-              activity: `Submitted: ${assessment?.title || "Assignment"}`,
-              type: "submission",
-            });
-          });
-
-          recentActivities.sort((a, b) => new Date(b.date) - new Date(a.date));
-          const topActivities = recentActivities.slice(0, 10);
-
-          return {
-            id: child.id,
-            name: child.name || child.firstName || "Student",
-            class: classInfo?.name || child.className || child.class || "N/A",
-            level:
-              classInfo?.level || child.level || child.educationLevel || "N/A",
-            status: child.status || "active",
-            attendance: attendanceRate,
-            attendanceCount: { present, absent, late, excused, total },
-            subjects: subjectsWithGrades,
-            recentActivities:
-              topActivities.length > 0
-                ? topActivities
-                : [
-                    {
-                      date: new Date().toISOString().split("T")[0],
-                      activity: isArabic
-                        ? "لا توجد أنشطة حديثة"
-                        : "No recent activities",
-                    },
-                  ],
-            announcements: studentNotifications,
-            teacher:
-              child.teacherName ||
-              classInfo?.teacher ||
-              (isArabic ? "المعلم المكلف" : "Assigned Teacher"),
-            parentId: child.parentId,
-            parentName: child.parentName,
-            assessments: studentAssessments,
-            submissions: studentSubmissions,
-            gradedCount: studentAssessments.filter((a) =>
-              a.grades?.some((g) => g.studentId === child.id),
-            ).length,
-            totalAssessments: studentAssessments.length,
-            hasNewAnnouncements: studentNotifications.some((n) => !n.read),
-          };
-        });
+        }
 
         setChildren(enrichedChildren);
 
@@ -739,6 +591,8 @@ const ParentDashboard = () => {
       console.error("❌ Error loading children data:", error);
       setChildren([]);
       setSelectedChild(null);
+    } finally {
+      setLoadingChildren(false);
     }
   };
 
@@ -777,8 +631,50 @@ const ParentDashboard = () => {
     setShowAnnouncementModal(true);
   };
 
-  // ===== No children found =====
+  // ===== Loading / No children found =====
   if (children.length === 0) {
+    if (loadingChildren) {
+      return (
+        <div className="parent-dashboard" dir={isArabic ? "rtl" : "ltr"}>
+          <Container fluid>
+            <div className="dashboard-header mb-4">
+              <div>
+                <h4
+                  className="fw-bold mb-1"
+                  style={{ ...arabicFontStyle, color: "#1a5f7a" }}
+                >
+                  <FaUserGraduate className="me-2" />
+                  {isArabic ? "لوحة تحكم ولي الأمر" : "Parent Dashboard"}
+                </h4>
+                <p className="text-muted mb-0" style={arabicFontStyle}>
+                  {isArabic ? "مرحباً بعودتك،" : "Welcome back,"}{" "}
+                  {user?.name || "Parent"} 👋
+                </p>
+              </div>
+            </div>
+            <Card
+              className="shadow-sm border-0 text-center py-5"
+              style={{
+                borderRadius: "20px",
+                background: darkMode ? "#1a1a2e" : "#ffffff",
+                border: `1px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
+              }}
+            >
+              <Card.Body>
+                <div className="d-flex flex-column align-items-center gap-3">
+                  <Spinner animation="border" variant="primary" />
+                  <h4 className="mb-0" style={arabicFontStyle}>
+                    {isArabic
+                      ? "جارٍ تحميل بيانات أطفالك..."
+                      : "Loading your children..."}
+                  </h4>
+                </div>
+              </Card.Body>
+            </Card>
+          </Container>
+        </div>
+      );
+    }
     return (
       <div className="parent-dashboard" dir={isArabic ? "rtl" : "ltr"}>
         <Container fluid>
@@ -2209,20 +2105,20 @@ const ParentDashboard = () => {
               onClick={() => {
                 setShowAnnouncementModal(false);
                 if (selectedAnnouncement && !selectedAnnouncement.read) {
-                  const allNotifications = JSON.parse(
-                    localStorage.getItem("school_notifications") || "[]",
+                  setChildren((prevChildren) =>
+                    prevChildren.map((c) => {
+                      const announcements = (c.announcements || []).map((a) =>
+                        a.id === selectedAnnouncement.id
+                          ? { ...a, read: true }
+                          : a,
+                      );
+                      return {
+                        ...c,
+                        announcements,
+                        hasNewAnnouncements: announcements.some((a) => !a.read),
+                      };
+                    }),
                   );
-                  const notification = allNotifications.find(
-                    (n) => n.id === selectedAnnouncement.id,
-                  );
-                  if (notification) {
-                    notification.read = true;
-                    localStorage.setItem(
-                      "school_notifications",
-                      JSON.stringify(allNotifications),
-                    );
-                    loadChildrenData();
-                  }
                 }
                 if (notify) {
                   notify(

@@ -22,7 +22,8 @@ import { useLanguage } from '../../../context/LanguageContext';
 import { useAuth } from '../../../hooks/useAuth';
 import { useNotification } from '../../../hooks/useNotification';
 import api from '../../../services/api';
-import userDataService from '../../../services/userDataService';
+import { syncGet, syncSend } from '../../../services/apiSync';
+import { getAuthIdentity } from '../../../services/api';
 import { format, formatDistanceToNow, isValid } from 'date-fns';
 import { ar, enUS } from 'date-fns/locale';
 
@@ -42,14 +43,6 @@ const safeFormatDate = (date, formatStr = "PPP", options = {}) => {
 const formatNumber = (num) => {
   if (num === undefined || num === null) return '0';
   return num.toString();
-};
-
-// ===== STORAGE KEYS =====
-const STORAGE_KEYS = {
-  CLASSES: 'school_classes',
-  STUDENTS: 'school_students',
-  USERS: 'school_users',
-  TEACHERS: 'school_teachers'
 };
 
 const ClassesManagement = () => {
@@ -119,49 +112,63 @@ const ClassesManagement = () => {
     { value: 'high_school', label: isArabic ? 'ثانوي' : 'High School', icon: <FaAward />, color: '#9b59b6' }
   ];
 
-  // ===== GET CLASS NAMES =====
-  const getClassNames = () => {
-    if (isArabic) {
-      return {
-        kindergarten: ['الاستئناس', 'التمهيدي الأول -أ-', 'التمهيدي الأول -ب-', 'التمهيدي الثاني -أ-', 'التمهيدي الثاني -ب-'],
-        primary: ['الأول -أ-', 'الأول -ب-', 'الثاني -أ-', 'الثاني -ب-', 'الثالث -أ-', 'الثالث -ب-', 'الرابع -أ-', 'الرابع -ب-', 'الخامس -أ-', 'الخامس -ب-', 'السادس -أ-', 'السادس -ب-'],
-        secondary: ['الأولى إعدادي -أ-', 'الأولى إعدادي -ب-', 'الثانية إعدادي -أ-', 'الثانية إعدادي -ب-', 'الثالثة إعدادي -أ-', 'الثالثة إعدادي -ب-'],
-        high_school: ['جذع مشترك علمي', 'الأولى باكالوريا علوم تجريبية', 'الثانية باكالوريا علوم فيزيائية']
-      };
-    } else {
-      return {
-        kindergarten: ['Introductory', 'Preparatory 1 -A-', 'Preparatory 1 -B-', 'Preparatory 2 -A-', 'Preparatory 2 -B-'],
-        primary: ['1 -A-', '1 -B-', '2 -A-', '2 -B-', '3 -A-', '3 -B-', '4 -A-', '4 -B-', '5 -A-', '5 -B-', '6 -A-', '6 -B-'],
-        secondary: ['Secondary 1 -A-', 'Secondary 1 -B-', 'Secondary 2 -A-', 'Secondary 2 -B-', 'Secondary 3 -A-', 'Secondary 3 -B-'],
-        high_school: ['Common Core Science', '1st Baccalaureate Experimental Sciences', '2nd Baccalaureate Physical Sciences']
-      };
-    }
-  };
-
-  // ===== SAVE CLASSES TO LOCALSTORAGE =====
-  const saveClassesToStorage = (classesData) => {
+  // ===== FETCH TEACHERS DATA =====
+  const fetchTeachersData = async () => {
     try {
-      localStorage.setItem(STORAGE_KEYS.CLASSES, JSON.stringify(classesData));
-      console.log('✅ Classes saved to localStorage:', classesData.length);
-      return true;
+      const res = await syncGet('/users', { role: 'teacher' });
+      const rows = Array.isArray(res?.data) ? res.data : [];
+      const teachers = rows.map((r) => ({
+        ...r,
+        id: r._serverId ?? r.id,
+        _serverId: r._serverId ?? r.id,
+        name: r.name || r.full_name || `${r.first_name || ''} ${r.last_name || ''}`.trim(),
+        firstName: r.first_name || '',
+        lastName: r.last_name || '',
+      }));
+      setTeachersData(teachers);
+      return teachers;
     } catch (error) {
-      console.error('❌ Error saving classes to localStorage:', error);
-      return false;
-    }
-  };
-
-  // ===== LOAD CLASSES FROM LOCALSTORAGE =====
-  const loadClassesFromStorage = () => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEYS.CLASSES);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        console.log('📚 Classes loaded from localStorage:', parsed.length);
-        return parsed;
-      }
+      console.error('Error fetching teachers:', error);
       return [];
+    }
+  };
+
+  // ===== FETCH STUDENTS DATA =====
+  const fetchStudentsData = async () => {
+    try {
+      const res = await syncGet('/students');
+      const rows = Array.isArray(res?.data) ? res.data : [];
+      const students = rows.map((r) => ({
+        ...r,
+        id: r._serverId ?? r.id,
+        _serverId: r._serverId ?? r.id,
+        name: r.name || r.full_name || `${r.first_name || ''} ${r.last_name || ''}`.trim(),
+        classId: r.classId || r.class_id || r.class || '',
+        class: r.className || '',
+      }));
+      setStudentsData(students);
+      return students;
     } catch (error) {
-      console.error('❌ Error loading classes from localStorage:', error);
+      console.error('Error fetching students:', error);
+      return [];
+    }
+  };
+
+  // ===== FETCH ALL USERS =====
+  const fetchAllUsers = async () => {
+    try {
+      const res = await syncGet('/users');
+      const rows = Array.isArray(res?.data) ? res.data : [];
+      const users = rows.map((r) => ({
+        ...r,
+        id: r._serverId ?? r.id,
+        _serverId: r._serverId ?? r.id,
+        name: r.name || `${r.first_name || ''} ${r.last_name || ''}`.trim(),
+      }));
+      setAllUsersData(users);
+      return users;
+    } catch (error) {
+      console.error('Error fetching users:', error);
       return [];
     }
   };
@@ -194,80 +201,6 @@ const ClassesManagement = () => {
     lineHeight: isArabic ? '1.8' : '1.6',
     letterSpacing: isArabic ? '0.5px' : '0px',
     fontSize: isArabic ? 'clamp(0.95rem, 1.2vw, 1.1rem)' : 'clamp(0.9rem, 1.1vw, 1.05rem)',
-  };
-
-  // ===== FETCH TEACHERS DATA - FIXED =====
-  const fetchTeachersData = () => {
-    try {
-      console.log('📚 Fetching teachers data...');
-      
-      // First try to get from school_teachers
-      let teachers = JSON.parse(localStorage.getItem(STORAGE_KEYS.TEACHERS) || '[]');
-      
-      // If no teachers in school_teachers, try school_users
-      if (teachers.length === 0) {
-        const users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
-        teachers = users.filter(u => u.role === 'teacher');
-      }
-      
-      // If still no teachers, try userDataService
-      if (teachers.length === 0) {
-        try {
-          const allUsers = userDataService.getUsers();
-          teachers = allUsers.filter(u => u.role === 'teacher');
-        } catch (e) {
-          console.warn('Could not get teachers from userDataService:', e);
-        }
-      }
-      
-      console.log('📚 Teachers found:', teachers.length);
-      setTeachersData(teachers);
-      return teachers;
-    } catch (error) {
-      console.error('Error fetching teachers:', error);
-      return [];
-    }
-  };
-
-  // ===== FETCH STUDENTS DATA - FIXED =====
-  const fetchStudentsData = () => {
-    try {
-      console.log('📚 Fetching students data...');
-      
-      let students = JSON.parse(localStorage.getItem(STORAGE_KEYS.STUDENTS) || '[]');
-      
-      // If no students in school_students, try school_users
-      if (students.length === 0) {
-        const users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
-        students = users.filter(u => u.role === 'student');
-      }
-      
-      console.log('📚 Students found:', students.length);
-      setStudentsData(students);
-      return students;
-    } catch (error) {
-      console.error('Error fetching students:', error);
-      return [];
-    }
-  };
-
-  // ===== FETCH ALL USERS =====
-  const fetchAllUsers = () => {
-    try {
-      let users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
-      if (users.length === 0) {
-        try {
-          users = userDataService.getUsers();
-        } catch (e) {
-          console.warn('Could not get users from userDataService:', e);
-        }
-      }
-      setAllUsersData(users);
-      return users;
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      return [];
-    }
   };
 
   // ===== GET LEVEL DISPLAY =====
@@ -332,136 +265,75 @@ const ClassesManagement = () => {
     return students;
   };
 
-  // ===== FETCH CLASSES - FIXED =====
+  // ===== FETCH CLASSES =====
   const fetchClasses = async () => {
     setLoading(true);
     setError(null);
 
     try {
-      // First, fetch all necessary data
-      const teachers = fetchTeachersData();
-      const students = fetchStudentsData();
-      const users = fetchAllUsers();
-      
-      // Load classes from localStorage
-      let storedClasses = loadClassesFromStorage();
-      
-      if (storedClasses && storedClasses.length > 0) {
-        console.log('📚 Using classes from localStorage');
-        
-        // Enrich classes with real data
-        const enrichedClasses = storedClasses.map(cls => {
-          // Get real teacher name
-          let teacherName = null;
-          let teacherId = cls.teacherId || cls.teacherId;
-          
-          if (teacherId) {
-            teacherName = getTeacherNameById(teacherId);
-          }
-          
-          // If no teacherId or teacher not found, try to find by name
-          if (!teacherName && cls.teacher) {
-            // Check if teacher exists in teachers data
-            const foundTeacher = teachers.find(t => 
-              t.name === cls.teacher || 
-              t.displayName === cls.teacher ||
-              `${t.firstName || ''} ${t.lastName || ''}`.trim() === cls.teacher
-            );
-            if (foundTeacher) {
-              teacherName = cls.teacher;
-              teacherId = foundTeacher.id;
+      const [teachers, students] = await Promise.all([
+        fetchTeachersData(),
+        fetchStudentsData(),
+        fetchAllUsers(),
+      ]);
+
+      const serverOk = !!getAuthIdentity();
+      let serverClasses = [];
+
+      if (serverOk) {
+        try {
+          const serverRes = await syncGet('/classes');
+          const serverList = Array.isArray(serverRes?.data)
+            ? serverRes.data
+            : Array.isArray(serverRes?.data?.data)
+              ? serverRes.data.data
+              : [];
+          serverClasses = (Array.isArray(serverList) ? serverList : []).map(c => {
+            const clsId = c.code || String(c.id);
+            const classStudents = getStudentsByClassId(clsId);
+            let teacherName = null;
+            let teacherId = c.teacherId || null;
+            if (teacherId) {
+              teacherName = getTeacherNameById(teacherId);
             }
-          }
-          
-          // Get real students count
-          const classStudents = getStudentsByClassId(cls.id);
-          const studentCount = classStudents.length;
-          
-          // If no students found, try to get from stored data
-          const storedCount = cls.students || cls.studentCount || 0;
-          
-          return {
-            ...cls,
-            teacher: teacherName || (isArabic ? 'غير معين' : 'Not Assigned'),
-            teacherId: teacherId || null,
-            students: studentCount > 0 ? studentCount : storedCount,
-            studentsList: classStudents,
-            studentCount: studentCount > 0 ? studentCount : storedCount,
-            capacity: cls.capacity || 30,
-            isActive: cls.isActive !== false
-          };
-        });
-        
-        setAllClassesData(enrichedClasses);
-        filterAndPaginateClasses(enrichedClasses);
-        setLoading(false);
+            if (!teacherName && c.teacher_name) {
+              teacherName = c.teacher_name;
+            }
+            return {
+              ...c,
+              id: clsId,
+              code: clsId,
+              name: c.name,
+              nameAr: c.nameAr || c.name,
+              level: c.level_key || c.level || 'primary',
+              educationLevel: c.level_key || c.level || 'primary',
+              teacher: teacherName || (isArabic ? 'غير معين' : 'Not Assigned'),
+              teacherId: teacherId,
+              capacity: c.capacity || 30,
+              schedule: c.room || '8:00 - 2:00',
+              room: c.room || '',
+              isActive: c.status !== 'inactive',
+              academicYear: c.academic_year || '',
+              students: classStudents.length || c.students_count || 0,
+              studentCount: classStudents.length || c.students_count || 0,
+              studentsList: classStudents,
+              source: 'server',
+            };
+          });
+        } catch (err) {
+          console.warn('⚠️ Server classes unavailable:', err);
+        }
+      }
+
+      if (serverClasses.length > 0) {
+        setAllClassesData(serverClasses);
+        filterAndPaginateClasses(serverClasses);
         return;
       }
 
-      // If no localStorage data, create from class names with real teachers
-      const classNames = getClassNames();
-      let generatedClasses = [];
-      let id = 1;
-
-      Object.keys(classNames).forEach(level => {
-        const names = classNames[level];
-        names.forEach((name, index) => {
-          // Try to assign a real teacher
-          let teacher = null;
-          let teacherId = null;
-          
-          // Find a teacher for this class
-          if (teachers.length > 0) {
-            // Try to find teacher by level or subject
-            const levelTeachers = teachers.filter(t => t.level === level || t.educationLevel === level);
-            if (levelTeachers.length > 0) {
-              const teacherIndex = index % levelTeachers.length;
-              const selectedTeacher = levelTeachers[teacherIndex];
-              teacher = selectedTeacher.name || selectedTeacher.displayName || `${selectedTeacher.firstName || ''} ${selectedTeacher.lastName || ''}`.trim();
-              teacherId = selectedTeacher.id;
-            } else {
-              // If no teacher for this level, use any teacher
-              const teacherIndex = index % teachers.length;
-              const selectedTeacher = teachers[teacherIndex];
-              teacher = selectedTeacher.name || selectedTeacher.displayName || `${selectedTeacher.firstName || ''} ${selectedTeacher.lastName || ''}`.trim();
-              teacherId = selectedTeacher.id;
-            }
-          }
-          
-          // If no teacher found, mark as not assigned
-          if (!teacher) {
-            teacher = isArabic ? 'غير معين' : 'Not Assigned';
-          }
-          
-          // Get real students for this class
-          const classStudents = students.filter(s => s.class === name || s.classId === name);
-          
-          generatedClasses.push({
-            id: `CLS${String(id).padStart(3, '0')}`,
-            name: name,
-            level: level,
-            teacher: teacher,
-            teacherId: teacherId,
-            students: classStudents.length || 0,
-            capacity: 30,
-            schedule: level === 'kindergarten' ? '8:00 - 12:00' : '8:00 - 2:00',
-            isActive: true,
-            subject: level === 'kindergarten' ? 'General' : level === 'primary' ? 'Mathematics' : 'Science',
-            educationLevel: level,
-            academicYear: new Date().getFullYear() + '/' + (new Date().getFullYear() + 1),
-            created_at: new Date().toISOString(),
-            studentsList: classStudents,
-            studentCount: classStudents.length || 0
-          });
-          id++;
-        });
-      });
-
-      // Save generated classes to localStorage
-      saveClassesToStorage(generatedClasses);
-      
-      setAllClassesData(generatedClasses);
-      filterAndPaginateClasses(generatedClasses);
+      // No classes exist in MySQL yet — show empty state rather than fabricating data
+      setAllClassesData([]);
+      filterAndPaginateClasses([]);
     } catch (error) {
       console.error('Error fetching classes:', error);
       setError(isArabic ? 'فشل في تحميل الفصول' : 'Failed to load classes');
@@ -510,35 +382,18 @@ const ClassesManagement = () => {
       fetchClasses();
     };
 
-    window.addEventListener('usersUpdated', handleUsersUpdated);
-    window.addEventListener('storage', (e) => {
-      if (e.key === STORAGE_KEYS.USERS || e.key === STORAGE_KEYS.TEACHERS || e.key === STORAGE_KEYS.STUDENTS) {
-        console.log('🔄 Storage changed, refreshing classes...');
-        fetchTeachersData();
-        fetchStudentsData();
-        fetchAllUsers();
-        fetchClasses();
-      }
-    });
+    const handleDataUpdated = () => {
+      console.log('🔄 Data updated, refreshing classes...');
+      fetchClasses();
+    };
 
-    try {
-      const unsubscribe = userDataService.addListener(() => {
-        console.log('🔄 userDataService changed, refreshing classes...');
-        fetchTeachersData();
-        fetchStudentsData();
-        fetchAllUsers();
-        fetchClasses();
-      });
-      return () => {
-        if (unsubscribe) unsubscribe();
-        window.removeEventListener('usersUpdated', handleUsersUpdated);
-      };
-    } catch (e) {
-      console.warn('Could not subscribe to userDataService:', e);
-      return () => {
-        window.removeEventListener('usersUpdated', handleUsersUpdated);
-      };
-    }
+    window.addEventListener('usersUpdated', handleUsersUpdated);
+    window.addEventListener('classesUpdated', handleDataUpdated);
+
+    return () => {
+      window.removeEventListener('usersUpdated', handleUsersUpdated);
+      window.removeEventListener('classesUpdated', handleDataUpdated);
+    };
   }, []);
 
   // ===== EFFECTS =====
@@ -571,7 +426,7 @@ const ClassesManagement = () => {
         }
       }
 
-      const newClass = {
+      let newClass = {
         id: `CLS${String(allClassesData.length + 1).padStart(3, '0')}`,
         name: formData.name,
         nameAr: formData.nameAr || formData.name,
@@ -590,50 +445,32 @@ const ClassesManagement = () => {
         created_at: new Date().toISOString()
       };
 
-      // Update teacher's assigned classes if teacherId exists
-      if (teacherId) {
-        try {
-          // Update school_users
-          const users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
-          const teacherIndex = users.findIndex(u => u.id === teacherId);
-          if (teacherIndex !== -1) {
-            if (!users[teacherIndex].assignedClasses) {
-              users[teacherIndex].assignedClasses = [];
-            }
-            if (!users[teacherIndex].classes) {
-              users[teacherIndex].classes = [];
-            }
-            if (!users[teacherIndex].assignedClasses.includes(newClass.id)) {
-              users[teacherIndex].assignedClasses.push(newClass.id);
-              users[teacherIndex].classes.push(newClass.id);
-              localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
-            }
-          }
-          
-          // Update school_teachers
-          const teachers = JSON.parse(localStorage.getItem(STORAGE_KEYS.TEACHERS) || '[]');
-          const teacherInTeachers = teachers.findIndex(t => t.id === teacherId);
-          if (teacherInTeachers !== -1) {
-            if (!teachers[teacherInTeachers].assignedClasses) {
-              teachers[teacherInTeachers].assignedClasses = [];
-            }
-            if (!teachers[teacherInTeachers].classes) {
-              teachers[teacherInTeachers].classes = [];
-            }
-            if (!teachers[teacherInTeachers].assignedClasses.includes(newClass.id)) {
-              teachers[teacherInTeachers].assignedClasses.push(newClass.id);
-              teachers[teacherInTeachers].classes.push(newClass.id);
-              localStorage.setItem(STORAGE_KEYS.TEACHERS, JSON.stringify(teachers));
-            }
-          }
-        } catch (e) {
-          console.warn('Could not update teacher assignments:', e);
+      // Persist to MySQL when online
+      if (getAuthIdentity()) {
+        const res = await syncSend('post', '/classes', {
+          code: newClass.id,
+          name: newClass.name,
+          level_key: newClass.level,
+          capacity: newClass.capacity,
+          academic_year: newClass.academicYear,
+          room: newClass.schedule,
+          teacher_name: teacherName,
+          isActive: newClass.isActive,
+        });
+        const created = res?.data?.data || res?.data || {};
+        const serverCode = created.code || created.id;
+        if (serverCode && serverCode !== newClass.id) {
+          newClass = { ...newClass, id: serverCode, code: serverCode, source: 'server' };
         }
+      }
+
+      // Persist teacher assignment to MySQL
+      if (teacherId) {
+        persistTeacherAssignedClasses(teacherId, newClass.id, true);
       }
 
       const updatedClasses = [...allClassesData, newClass];
       setAllClassesData(updatedClasses);
-      saveClassesToStorage(updatedClasses);
       filterAndPaginateClasses(updatedClasses);
 
       notify(
@@ -668,6 +505,31 @@ const ClassesManagement = () => {
       educationLevel: 'primary',
       academicYear: new Date().getFullYear() + '/' + (new Date().getFullYear() + 1)
     });
+  };
+
+  // ===== PERSIST TEACHER ASSIGNMENT TO MYSQL =====
+  const persistTeacherAssignedClasses = (teacherId, classId, add = true) => {
+    if (!teacherId) return;
+    if (!getAuthIdentity()) return;
+    try {
+      const teacher = teachersData.find((t) => t.id === teacherId) ||
+        allUsersData.find((u) => u.id === teacherId);
+      if (!teacher || !teacher._serverId) return;
+      const current = Array.isArray(teacher.assignedClasses)
+        ? teacher.assignedClasses
+        : Array.isArray(teacher.assigned_classes)
+          ? teacher.assigned_classes
+          : Array.isArray(teacher.classes)
+            ? teacher.classes
+            : [];
+      const next = add
+        ? current.includes(classId) ? current : [...current, classId]
+        : current.filter((c) => c !== classId);
+      syncSend('put', `/users/${teacher._serverId}`, { assignedClasses: next })
+        .catch((e) => console.warn('⚠️ Teacher assigned classes not persisted:', e));
+    } catch (e) {
+      console.warn('⚠️ Could not persist teacher assigned classes:', e);
+    }
   };
 
   // ===== HANDLE EDIT CLASS =====
@@ -722,8 +584,33 @@ const ClassesManagement = () => {
       );
       
       setAllClassesData(updatedClasses);
-      saveClassesToStorage(updatedClasses);
       filterAndPaginateClasses(updatedClasses);
+
+      // Keep teacher assignments in sync (moved from old teacher to new one)
+      const oldTeacherId = selectedClass.teacherId || null;
+      if (teacherId && teacherId !== oldTeacherId) {
+        persistTeacherAssignedClasses(teacherId, selectedClass.id, true);
+      }
+      if (oldTeacherId && teacherId !== oldTeacherId) {
+        persistTeacherAssignedClasses(oldTeacherId, selectedClass.id, false);
+      }
+
+      // Persist to MySQL when online
+      const serverOkGuard = getAuthIdentity();
+      if (serverOkGuard) {
+        const classCode = selectedClass.code || selectedClass.id;
+        if (classCode) {
+          syncSend('put', `/classes/${encodeURIComponent(classCode)}`, {
+            name: editFormData.name,
+            level_key: editFormData.level,
+            capacity: editFormData.capacity || 30,
+            academic_year: editFormData.academicYear,
+            room: editFormData.schedule,
+            teacher_name: teacherName,
+            isActive: editFormData.isActive !== false,
+          }).catch((e) => console.warn('⚠️ Class update not persisted to server:', e));
+        }
+      }
 
       notify(
         isArabic ? 'تم تحديث الفصل بنجاح' : 'Class updated successfully',
@@ -747,8 +634,22 @@ const ClassesManagement = () => {
     try {
       const updatedClasses = allClassesData.filter(c => c.id !== selectedClass.id);
       setAllClassesData(updatedClasses);
-      saveClassesToStorage(updatedClasses);
       filterAndPaginateClasses(updatedClasses);
+
+      // Remove the class from the assigned teacher's list
+      const deletedTeacherId = selectedClass.teacherId || null;
+      if (deletedTeacherId) {
+        persistTeacherAssignedClasses(deletedTeacherId, selectedClass.id, false);
+      }
+
+      // Delete from MySQL when online
+      if (getAuthIdentity()) {
+        const classCode = selectedClass.code || selectedClass.id;
+        if (classCode) {
+          syncSend('delete', `/classes/${encodeURIComponent(classCode)}`)
+            .catch((e) => console.warn('⚠️ Class not deleted from server:', e));
+        }
+      }
 
       notify(
         isArabic ? 'تم حذف الفصل بنجاح' : 'Class deleted successfully',
@@ -780,8 +681,18 @@ const ClassesManagement = () => {
         c.id === classId ? { ...c, isActive: newStatus } : c
       );
       setAllClassesData(updatedClasses);
-      saveClassesToStorage(updatedClasses);
       filterAndPaginateClasses(updatedClasses);
+
+      // Persist status to MySQL when online
+      if (getAuthIdentity()) {
+        const classRow = allClassesData.find(c => c.id === classId);
+        const classCode = classRow?.code || String(classId);
+        if (classCode) {
+          syncSend('put', `/classes/${encodeURIComponent(classCode)}`, {
+            status: newStatus ? 'active' : 'inactive',
+          }).catch((e) => console.warn('⚠️ Class status not persisted to server:', e));
+        }
+      }
 
       notify(
         isArabic ? `تم ${newStatus ? 'تفعيل' : 'تعطيل'} الفصل بنجاح` : 

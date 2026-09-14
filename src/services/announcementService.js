@@ -1,5 +1,5 @@
 // src/services/announcementService.js - MySQL-backed announcements (API-first)
-import api from './api';
+import api, { getAuthIdentity } from './api';
 
 function toServerAnnouncement(a) {
   return {
@@ -51,12 +51,7 @@ class AnnouncementService {
   }
 
   hasSession() {
-    try {
-      const token = localStorage.getItem('token');
-      return !!token && !token.startsWith('demo-');
-    } catch {
-      return false;
-    }
+    return !!getAuthIdentity();
   }
 
   // Pull fresh announcements from MySQL through the Laravel API.

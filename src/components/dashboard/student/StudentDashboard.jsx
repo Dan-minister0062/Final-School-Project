@@ -64,53 +64,7 @@ import { useLanguage } from '../../../context/LanguageContext';
 import { getTranslation } from '../../../utils/translations';
 import { useNotification } from '../../../hooks/useNotification';
 import { useAuth } from '../../../hooks/useAuth';
-
-// ===== DEFAULT SUBJECTS BY LEVEL =====
-const defaultSubjectsByCategory = {
-  kindergarten: [
-    { id: 'quran_k', name: "Qur'an", nameAr: 'القرآن الكريم', category: 'kindergarten' },
-    { id: 'english_k', name: 'English', nameAr: 'اللغة الإنجليزية', category: 'kindergarten' },
-    { id: 'french_k', name: 'French', nameAr: 'اللغة الفرنسية', category: 'kindergarten' },
-    { id: 'arabic_k', name: 'Arabic', nameAr: 'اللغة العربية', category: 'kindergarten' }
-  ],
-  primary: [
-    { id: 'quran_p', name: "Qur'an", nameAr: 'القرآن الكريم', category: 'primary' },
-    { id: 'arabic_p', name: 'Arabic', nameAr: 'اللغة العربية', category: 'primary' },
-    { id: 'english_p', name: 'English', nameAr: 'اللغة الإنجليزية', category: 'primary' },
-    { id: 'french_p', name: 'French', nameAr: 'اللغة الفرنسية', category: 'primary' },
-    { id: 'mathematics_p', name: 'Mathematics', nameAr: 'الرياضيات', category: 'primary' },
-    { id: 'science_p', name: 'Science', nameAr: 'العلوم', category: 'primary' },
-    { id: 'sports_p', name: 'Sports', nameAr: 'الرياضة', category: 'primary' },
-    { id: 'ict_p', name: 'ICT', nameAr: 'تكنولوجيا المعلومات', category: 'primary' },
-    { id: 'art_p', name: 'Art & Plastic', nameAr: 'الفنون التشكيلية', category: 'primary' },
-    { id: 'geography_p', name: 'Geography', nameAr: 'الجغرافيا', category: 'primary' }
-  ],
-  secondary: [
-    { id: 'quran_s', name: "Qur'an", nameAr: 'القرآن الكريم', category: 'secondary' },
-    { id: 'arabic_s', name: 'Arabic', nameAr: 'اللغة العربية', category: 'secondary' },
-    { id: 'english_s', name: 'English', nameAr: 'اللغة الإنجليزية', category: 'secondary' },
-    { id: 'french_s', name: 'French', nameAr: 'اللغة الفرنسية', category: 'secondary' },
-    { id: 'mathematics_s', name: 'Mathematics', nameAr: 'الرياضيات', category: 'secondary' },
-    { id: 'svt_s', name: 'SVT (Biology)', nameAr: 'علوم الحياة والأرض', category: 'secondary' },
-    { id: 'physics_s', name: 'Physics', nameAr: 'الفيزياء', category: 'secondary' },
-    { id: 'sports_s', name: 'Sports', nameAr: 'الرياضة', category: 'secondary' },
-    { id: 'ict_s', name: 'ICT', nameAr: 'تكنولوجيا المعلومات', category: 'secondary' },
-    { id: 'geography_s', name: 'Geography', nameAr: 'الجغرافيا', category: 'secondary' }
-  ],
-  high_school: [
-    { id: 'quran_h', name: "Qur'an", nameAr: 'القرآن الكريم', category: 'high_school' },
-    { id: 'arabic_h', name: 'Arabic', nameAr: 'اللغة العربية', category: 'high_school' },
-    { id: 'english_h', name: 'English', nameAr: 'اللغة الإنجليزية', category: 'high_school' },
-    { id: 'french_h', name: 'French', nameAr: 'اللغة الفرنسية', category: 'high_school' },
-    { id: 'mathematics_h', name: 'Mathematics', nameAr: 'الرياضيات', category: 'high_school' },
-    { id: 'svt_h', name: 'SVT (Biology)', nameAr: 'علوم الحياة والأرض', category: 'high_school' },
-    { id: 'physics_h', name: 'Physics', nameAr: 'الفيزياء', category: 'high_school' },
-    { id: 'sports_h', name: 'Sports', nameAr: 'الرياضة', category: 'high_school' },
-    { id: 'ict_h', name: 'ICT', nameAr: 'تكنولوجيا المعلومات', category: 'high_school' },
-    { id: 'geography_h', name: 'Geography', nameAr: 'الجغرافيا', category: 'high_school' },
-    { id: 'philosophy_h', name: 'Philosophy', nameAr: 'الفلسفة', category: 'high_school' }
-  ]
-};
+import { syncGet } from '../../../services/apiSync';
 
 // ===== ARABIC FONT STYLE =====
 const getArabicFontStyle = (isArabic) => ({
@@ -177,6 +131,7 @@ const StudentDashboard = () => {
   // ===== MODAL STATE =====
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+  const [readAnnouncements, setReadAnnouncements] = useState(new Set());
 
   // ===== Arabic Font Style =====
   const arabicFontStyle = getArabicFontStyle(isArabic);
@@ -204,91 +159,65 @@ const StudentDashboard = () => {
   }, []);
 
   // ===== LOAD ANNOUNCEMENTS & NOTIFICATIONS =====
-  const loadAnnouncementsAndNotifications = () => {
+  const loadAnnouncementsAndNotifications = async () => {
     try {
-      const studentId = studentData?.id || user?.id || 'student_1';
-      
-      // Load announcements
-      const allAnnouncements = JSON.parse(localStorage.getItem('announcements') || '[]');
-      const publishedAnnouncements = allAnnouncements.filter(a => 
-        a.status === 'published' && a.isActive !== false
-      );
-      const studentAnnouncements = publishedAnnouncements.filter(a => {
-        const targetAudience = a.targetAudience || [];
-        return targetAudience.includes('all') || targetAudience.includes('students');
-      });
-      const sortedAnnouncements = studentAnnouncements.sort((a, b) => {
-        return new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date);
+      // Load announcements from the server
+      const announceRes = await syncGet('/announcements/published');
+      const allAnnouncements = Array.isArray(announceRes?.data) ? announceRes.data : [];
+      const sortedAnnouncements = allAnnouncements.sort((a, b) => {
+        return new Date(b.createdAt || b.created_at) - new Date(a.createdAt || a.created_at);
       });
       setAnnouncements(sortedAnnouncements.slice(0, 3));
 
-      // Count new announcements (unread) - default to 0
-      let newCount = 0;
-      try {
-        const readAnnouncements = JSON.parse(localStorage.getItem('read_announcements') || '[]');
-        newCount = sortedAnnouncements.filter(a => {
-          const readKey = `${a.id}_${studentId}`;
-          return !readAnnouncements.includes(readKey);
-        }).length;
-      } catch (e) {
-        console.warn('Error reading read_announcements:', e);
-      }
-      setNewAnnouncementCount(newCount);
+      // Count new announcements - maintain locally with state (no browser persistence)
+      // New announcements = those created after component mounted; default to 0
+      setNewAnnouncementCount(0);
 
-      // Load notifications from school_notifications - default to 0
+      // Notification count from the notification service
       let unread = 0;
       try {
-        const allNotifications = JSON.parse(localStorage.getItem('school_notifications') || '[]');
-        unread = allNotifications.filter(n => {
-          const isForStudent = n.targetAudience?.includes('all') || 
-                              n.targetAudience?.includes('students') ||
-                              n.recipientRole === 'student' ||
-                              n.studentId === studentId;
-          return isForStudent && !n.read;
-        }).length;
+        const { default: notificationService } = await import('../../../services/notificationService');
+        unread = notificationService.getUnreadCount('student');
       } catch (e) {
-        console.warn('Error reading school_notifications:', e);
+        console.warn('Error loading notifications:', e);
       }
       setUnreadNotifications(unread);
 
-      // Load unread assessments from student_assessments - default to 0
+      // Assessment counts computed from the server (cross-device)
       let myUnreadAssessments = 0;
-      try {
-        const studentAssessments = JSON.parse(localStorage.getItem('student_assessments') || '[]');
-        myUnreadAssessments = studentAssessments.filter(a => 
-          a.studentId === studentId && !a.read
-        ).length;
-      } catch (e) {
-        console.warn('Error reading student_assessments:', e);
-      }
-      setUnreadAssessments(myUnreadAssessments);
-
-      // Check for new assessments from school_assessments - default to 0
       let newAssessments = 0;
       try {
-        const allAssessments = JSON.parse(localStorage.getItem('school_assessments') || '[]');
-        newAssessments = allAssessments.filter(a => 
-          a.studentId === studentId && 
-          (a.status === 'sent_to_students' || a.status === 'published') &&
-          !a.readByStudent
+        const classCode = studentData?.class_code || studentData?.classCode || user?.class_code || user?.classCode || '';
+        const [assessRes, subRes] = await Promise.all([
+          syncGet('/assessments', { status: 'sent_to_students' }),
+          syncGet('/submissions'),
+        ]);
+        const serverAssessments = Array.isArray(assessRes?.data)
+          ? assessRes.data.filter(a => !classCode || String(a.classId || a.class_code || a.className) === String(classCode))
+          : [];
+        const serverSubmissions = Array.isArray(subRes?.data) ? subRes.data : [];
+        const submittedIds = new Set(
+          serverSubmissions.map(s => String(s.assessmentId || s.assessment_id))
+        );
+        newAssessments = serverAssessments.length;
+        myUnreadAssessments = serverAssessments.filter(
+          a => !submittedIds.has(String(a.id || a._serverId))
         ).length;
       } catch (e) {
-        console.warn('Error reading school_assessments:', e);
+        console.warn('Error loading server assessments:', e);
       }
+      setUnreadAssessments(myUnreadAssessments);
       
-      // Total notifications = sum of all - default to 0
-      const total = unread + myUnreadAssessments + newAssessments + newCount;
+      const total = unread + myUnreadAssessments + newAssessments + 0; // newCount is now 0
       setTotalNotifications(total);
       
       console.log('🔔 Total notifications:', total, 
         '(Notifications:', unread, 
         'Assessments:', myUnreadAssessments, 
-        'New:', newAssessments,
-        'Announcements:', newCount, ')');
+        'New:', newAssessments, ')');
       
     } catch (error) {
       console.error('Error loading announcements:', error);
-      // Set all to 0 on error
       setNewAnnouncementCount(0);
       setUnreadNotifications(0);
       setUnreadAssessments(0);
@@ -297,128 +226,95 @@ const StudentDashboard = () => {
   };
 
   // ===== LOAD SUBJECTS FOR STUDENT'S LEVEL =====
-  const loadSubjectsForLevel = (level) => {
+  const loadSubjectsForLevel = (allSubjects, level) => {
     try {
       console.log('📚 Loading subjects for level:', level);
       
-      const allSubjects = JSON.parse(localStorage.getItem('school_subjects') || '[]');
-      console.log('📚 Subjects from localStorage:', allSubjects.length);
-      
       let levelSubjects = [];
-      
-      if (allSubjects.length > 0) {
-        levelSubjects = allSubjects.filter(s => {
-          const subjectLevel = s.category || s.level || s.educationLevel;
-          return subjectLevel === level;
-        });
-        console.log('📚 Filtered subjects from localStorage:', levelSubjects.length);
-      }
-      
-      if (levelSubjects.length === 0) {
-        console.log('📚 No subjects in localStorage, using default subjects');
-        const defaultSubjects = defaultSubjectsByCategory[level] || [];
-        levelSubjects = defaultSubjects.map(s => ({
-          ...s,
-          category: level,
-          level: level
-        }));
-        console.log('📚 Default subjects loaded:', levelSubjects.length);
-      }
-      
+      levelSubjects = allSubjects.filter(s => {
+        const subjectLevel = s.category || s.level || s.educationLevel;
+        return subjectLevel === level;
+      });
+      console.log('📚 Filtered subjects:', levelSubjects.length);
+
       setSubjects(levelSubjects);
       setStudentSubjects(levelSubjects);
       console.log('📚 Final subjects for student:', levelSubjects.length);
       return levelSubjects;
-      
+
     } catch (error) {
       console.error('Error loading subjects:', error);
-      const defaultSubjects = defaultSubjectsByCategory[level] || [];
-      const fallbackSubjects = defaultSubjects.map(s => ({
-        ...s,
-        category: level,
-        level: level
-      }));
-      setSubjects(fallbackSubjects);
-      setStudentSubjects(fallbackSubjects);
-      return fallbackSubjects;
+      setSubjects([]);
+      setStudentSubjects([]);
+      return [];
     }
   };
 
-  // ===== LOAD STUDENT DATA FROM LOCALSTORAGE =====
-  const loadStudentData = () => {
+  // ===== LOAD STUDENT DATA =====
+  const loadStudentData = async () => {
     try {
       setLoading(true);
       setError(null);
 
       console.log('🔄 Loading student dashboard data...');
       
-      let currentUser = null;
-      const currentUserStr = localStorage.getItem('currentUser');
-      
-      if (currentUserStr) {
-        try {
-          currentUser = JSON.parse(currentUserStr);
-          console.log('👤 Current user from localStorage:', currentUser);
-        } catch (e) {
-          console.error('Error parsing currentUser:', e);
-        }
-      }
-      
-      if (!currentUser && user) {
-        currentUser = user;
-        console.log('👤 Current user from auth context:', currentUser);
-      }
-      
-      if (!currentUser) {
-        const users = JSON.parse(localStorage.getItem('school_users') || '[]');
-        const studentUser = users.find(u => u.role === 'student');
-        if (studentUser) {
-          currentUser = studentUser;
-          localStorage.setItem('currentUser', JSON.stringify(studentUser));
-          console.log('👤 Found student from school_users:', currentUser);
-        }
-      }
-      
-      if (!currentUser) {
-        const students = JSON.parse(localStorage.getItem('school_students') || '[]');
-        if (students.length > 0) {
-          const student = students[0];
-          currentUser = {
-            id: student.id,
-            name: student.name || student.firstName || 'Student',
-            email: student.email || 'student@school.com',
-            role: 'student',
-            studentId: student.id,
-            classId: student.classId || student.class,
-            ...student
-          };
-          localStorage.setItem('currentUser', JSON.stringify(currentUser));
-          console.log('👤 Created user from student data:', currentUser);
-        }
-      }
-      
-      if (!currentUser) {
+      // Use auth context user
+      if (!user) {
         setError(isArabic ? 'لم يتم العثور على المستخدم' : 'User not found');
         setLoading(false);
         return;
       }
 
-      const allStudentsData = JSON.parse(localStorage.getItem('school_students') || '[]');
-      setAllStudents(allStudentsData);
-      
+      const currentUser = user;
+
+      // Fetch student profile from /students
+      let allStudentsData = [];
       let student = null;
-      student = allStudentsData.find(s => s.id === currentUser.id || s.id === currentUser.studentId);
-      if (!student && currentUser.email) {
-        student = allStudentsData.find(s => s.email === currentUser.email);
+      try {
+        const studentsRes = await syncGet('/students');
+        allStudentsData = Array.isArray(studentsRes?.data) ? studentsRes.data : [];
+        setAllStudents(allStudentsData);
+
+        student = allStudentsData.find(s => s.userId === currentUser.id || s.id === currentUser.id);
+        if (!student && currentUser.email) {
+          student = allStudentsData.find(s => s.email === currentUser.email);
+        }
+        if (!student && currentUser.name) {
+          student = allStudentsData.find(s => s.name === currentUser.name);
+        }
+        if (!student && allStudentsData.length > 0) {
+          student = allStudentsData[0];
+          console.log('📚 Using first student as fallback:', student);
+        }
+      } catch (e) {
+        console.warn('⚠️ Could not load students list:', e);
       }
-      if (!student && currentUser.name) {
-        student = allStudentsData.find(s => s.name === currentUser.name || s.firstName === currentUser.name);
+
+      // Fallback: map from auth user directly
+      if (!student && currentUser.role === 'student') {
+        if (
+          currentUser.email &&
+          (currentUser.className ||
+            currentUser.class_name ||
+            currentUser.class_code ||
+            currentUser.level)
+        ) {
+          student = {
+            id: currentUser.id,
+            userId: currentUser.id,
+            name: currentUser.name || 'Student',
+            email: currentUser.email,
+            code: currentUser.code || '',
+            class_code: currentUser.class_code || currentUser.classCode || '',
+            classId: currentUser.classId || currentUser.class_id || null,
+            className: currentUser.className || currentUser.class_name || '',
+            level: currentUser.level || '',
+          };
+          allStudentsData = [student];
+          setAllStudents(allStudentsData);
+        }
       }
-      if (!student && allStudentsData.length > 0) {
-        student = allStudentsData[0];
-        console.log('📚 Using first student as fallback:', student);
-      }
-      
+
       if (!student) {
         setError(isArabic ? 'لم يتم العثور على بيانات الطالب' : 'Student data not found');
         setLoading(false);
@@ -428,38 +324,48 @@ const StudentDashboard = () => {
       setStudentData(student);
       console.log('📚 Student data:', student);
 
-      const studentLevel = student.level || student.educationLevel || 'primary';
-      
-      const levelSubjects = loadSubjectsForLevel(studentLevel);
+      const studentJoinId = student._serverId ?? student.userId ?? student.id;
+      const studentLevel = student.level || student.educationLevel || '';
+
+      // ===== Fetch all data in parallel =====
+      const [subjectsRes, classesRes, attendanceRes, paymentsRes] = await Promise.all([
+        syncGet('/subjects'),
+        syncGet('/classes'),
+        syncGet('/attendance'),
+        syncGet('/payments'),
+      ]);
+
+      // ===== SUBJECTS =====
+      const allSubjectsRows = Array.isArray(subjectsRes?.data) ? subjectsRes.data : [];
+      const allSubjects = allSubjectsRows.length > 0 ? allSubjectsRows : (Array.isArray(subjectsRes?.allData) ? subjectsRes.allData : []);
+      const levelSubjects = loadSubjectsForLevel(allSubjects, studentLevel);
       console.log('📚 Subjects for level:', levelSubjects.length);
 
-      const allClasses = JSON.parse(localStorage.getItem('school_classes') || '[]');
-      const studentClass = allClasses.find(c => c.id === student.classId || c.id === student.class);
+      // ===== CLASSES =====
+      const allClasses = Array.isArray(classesRes?.data) ? classesRes.data : [];
+      const studentClass = allClasses.find(c => c.id === student.classId || c.id === student.class || String(c.code) === String(student.class_code));
       setClasses(studentClass ? [studentClass] : []);
       console.log('📚 Student class:', studentClass);
 
-      // ===== GET ATTENDANCE =====
-      const allAttendance = JSON.parse(localStorage.getItem('school_attendance') || '[]');
-      const studentAttendance = allAttendance.filter(r => 
-        r.students?.some(s => s.studentId === student.id)
-      );
-      
+      // ===== ATTENDANCE =====
+      const attendanceRows = Array.isArray(attendanceRes?.data) ? attendanceRes.data : [];
+      // /attendance for student returns records with studentId, date, status
       let present = 0, absent = 0, late = 0, excused = 0, total = 0;
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       let monthlyPresent = 0, monthlyTotal = 0;
-      
-      studentAttendance.forEach(record => {
-        const studentData = record.students?.find(s => s.studentId === student.id);
-        if (studentData) {
+
+      attendanceRows.forEach(record => {
+        const recStudentId = record.studentId || record.student_id;
+        if (Number(recStudentId) === Number(studentJoinId) || Number(recStudentId) === Number(currentUser.id)) {
           total++;
           const recordDate = new Date(record.date);
           if (recordDate >= thirtyDaysAgo) {
             monthlyTotal++;
           }
-          switch (studentData.status) {
-            case 'present': 
-              present++; 
+          switch (record.status) {
+            case 'present':
+              present++;
               if (recordDate >= thirtyDaysAgo) monthlyPresent++;
               break;
             case 'absent': absent++; break;
@@ -469,35 +375,30 @@ const StudentDashboard = () => {
           }
         }
       });
-      
+
       setAttendanceStats({ present, absent, late, excused, total, monthlyPresent, monthlyTotal });
-      setAttendanceRecords(studentAttendance);
+      setAttendanceRecords(attendanceRows);
       console.log('📊 Attendance:', { present, absent, late, excused, total, monthlyPresent, monthlyTotal });
 
-      // ===== GET PAYMENT STATUS =====
-      const payments = JSON.parse(localStorage.getItem('school_payments') || '[]');
-      const studentPayment = payments.find(p => p.studentId === student.id);
+      // ===== PAYMENTS =====
+      const paymentRows = Array.isArray(paymentsRes?.data) ? paymentsRes.data : [];
+      // /payments for student is already scoped by student_name
+      const studentPayment = paymentRows.find(p => {
+        const pStudentId = p.studentId || p.student_id;
+        return Number(pStudentId) === Number(studentJoinId) || Number(pStudentId) === Number(currentUser.id);
+      }) || paymentRows[0];
+      
       if (studentPayment) {
         setPaymentStatus({
           status: studentPayment.status || 'pending',
           amount: studentPayment.amount || 0,
-          dueDate: studentPayment.dueDate || '',
+          dueDate: studentPayment.dueDate || studentPayment.due_date || '',
         });
-      } else {
-        const registrations = JSON.parse(localStorage.getItem('school_registrations') || '[]');
-        const registration = registrations.find(r => r.studentId === student.id);
-        if (registration) {
-          setPaymentStatus({
-            status: registration.paymentStatus || 'pending',
-            amount: registration.fee || 0,
-            dueDate: registration.createdAt || '',
-          });
-        }
       }
-      console.log('💰 Payment status:', paymentStatus);
+      console.log('💰 Payment status:', studentPayment);
 
       // ===== LOAD ANNOUNCEMENTS & NOTIFICATIONS =====
-      loadAnnouncementsAndNotifications();
+      await loadAnnouncementsAndNotifications();
 
       setLoading(false);
     } catch (err) {
@@ -510,27 +411,6 @@ const StudentDashboard = () => {
   // ===== SETUP EFFECT =====
   useEffect(() => {
     loadStudentData();
-
-    const handleStorageChange = (e) => {
-      if (
-        e.key === "school_assessments" ||
-        e.key === "school_attendance" ||
-        e.key === "school_students" ||
-        e.key === "school_classes" ||
-        e.key === "school_payments" ||
-        e.key === "school_subjects" ||
-        e.key === "school_submissions" ||
-        e.key === "school_notifications" ||
-        e.key === "currentUser" ||
-        e.key === "announcements" ||
-        e.key === "student_assessments" ||
-        e.key === "read_announcements"
-      ) {
-        console.log("🔄 Storage changed, refreshing student data");
-        loadStudentData();
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
 
     const handleAssessmentChanged = () => {
       console.log("📝 Assessment changed, refreshing");
@@ -575,7 +455,6 @@ const StudentDashboard = () => {
     window.addEventListener("studentAssessmentsUpdated", handleStudentAssessmentsUpdated);
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("assessmentChanged", handleAssessmentChanged);
       window.removeEventListener("attendanceUpdated", handleAttendanceUpdated);
       window.removeEventListener("paymentUpdated", handlePaymentUpdated);
@@ -707,7 +586,7 @@ const StudentDashboard = () => {
   }
 
   // ===== GET STUDENT LEVEL =====
-  const studentLevel = studentData.level || studentData.educationLevel || 'primary';
+  const studentLevel = studentData.level || studentData.educationLevel || '';
   const levelDisplay = getLevelDisplay(studentLevel);
   const levelColor = getLevelColor(studentLevel);
   const levelIcon = getLevelIcon(studentLevel);
@@ -877,7 +756,7 @@ const StudentDashboard = () => {
                   borderRadius: '50px',
                   background: darkMode ? '#2d2d44' : '#f8f9fa'
                 }}>
-                  <FaUser className="me-1" /> ID: {studentData.id}
+                  <FaUser className="me-1" /> {isArabic ? 'الرقم' : 'ID'}: {studentData.studentNumber || 'N/A'}
                 </span>
                 <span className="student-info-tag" style={{
                   ...arabicFontStyle,
@@ -1167,10 +1046,7 @@ const StudentDashboard = () => {
             announcements.map((ann, index) => {
               const { title, content } = getTranslatedAnnouncement(ann);
               const isUrgent = ann.priority === 'high';
-              const studentId = studentData?.id || user?.id || 'student_1';
-              const readAnnouncements = JSON.parse(localStorage.getItem('read_announcements') || '[]');
-              const readKey = `${ann.id}_${studentId}`;
-              const isRead = readAnnouncements.includes(readKey);
+              const isRead = readAnnouncements.has(ann.id);
               
               return (
                 <div 
@@ -1218,16 +1094,10 @@ const StudentDashboard = () => {
                       size="sm"
                       onClick={(e) => {
                         e.stopPropagation();
-                        // Mark as read when clicked
                         if (!isRead) {
-                          const readList = JSON.parse(localStorage.getItem('read_announcements') || '[]');
-                          if (!readList.includes(readKey)) {
-                            readList.push(readKey);
-                            localStorage.setItem('read_announcements', JSON.stringify(readList));
-                            // Update local state
-                            setNewAnnouncementCount(prev => Math.max(0, prev - 1));
-                            setTotalNotifications(prev => Math.max(0, prev - 1));
-                          }
+                          setReadAnnouncements(prev => new Set([...prev, ann.id]));
+                          setNewAnnouncementCount(prev => Math.max(0, prev - 1));
+                          setTotalNotifications(prev => Math.max(0, prev - 1));
                         }
                         navigate('/dashboard/student/announcements');
                       }}
