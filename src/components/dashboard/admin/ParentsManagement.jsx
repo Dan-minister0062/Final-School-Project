@@ -720,8 +720,13 @@ const ParentsManagement = () => {
                                 fontWeight: "700",
                                 fontSize: "clamp(0.6rem, 0.7vw, 0.85rem)",
                                 flexShrink: 0,
+                                overflow: "hidden",
                               }}>
-                                {parent.displayName.charAt(0).toUpperCase()}
+                                {parent.avatar || parent.profilePhoto ? (
+                                  <img src={parent.avatar || parent.profilePhoto} alt={parent.displayName || 'Parent'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                ) : (
+                                  parent.displayName.charAt(0).toUpperCase()
+                                )}
                               </div>
                               <div className="parent-info" style={{ minWidth: 0 }}>
                                 <div className="fw-semibold text-truncate" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: "clamp(0.6rem, 0.8vw, 0.85rem)" }}>
@@ -868,9 +873,14 @@ const ParentsManagement = () => {
                     fontSize: "clamp(2rem, 4vw, 3rem)",
                     margin: "0 auto",
                     boxShadow: "0 8px 30px rgba(196, 154, 108, 0.3)",
+                    overflow: "hidden",
                   }}
                 >
-                  {selectedParent.displayName.charAt(0).toUpperCase()}
+                  {selectedParent.avatar || selectedParent.profilePhoto ? (
+                    <img src={selectedParent.avatar || selectedParent.profilePhoto} alt={selectedParent.displayName || 'Parent'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                  ) : (
+                    selectedParent.displayName.charAt(0).toUpperCase()
+                  )}
                 </div>
                 <h5
                   className="fw-bold mt-3"

@@ -25,7 +25,6 @@ import {
   FaUsers,
   FaUserPlus,
   FaSearch,
-  FaFilter,
   FaEye,
   FaEdit,
   FaTrash,
@@ -36,18 +35,13 @@ import {
   FaTimesCircle,
   FaSync,
   FaDownload,
-  FaPrint,
-  FaChevronDown,
-  FaChevronUp,
   FaExclamationTriangle,
   FaSpinner,
   FaUserTie,
   FaCalendarAlt,
   FaIdCard,
-  FaUserGraduate,
   FaChalkboardTeacher,
   FaUserCircle,
-  FaShieldAlt,
   FaLock,
   FaUnlock,
   FaBan,
@@ -55,9 +49,7 @@ import {
   FaSort,
   FaSortUp,
   FaSortDown,
-  FaUserCog,
   FaMailBulk,
-  FaEnvelopeOpen,
   FaUserCheck,
   FaUserTimes,
   FaClock,
@@ -69,37 +61,20 @@ import {
   FaSave,
   FaTimes,
   FaPlus,
-  FaArrowRight,
-  FaArrowLeft,
   FaRocket,
   FaStar,
   FaPaperPlane,
   FaBook,
-  FaBookOpen,
   FaUsers as FaUsersIcon,
-  FaPlusCircle,
-  FaMinusCircle,
   FaBriefcase,
   FaBirthdayCake,
   FaVenusMars,
   FaGlobe,
   FaIdBadge,
-  FaImage,
-  FaFileAlt,
-  FaCertificate,
-  FaHandshake,
-  FaUserMd,
-  FaHospital,
   FaPhoneAlt,
   FaChild,
-  FaAddressBook,
   FaUniversity,
-  FaGraduationCap as FaGraduation,
-  FaChalkboard,
-  FaClipboardList,
-  FaSchool as FaSchoolIcon,
   FaCity,
-  FaCamera,
 } from "react-icons/fa";
 import { useLanguage } from "../../../context/LanguageContext";
 import { useAuth } from "../../../hooks/useAuth";
@@ -1738,7 +1713,7 @@ const UsersManagement = () => {
                       style={{
                         ...arabicFontStyle,
                         color: darkMode ? "#e9ecef" : "#212529",
-                        fontSize: "clamp(1,3rem, 0.85vw, 0.9rem)",
+                        fontSize: "clamp(0.8rem, 0.85vw, 0.9rem)",
                       }}
                     />
                   ))}
@@ -1802,7 +1777,7 @@ const UsersManagement = () => {
                     style={{
                       ...arabicFontStyle,
                       color: darkMode ? "#e9ecef" : "#212529",
-                      fontSize: "clamp(1,2rem, 0.85vw, 0.9rem)",
+                      fontSize: "clamp(0.8rem, 0.85vw, 0.9rem)",
                     }}
                   />
                 ))}
@@ -6064,11 +6039,16 @@ const UsersManagement = () => {
                   fontWeight: "700",
                   fontSize: "0.9rem",
                   flexShrink: 0,
+                  overflow: "hidden",
                 }}
               >
-                {(selectedUser?.firstName || selectedUser?.name || "U")
-                  .charAt(0)
-                  .toUpperCase()}
+                {selectedUser?.avatar || selectedUser?.profilePhoto ? (
+                  <img src={selectedUser.avatar || selectedUser.profilePhoto} alt={selectedUser?.firstName || selectedUser?.name || 'User'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                ) : (
+                  (selectedUser?.firstName || selectedUser?.name || "U")
+                    .charAt(0)
+                    .toUpperCase()
+                )}
               </div>
               <div>
                 <div

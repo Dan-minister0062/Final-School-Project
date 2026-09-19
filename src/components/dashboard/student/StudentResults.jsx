@@ -14,7 +14,7 @@ import {
   FaBookOpen, FaQuran, FaLanguage, FaCalculator,
   FaFlask, FaLaptop, FaRunning, FaPalette, FaGlobe,
   FaAtom, FaDna, FaBrain, FaMicroscope, FaMusic,
-  FaUniversity, FaBuilding, FaChild, FaComment
+  FaUniversity, FaBuilding, FaChild
 } from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { getTranslation } from '../../../utils/translations';
@@ -69,6 +69,7 @@ const StudentResults = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterSubject, setFilterSubject] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterType, setFilterType] = useState('all');
   const [exporting, setExporting] = useState(false);
   const [printing, setPrinting] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -170,6 +171,36 @@ const StudentResults = () => {
     return gradeMap[grade] || '#6c757d';
   };
 
+  // ===== GET ASSESSMENT TYPE LABEL =====
+  const getTypeLabel = (type) => {
+    const labels = {
+      'homework': isArabic ? 'واجب منزلي' : 'Homework',
+      'assignment': isArabic ? 'مشروع' : 'Assignment',
+      'test': isArabic ? 'اختبار' : 'Test',
+      'exam': isArabic ? 'امتحان' : 'Exam',
+      'classwork': isArabic ? 'عمل صفي' : 'Classwork',
+      'quiz': isArabic ? 'اختبار قصير' : 'Quiz',
+      'project': isArabic ? 'مشروع' : 'Project',
+      'other': isArabic ? 'أخرى' : 'Other',
+    };
+    return labels[type] || type || 'Assignment';
+  };
+
+  // ===== GET ASSESSMENT TYPE COLOR =====
+  const getTypeColor = (type) => {
+    const colors = {
+      'homework': '#8e44ad',
+      'assignment': '#2d6a4f',
+      'test': '#e67e22',
+      'exam': '#c0392b',
+      'classwork': '#2980b9',
+      'quiz': '#16a085',
+      'project': '#34495e',
+      'other': '#6c757d',
+    };
+    return colors[type] || '#6c757d';
+  };
+
   // ===== LOAD SUBJECTS FOR STUDENT'S LEVEL =====
   const loadSubjectsForLevel = (allSubjects, level) => {
     if (allSubjects.length === 0) {
@@ -178,7 +209,9 @@ const StudentResults = () => {
       return [];
     }
     setSubjects(allSubjects);
-    const levelSubjects = allSubjects.filter(s => s.category === level);
+    const levelSubjects = allSubjects.filter(s =>
+      (s.level || s.level_key || s.category) === level
+    );
     setStudentSubjects(levelSubjects);
     return levelSubjects;
   };
@@ -274,63 +307,53 @@ const StudentResults = () => {
         if (!submissionsByAssessment[key]) submissionsByAssessment[key] = s;
       });
 
-      // Build results from subjects matched against server submissions
-      const resultsData = levelSubjects.map(subject => {
-        // Find assessments for this subject
-        const subjectAssessments = assessments.filter(a => a.subject === subject.name);
-        
-        // Find the best graded submission across all assessments for this subject
-        let bestSubmission = null;
-        let bestAssessment = null;
-        for (const a of subjectAssessments) {
-          const sub = submissionsByAssessment[String(a.id || a._serverId)];
-          if (sub && (sub.status === 'graded' || sub.score != null) && sub.score != null) {
-            if (!bestSubmission || Number(sub.score) > Number(bestSubmission.score)) {
-              bestSubmission = sub;
-              bestAssessment = a;
-            }
-          }
-        }
+      // Build results from server assessments - one row per assessment
+      // (subject + type + title + score), so multiple assessments of the
+      // same subject each appear with their own grade and type.
+      const resultsData = assessments
+        .filter((a) => a.subject)
+        .map((assessment) => {
+          const sub = submissionsByAssessment[String(assessment.id || assessment._serverId)];
+          const graded =
+            sub && (sub.status === 'graded' || sub.score != null) && sub.score != null;
+          const totalMarks =
+            assessment.totalMarks || assessment.maxScore || assessment.max_score || 20;
+          const score = graded ? Number(sub.score) : null;
+          const type = assessment.type || 'assignment';
 
-        if (bestSubmission && bestAssessment) {
-          const totalMarks = bestAssessment.totalMarks || 20;
-          const score = Number(bestSubmission.score);
           return {
-            id: bestSubmission._serverId || bestSubmission.id,
-            subject: subject.name,
-            subjectAr: subject.nameAr || subject.name,
+            id: graded
+              ? sub._serverId || sub.id
+              : `assessment_${assessment.id || assessment._serverId}`,
+            subject: assessment.subject || '',
+            subjectAr:
+              assessment.subjectAr ||
+              assessment.subjectName ||
+              assessment.subject ||
+              '',
+            type: type,
+            assessmentTitle: assessment.title || '',
             semester: 'First Semester',
             score,
             maxMarks: totalMarks,
-            grade: getGradeFromScore(score, totalMarks),
-            status: 'graded',
-            date: bestSubmission.submittedAt ? bestSubmission.submittedAt.split('T')[0] : '',
-            teacher: bestAssessment.teacherName || 'Teacher',
-            remarks: bestSubmission.comment || bestSubmission.feedback || '',
-            isExam: true,
-            assessmentTitle: bestAssessment.title || 'Exam',
-            percentage: ((score / totalMarks) * 100).toFixed(1),
+            grade: graded ? getGradeFromScore(score, totalMarks) : null,
+            status: graded ? 'graded' : 'pending',
+            date:
+              graded && sub.submittedAt
+                ? String(sub.submittedAt).split('T')[0]
+                : '',
+            teacher:
+              assessment.teacherName || assessment.teacher_name || 'Teacher',
+            remarks: graded ? sub.comment || sub.feedback || '' : '',
+            isExam: graded && type === 'exam',
+            percentage: graded ? ((score / totalMarks) * 100).toFixed(1) : null,
             academicYear: new Date().getFullYear().toString(),
-            examId: bestAssessment.id || bestAssessment._serverId || bestSubmission.assessmentId,
+            examId:
+              assessment.id ||
+              assessment._serverId ||
+              (graded && sub.assessmentId),
           };
-        }
-
-        // No graded submission for this subject
-        return {
-          id: `subject_${subject.id}`,
-          subject: subject.name,
-          subjectAr: subject.nameAr || subject.name,
-          semester: 'First Semester',
-          score: null,
-          maxMarks: 20,
-          grade: null,
-          status: 'pending',
-          date: '',
-          teacher: '-',
-          remarks: '',
-          isExam: false,
-        };
-      });
+        });
 
       setResults(resultsData);
       console.log('📝 Total results:', resultsData.length);
@@ -392,16 +415,19 @@ const StudentResults = () => {
   const filteredResults = results.filter(r => {
     const subjectDisplay = isArabic ? r.subjectAr : r.subject;
     const matchesSearch = subjectDisplay.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         r.teacher.toLowerCase().includes(searchQuery.toLowerCase());
+                         r.teacher.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         getTypeLabel(r.type).toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSubject = filterSubject === 'all' || r.subject === filterSubject;
     const matchesStatus = filterStatus === 'all' || r.status === filterStatus;
-    return matchesSearch && matchesSubject && matchesStatus;
+    const matchesType = filterType === 'all' || r.type === filterType;
+    return matchesSearch && matchesSubject && matchesStatus && matchesType;
   });
 
   // ===== STATS =====
   const gradedResults = results.filter(r => r.status === 'graded' && r.score !== null);
   const pendingResults = results.filter(r => r.status === 'pending');
-  const examOnlyResults = results.filter(r => r.isExam === true && r.status === 'graded');
+  const examOnlyResults = results.filter(r => r.type === 'exam' && r.status === 'graded');
+  const resultTypes = Array.from(new Set(results.map(r => r.type))).filter(Boolean);
   
   const stats = {
     total: results.length || 0,
@@ -414,6 +440,64 @@ const StudentResults = () => {
       return Math.round(total / gradedResults.length);
     })(),
   };
+
+  // ===== PIVOT RESULTS: one row per subject, one column per assessment type =====
+  const PIVOT_ORDER = ['homework', 'assignment', 'test', 'classwork', 'exam'];
+
+  const buildPivotResults = (rows) => {
+    const bySubject = {};
+    const order = [...PIVOT_ORDER];
+
+    rows.forEach(r => {
+      if (!r.subject) return;
+      const key = String(r.subject).toLowerCase();
+      if (!bySubject[key]) {
+        bySubject[key] = {
+          key,
+          subject: r.subject,
+          subjectAr: r.subjectAr || r.subject,
+          semester: r.semester || 'First Semester',
+          types: {},
+          assessments: [],
+          totalScore: 0,
+          totalMax: 0,
+          teacher: '',
+          date: '',
+          count: 0,
+          gradedCount: 0,
+        };
+      }
+      const group = bySubject[key];
+      if (!group.types[r.type]) group.types[r.type] = [];
+      group.types[r.type].push(r);
+      group.assessments.push(r);
+      group.count++;
+      if (r.status === 'graded' && r.score != null) {
+        group.gradedCount++;
+        group.totalScore += Number(r.score);
+        group.totalMax += Number(r.maxMarks || 20);
+      }
+      if (r.teacher && !group.teacher) group.teacher = r.teacher;
+      if (r.date && r.date > group.date) group.date = r.date;
+    });
+
+    Object.keys(bySubject).forEach(key => {
+      const g = bySubject[key];
+      Object.keys(g.types).forEach(t => {
+        if (!order.includes(t)) order.push(t);
+      });
+      const pct = g.totalMax > 0 ? (g.totalScore / g.totalMax) * 100 : 0;
+      g.totalPercentage = Math.round(pct);
+      g.grade = g.gradedCount > 0 ? getGradeFromScore(pct, 100) : 'N/A';
+      g.status = g.count > 0 && g.gradedCount === g.count ? 'graded' : 'pending';
+    });
+
+    return { rows: Object.values(bySubject), types: order };
+  };
+
+  const pivotData = buildPivotResults(filteredResults);
+  const pivotRows = pivotData.rows;
+  const pivotTypes = pivotData.types;
 
   // ===== GET STATUS BADGE =====
   const getStatusBadge = (status, isExam) => {
@@ -454,26 +538,42 @@ const StudentResults = () => {
 
         let tableRows = '';
         const dataToExport = filteredResults.length > 0 ? filteredResults : results;
-        dataToExport.forEach(r => {
-          const statusInfo = getStatusBadge(r.status, r.isExam);
-          const subject = isArabic ? r.subjectAr : r.subject;
-          const teacher = isArabic ? getTranslatedTeacher(r.teacher) : r.teacher;
-          
+        const printPivot = buildPivotResults(dataToExport);
+        printPivot.rows.forEach(row => {
+          const statusInfo = getStatusBadge(row.status, false);
+          const subject = isArabic ? row.subjectAr : row.subject;
+          const teacher = isArabic ? getTranslatedTeacher(row.teacher) : row.teacher;
+          const typeCells = printPivot.types.map(type => {
+            const items = row.types[type] || [];
+            if (items.length === 0) {
+              return '<td style="text-align:center;color:#6c757d">-</td>';
+            }
+            return `
+              <td style="text-align:center">
+                ${items.map(it => it.status === 'graded' && it.score != null
+                  ? `<span style="font-weight:bold;color:${getGradeColor(it.grade)}" title="${it.assessmentTitle || ''}">${formatNumber(it.score)}/${formatNumber(it.maxMarks || 20)}</span>`
+                  : `<span style="color:#6c757d" title="${it.assessmentTitle || ''}">…</span>`
+                ).join('<br/>')}
+              </td>`;
+          }).join('');
+          const statusCellColor = statusInfo.bg === 'success' ? '#28a745' : '#f39c12';
+
           tableRows += `
             <tr>
-              <td>${subject}</td>
-              <td>${r.semester}</td>
-              <td style="text-align:center;font-weight:bold;color:${r.status === 'graded' ? getGradeColor(r.grade) : '#6c757d'}">
-                ${r.status === 'graded' ? `${r.score}/${r.maxMarks}` : '-'}
+              <td>${subject}<br/><small style="color:#6c757d;">${formatNumber(row.count)} ${isArabic ? 'تقييم' : 'assessments'}</small></td>
+              <td>${row.semester}</td>
+              ${typeCells}
+              <td style="text-align:center;font-weight:bold;color:${row.gradedCount > 0 ? getGradeColor(row.grade) : '#6c757d'}">
+                ${row.gradedCount > 0 ? `${formatNumber(row.totalScore)}/${formatNumber(row.totalMax || 20)}` : '-'}
               </td>
               <td style="text-align:center">
-                ${r.status === 'graded' ? `<span style="background:${getGradeColor(r.grade)};color:white;padding:2px 10px;border-radius:50px;font-size:0.7rem;">${r.grade}</span>` : '-'}
+                ${row.gradedCount > 0 ? `<span style="background:${getGradeColor(row.grade)};color:white;padding:2px 10px;border-radius:50px;font-size:0.7rem;">${row.grade}</span>` : '-'}
               </td>
               <td style="text-align:center">
-                <span style="background:${statusInfo.bg === 'success' ? '#28a745' : '#f39c12'};color:white;padding:2px 10px;border-radius:50px;font-size:0.7rem;">${statusInfo.label}</span>
+                <span style="background:${statusCellColor};color:white;padding:2px 10px;border-radius:50px;font-size:0.7rem;">${statusInfo.label}</span>
               </td>
               <td>${teacher}</td>
-              <td>${r.date || '-'}</td>
+              <td>${row.date || '-'}</td>
             </tr>
           `;
         });
@@ -507,7 +607,7 @@ const StudentResults = () => {
               
               <div class="stats">
                 <div class="stat-item">
-                  <div class="stat-label">${isArabic ? 'إجمالي المواد' : 'Total Subjects'}</div>
+                  <div class="stat-label">${isArabic ? 'إجمالي التقييمات' : 'Total Assessments'}</div>
                   <div class="stat-value">${formatNumber(stats.total)}</div>
                 </div>
                 <div class="stat-item">
@@ -529,6 +629,7 @@ const StudentResults = () => {
                   <tr>
                     <th>${isArabic ? 'المادة' : 'Subject'}</th>
                     <th>${isArabic ? 'الفصل' : 'Semester'}</th>
+                    ${printPivot.types.map(type => `<th style="text-align:center">${getTypeLabel(type)}</th>`).join('')}
                     <th style="text-align:center">${isArabic ? 'الدرجة' : 'Score'}</th>
                     <th style="text-align:center">${isArabic ? 'التقدير' : 'Grade'}</th>
                     <th style="text-align:center">${isArabic ? 'الحالة' : 'Status'}</th>
@@ -637,7 +738,7 @@ const StudentResults = () => {
   // ===== STATS CARDS =====
   const statsCards = [
     {
-      label: isArabic ? 'المواد الدراسية' : 'Subjects',
+      label: isArabic ? 'التقييمات' : 'Assessments',
       value: formatNumber(stats.total),
       icon: <FaBook />,
       gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -837,7 +938,7 @@ const StudentResults = () => {
         }}></div>
         <Card.Body className="p-2 p-md-3">
           <Row className="g-1 g-md-2 align-items-center">
-            <Col xs={12} sm={12} md={5}>
+            <Col xs={12} sm={12} md={4}>
               <InputGroup size="sm">
                 <InputGroup.Text style={{ background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529', borderRadius: '12px 0 0 12px' }}>
                   <FaSearch size={12} />
@@ -879,6 +980,27 @@ const StudentResults = () => {
             <Col xs={6} sm={6} md={3}>
               <Form.Select 
                 size="sm" 
+                value={filterType} 
+                onChange={(e) => setFilterType(e.target.value)} 
+                style={{ 
+                  fontSize: 'clamp(0.55rem, 0.7vw, 0.75rem)', 
+                  background: darkMode ? '#2d2d44' : 'white', 
+                  color: darkMode ? '#e9ecef' : '#212529',
+                  borderRadius: '12px',
+                  ...arabicFontStyle 
+                }}
+              >
+                <option value="all">{isArabic ? 'جميع الأنواع' : 'All Types'}</option>
+                {resultTypes.map((type) => (
+                  <option key={type} value={type}>
+                    {getTypeLabel(type)}
+                  </option>
+                ))}
+              </Form.Select>
+            </Col>
+            <Col xs={6} sm={6} md={2}>
+              <Form.Select 
+                size="sm" 
                 value={filterStatus} 
                 onChange={(e) => setFilterStatus(e.target.value)} 
                 style={{ 
@@ -893,11 +1015,6 @@ const StudentResults = () => {
                 <option value="graded">{isArabic ? 'مصحح' : 'Graded'}</option>
                 <option value="pending">{isArabic ? 'قيد الانتظار' : 'Pending'}</option>
               </Form.Select>
-            </Col>
-            <Col xs={12} sm={12} md={1}>
-              <div className="text-muted small text-center" style={{ color: darkMode ? '#adb5bd' : '#6c757d', ...arabicFontStyle, fontSize: 'clamp(0.6rem, 0.8vw, 0.8rem)' }}>
-                {formatNumber(filteredResults.length)}
-              </div>
             </Col>
           </Row>
         </Card.Body>
@@ -919,10 +1036,10 @@ const StudentResults = () => {
           <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
             <h6 className="fw-bold mb-0" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? 'clamp(0.8rem, 1vw, 0.9rem)' : 'clamp(0.85rem, 1.1vw, 1.05rem)' }}>
               <FaGraduationCap className="me-2" />
-              {isArabic ? 'المواد والنتائج' : 'Subjects & Results'}
+              {isArabic ? 'التقييمات والنتائج' : 'Assessments & Results'}
             </h6>
             <span className="text-muted small" style={{ color: darkMode ? '#adb5bd' : '#6c757d', ...arabicFontStyle, fontSize: isMobile ? '0.6rem' : '0.7rem' }}>
-              {formatNumber(results.length)} {isArabic ? 'مادة' : 'subjects'}
+              {formatNumber(results.length)} {isArabic ? 'تقييم' : 'assessments'}
             </span>
           </div>
         </Card.Header>
@@ -934,6 +1051,11 @@ const StudentResults = () => {
                   <th style={{ color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? 'clamp(0.5rem, 0.6vw, 0.65rem)' : 'clamp(0.6rem, 0.8vw, 0.85rem)', padding: isMobile ? '6px 8px' : '8px 12px' }}>#</th>
                   <th style={{ color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? 'clamp(0.5rem, 0.6vw, 0.65rem)' : 'clamp(0.6rem, 0.8vw, 0.85rem)', padding: isMobile ? '6px 8px' : '8px 12px' }}>{isArabic ? 'المادة' : 'Subject'}</th>
                   <th style={{ color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? 'clamp(0.5rem, 0.6vw, 0.65rem)' : 'clamp(0.6rem, 0.8vw, 0.85rem)', padding: isMobile ? '6px 8px' : '8px 12px' }} className="d-none d-sm-table-cell">{isArabic ? 'الفصل' : 'Semester'}</th>
+                  {pivotTypes.map(type => (
+                    <th key={type} style={{ color: getTypeColor(type), fontSize: isMobile ? 'clamp(0.5rem, 0.6vw, 0.65rem)' : 'clamp(0.6rem, 0.8vw, 0.85rem)', padding: isMobile ? '6px 8px' : '8px 12px', textAlign: 'center' }}>
+                      {getTypeLabel(type)}
+                    </th>
+                  ))}
                   <th style={{ color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? 'clamp(0.5rem, 0.6vw, 0.65rem)' : 'clamp(0.6rem, 0.8vw, 0.85rem)', padding: isMobile ? '6px 8px' : '8px 12px' }}>{isArabic ? 'الدرجة' : 'Score'}</th>
                   <th style={{ color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? 'clamp(0.5rem, 0.6vw, 0.65rem)' : 'clamp(0.6rem, 0.8vw, 0.85rem)', padding: isMobile ? '6px 8px' : '8px 12px' }} className="d-none d-sm-table-cell">{isArabic ? 'التقدير' : 'Grade'}</th>
                   <th style={{ color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? 'clamp(0.5rem, 0.6vw, 0.65rem)' : 'clamp(0.6rem, 0.8vw, 0.85rem)', padding: isMobile ? '6px 8px' : '8px 12px' }}>{isArabic ? 'الحالة' : 'Status'}</th>
@@ -942,24 +1064,23 @@ const StudentResults = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredResults.length === 0 ? (
+                {pivotRows.length === 0 ? (
                   <tr>
-                    <td colSpan="8" className="text-center py-4">
+                    <td colSpan={8 + pivotTypes.length} className="text-center py-4">
                       <p className="text-muted" style={arabicFontStyle}>
                         {isArabic ? 'لا توجد نتائج لعرضها' : 'No results to display'}
                       </p>
                     </td>
                   </tr>
                 ) : (
-                  filteredResults.map((result, index) => {
-                    const statusInfo = getStatusBadge(result.status, result.isExam);
-                    const subjectDisplay = isArabic ? result.subjectAr : result.subject;
-                    const teacherDisplay = isArabic ? getTranslatedTeacher(result.teacher) : result.teacher;
-                    
+                  pivotRows.map((row, index) => {
+                    const statusInfo = getStatusBadge(row.status, false);
+                    const subjectDisplay = isArabic ? row.subjectAr : row.subject;
+                    const teacherDisplay = isArabic ? getTranslatedTeacher(row.teacher) : row.teacher;
+                    const rowGradeColor = row.gradedCount > 0 ? getGradeColor(row.grade) : '#6c757d';
+
                     return (
-                      <tr key={result.id || index} style={{
-                        background: result.isExam && result.status === 'graded' ? (darkMode ? 'rgba(23, 162, 184, 0.12)' : 'rgba(23, 162, 184, 0.08)') : 'transparent'
-                      }}>
+                      <tr key={row.key || index}>
                         <td style={{ color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? 'clamp(0.6rem, 0.7vw, 0.75rem)' : 'clamp(0.7rem, 0.8vw, 0.85rem)', padding: isMobile ? '4px 6px' : '6px 12px' }}>
                           {formatNumber(index + 1)}
                         </td>
@@ -977,47 +1098,75 @@ const StudentResults = () => {
                               fontSize: isMobile ? '0.5rem' : '0.7rem',
                               flexShrink: 0,
                             }}>
-                              {getSubjectIcon(result.subject)}
+                              {getSubjectIcon(row.subject)}
                             </div>
                             <span className="fw-semibold" style={{ ...arabicFontStyle, fontSize: isMobile ? 'clamp(0.65rem, 0.75vw, 0.8rem)' : 'clamp(0.75rem, 0.9vw, 0.95rem)', color: darkMode ? '#e9ecef' : '#212529' }}>
                               {subjectDisplay}
-                              {result.isExam && result.status === 'graded' && (
-                                <span className="text-muted ms-1" style={{ fontSize: isMobile ? '0.45rem' : '0.55rem', display: 'block' }}>
-                                  {result.assessmentTitle || 'Exam'}
-                                </span>
-                              )}
-                              {result.remarks && result.status === 'graded' && (
-                                <div className="text-muted small" style={{ fontSize: isMobile ? '0.45rem' : '0.55rem', display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                  <FaComment size={10} />
-                                  <span>{result.remarks}</span>
-                                </div>
-                              )}
+                              <span className="text-muted d-block" style={{ fontSize: isMobile ? '0.45rem' : '0.55rem' }}>
+                                {formatNumber(row.count)} {isArabic ? 'تقييم' : 'assessments'}
+                              </span>
                             </span>
                           </div>
                         </td>
                         <td style={{ ...arabicFontStyle, fontSize: isMobile ? 'clamp(0.6rem, 0.7vw, 0.75rem)' : 'clamp(0.7rem, 0.8vw, 0.85rem)', color: darkMode ? '#e9ecef' : '#212529', padding: isMobile ? '4px 6px' : '6px 12px' }} className="d-none d-sm-table-cell">
-                          {result.semester || '-'}
+                          {row.semester || '-'}
                         </td>
+                        {pivotTypes.map(type => {
+                          const items = row.types[type] || [];
+                          return (
+                            <td key={type} style={{ padding: isMobile ? '4px 6px' : '6px 12px' }}>
+                              {items.length === 0 ? (
+                                <span className="text-muted" style={{ fontSize: isMobile ? '0.6rem' : '0.7rem' }}>-</span>
+                              ) : items.map((it, i) => (
+                                <div key={i} style={{ marginBottom: items.length > 1 ? '4px' : '0' }}>
+                                  {it.status === 'graded' && it.score != null ? (
+                                    <span
+                                      className="fw-bold"
+                                      title={it.assessmentTitle || ''}
+                                      style={{
+                                        color: getGradeColor(it.grade),
+                                        fontSize: isMobile ? 'clamp(0.6rem, 0.7vw, 0.8rem)' : 'clamp(0.7rem, 0.8vw, 0.95rem)',
+                                        whiteSpace: 'nowrap',
+                                      }}
+                                    >
+                                      {formatNumber(it.score)}/{formatNumber(it.maxMarks || 20)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted" title={it.assessmentTitle || ''} style={{ fontSize: isMobile ? '0.6rem' : '0.7rem' }}>
+                                      ⏳
+                                    </span>
+                                  )}
+                                  {items.length > 1 && it.assessmentTitle && (
+                                    <small className="text-muted d-block" style={{ fontSize: isMobile ? '0.4rem' : '0.5rem' }}>
+                                      {it.assessmentTitle}
+                                    </small>
+                                  )}
+                                </div>
+                              ))
+                              }
+                            </td>
+                          );
+                        })}
                         <td style={{ padding: isMobile ? '4px 6px' : '6px 12px' }}>
-                          {result.status === 'graded' && result.score !== null ? (
-                            <span className="fw-bold" style={{ color: getGradeColor(result.grade), fontSize: isMobile ? 'clamp(0.6rem, 0.7vw, 0.8rem)' : 'clamp(0.7rem, 0.8vw, 0.95rem)' }}>
-                              {formatNumber(result.score)}/{formatNumber(result.maxMarks || 20)}
+                          {row.gradedCount > 0 ? (
+                            <span className="fw-bold" style={{ color: rowGradeColor, fontSize: isMobile ? 'clamp(0.6rem, 0.7vw, 0.8rem)' : 'clamp(0.7rem, 0.8vw, 0.95rem)' }}>
+                              {formatNumber(row.totalScore)}/{formatNumber(row.totalMax || 20)}
                             </span>
                           ) : (
                             <span className="text-muted" style={{ ...arabicFontStyle, fontSize: isMobile ? 'clamp(0.6rem, 0.7vw, 0.75rem)' : 'clamp(0.7rem, 0.8vw, 0.85rem)' }}>
                               -
                             </span>
                           )}
-                          {result.isExam && result.status === 'graded' && result.percentage && (
+                          {row.gradedCount > 0 && row.totalPercentage > 0 && (
                             <div className="text-muted small" style={{ fontSize: isMobile ? '0.45rem' : '0.55rem' }}>
-                              {result.percentage}%
+                              {row.totalPercentage}%
                             </div>
                           )}
                         </td>
                         <td style={{ padding: isMobile ? '4px 6px' : '6px 12px' }} className="d-none d-sm-table-cell">
-                          {result.status === 'graded' && result.grade ? (
-                            <Badge style={{ background: getGradeColor(result.grade), color: 'white', padding: isMobile ? '2px 6px' : '4px 10px', fontSize: isMobile ? '0.5rem' : '0.6rem' }}>
-                              {result.grade}
+                          {row.gradedCount > 0 && row.grade ? (
+                            <Badge style={{ background: rowGradeColor, color: 'white', padding: isMobile ? '2px 6px' : '4px 10px', fontSize: isMobile ? '0.5rem' : '0.6rem' }}>
+                              {row.grade}
                             </Badge>
                           ) : (
                             <span className="text-muted" style={{ ...arabicFontStyle, fontSize: isMobile ? 'clamp(0.6rem, 0.7vw, 0.75rem)' : 'clamp(0.7rem, 0.8vw, 0.85rem)' }}>
@@ -1035,7 +1184,7 @@ const StudentResults = () => {
                           {teacherDisplay || '-'}
                         </td>
                         <td style={{ ...arabicFontStyle, fontSize: isMobile ? 'clamp(0.6rem, 0.7vw, 0.75rem)' : 'clamp(0.7rem, 0.8vw, 0.85rem)', color: darkMode ? '#e9ecef' : '#212529', padding: isMobile ? '4px 6px' : '6px 12px' }} className="d-none d-md-table-cell">
-                          {result.date ? new Date(result.date).toLocaleDateString() : '-'}
+                          {row.date ? new Date(row.date).toLocaleDateString() : '-'}
                         </td>
                       </tr>
                     );

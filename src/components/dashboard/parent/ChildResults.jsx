@@ -199,6 +199,36 @@ const ChildResults = () => {
     return statuses[status] || statuses.pending;
   };
 
+  // ===== GET ASSESSMENT TYPE LABEL =====
+  const getTypeLabel = (type) => {
+    const labels = {
+      'homework': isArabic ? 'واجب منزلي' : 'Homework',
+      'assignment': isArabic ? 'مشروع' : 'Assignment',
+      'test': isArabic ? 'اختبار' : 'Test',
+      'exam': isArabic ? 'امتحان' : 'Exam',
+      'classwork': isArabic ? 'عمل صفي' : 'Classwork',
+      'quiz': isArabic ? 'اختبار قصير' : 'Quiz',
+      'project': isArabic ? 'مشروع' : 'Project',
+      'other': isArabic ? 'أخرى' : 'Other',
+    };
+    return labels[type] || type || 'Assignment';
+  };
+
+  // ===== GET ASSESSMENT TYPE COLOR =====
+  const getTypeColor = (type) => {
+    const colors = {
+      'homework': '#8e44ad',
+      'assignment': '#2d6a4f',
+      'test': '#e67e22',
+      'exam': '#c0392b',
+      'classwork': '#2980b9',
+      'quiz': '#16a085',
+      'project': '#34495e',
+      'other': '#6c757d',
+    };
+    return colors[type] || '#6c757d';
+  };
+
   // ===== GET PERFORMANCE COLOR =====
   const getPerformanceColor = (score, totalMarks) => {
     if (!score || !totalMarks) return "#6c757d";
@@ -224,12 +254,13 @@ const ChildResults = () => {
       console.log("👨‍👩‍👦 Children found for parent:", parentChildren.length);
 
       if (parentChildren.length > 0) {
-        const [classesRes, assessmentsRes, submissionsRes, attendanceRes] =
+        const [classesRes, assessmentsRes, submissionsRes, attendanceRes, subjectsRes] =
           await Promise.all([
             syncGet("/classes"),
             syncGet("/assessments"),
             syncGet("/submissions"),
             syncGet("/attendance"),
+            syncGet("/subjects", { limit: 100 }),
           ]);
 
         const classes = Array.isArray(classesRes?.data) ? classesRes.data : [];
@@ -242,6 +273,12 @@ const ChildResults = () => {
         const allAttendance = Array.isArray(attendanceRes?.data)
           ? attendanceRes.data
           : [];
+        const allSubjects =
+          Array.isArray(subjectsRes?.allData) && subjectsRes.allData.length > 0
+            ? subjectsRes.allData
+            : Array.isArray(subjectsRes?.data)
+              ? subjectsRes.data
+              : [];
 
         const enrichedChildren = parentChildren.map((child) => {
           // Server-side joins (submissions, attendance) are keyed by the user id
@@ -294,13 +331,34 @@ const ChildResults = () => {
           });
           const serverSubsForChild = studentSubmissions;
 
-          // Derive the subject rows from the child's actual assessments and
-          // DB submissions - never from a hardcoded curriculum list.
+          // Subject rows come from the MySQL subject catalog for the child's
+          // exact level, overlaid with any assessment grades. The student's
+          // level is resolved from their class, exactly like the student panel.
+          const childLevel =
+            classInfo?.level ||
+            classInfo?.level_key ||
+            child.level ||
+            child.educationLevel ||
+            "";
+          const levelSubjects = allSubjects.filter(
+            (s) =>
+              String(s.level || s.level_key || s.category || "").toLowerCase() ===
+              String(childLevel).toLowerCase(),
+          );
           const childSubjects = new Map();
+          levelSubjects.forEach((s) =>
+            childSubjects.set(s.name, {
+              name: s.name,
+              nameAr: s.nameAr || s.name,
+            }),
+          );
           studentAssessments.forEach((a) =>
             childSubjects.set(a.subject, {
               name: a.subject,
-              nameAr: a.subjectAr || a.subject,
+              nameAr:
+                levelSubjects.find((s) => s.name === a.subject)?.nameAr ||
+                a.subjectAr ||
+                a.subject,
             }),
           );
           serverSubsForChild.forEach((s) => {
@@ -311,7 +369,10 @@ const ChildResults = () => {
             if (subj) {
               childSubjects.set(subj, {
                 name: subj,
-                nameAr: subAssessment?.subjectAr || subj,
+                nameAr:
+                  levelSubjects.find((x) => x.name === subj)?.nameAr ||
+                  subAssessment?.subjectAr ||
+                  subj,
               });
             }
           });
@@ -384,6 +445,72 @@ const ChildResults = () => {
             };
           });
 
+          // Per-assessment rows - one entry per assessment (subject, type,
+          // title and score) so the same subject with multiple assessments
+          // (Homework, Assignment, Test, Exam, Classwork) each record their
+          // own grade.
+          const assessmentResults = studentAssessments
+            .filter((a) => a.subject)
+            .map((assessment) => {
+              const submissionsForAssn = serverSubsForChild.filter(
+                (s) =>
+                  Number(s.assessmentId) ===
+                  Number(assessment.id ?? assessment._serverId),
+              );
+              let bestServerSub = null;
+              submissionsForAssn.forEach((s) => {
+                if (
+                  Number(s.score) > 0 &&
+                  (!bestServerSub ||
+                    Number(s.score) > Number(bestServerSub.score))
+                ) {
+                  bestServerSub = s;
+                }
+              });
+              const isGraded = !!bestServerSub;
+              const score = isGraded ? Number(bestServerSub.score) : 0;
+              const totalMarks =
+                assessment.totalMarks || assessment.maxScore || 20;
+              const subjectMeta = levelSubjects.find(
+                (s) => s.name === assessment.subject,
+              );
+              const status = isGraded
+                ? "graded"
+                : submissionsForAssn.length > 0
+                  ? "submitted"
+                  : "pending";
+
+              return {
+                id: assessment.id ?? assessment._serverId,
+                name: assessment.subject,
+                nameAr: subjectMeta?.nameAr || assessment.subject,
+                type: assessment.type || "assignment",
+                assessmentTitle: assessment.title || "",
+                score: score,
+                totalMarks: totalMarks,
+                grade: isGraded
+                  ? getGradeFromScore(score, totalMarks)
+                  : "N/A",
+                isGraded: isGraded,
+                hasSubmitted: submissionsForAssn.length > 0,
+                assessmentId: assessment.id ?? assessment._serverId,
+                status: status,
+                percentage: isGraded
+                  ? Math.round((score / totalMarks) * 100)
+                  : 0,
+                semester: assessment.semester || "First Semester",
+                teacher:
+                  assessment.teacherName ||
+                  assessment.teacher ||
+                  classInfo?.teacher ||
+                  "Teacher",
+                date: bestServerSub?.submittedAt
+                  ? String(bestServerSub.submittedAt).split("T")[0]
+                  : "",
+                isExam: isGraded && assessment.type === "exam",
+              };
+            });
+
           // Calculate average from graded subjects only
           const gradedSubjects = subjectsWithGrades.filter((s) => s.isGraded);
           const average =
@@ -443,10 +570,12 @@ const ChildResults = () => {
             id: child.id,
             name: child.name || child.firstName || "Student",
             nameEn: child.name || child.firstName || "Student",
+            avatar: child.avatar || child.profilePhoto || null,
             class: classInfo?.name || child.className || child.class || "N/A",
             classAr: classInfo?.name || child.className || child.class || "N/A",
             level:
               classInfo?.level ||
+              classInfo?.level_key ||
               child.level ||
               child.educationLevel ||
               "primary",
@@ -456,6 +585,8 @@ const ChildResults = () => {
             rank: 1,
             attendance: attendanceRate,
             subjects: subjectsWithGrades,
+            assessmentResults: assessmentResults,
+            assessmentCount: assessmentResults.length,
             achievements:
               achievements.length > 0
                 ? achievements
@@ -583,7 +714,12 @@ const ChildResults = () => {
         const attendance = formatNumber(selectedChild.attendance);
 
         let subjectsHtml = "";
-        selectedChild.subjects.forEach((subject) => {
+        const printRows =
+          selectedChild.assessmentResults &&
+          selectedChild.assessmentResults.length > 0
+            ? selectedChild.assessmentResults
+            : selectedChild.subjects || [];
+        printRows.forEach((subject) => {
           const subjectName = isArabic ? subject.nameAr : subject.name;
           const gradeColor = getGradeColor(subject.score, subject.totalMarks);
           const scoreColor = getPerformanceColor(
@@ -591,10 +727,11 @@ const ChildResults = () => {
             subject.totalMarks,
           );
           const statusInfo = getStatusBadge(subject.status);
+          const typeLabel = subject.type ? getTypeLabel(subject.type) : "";
 
           subjectsHtml += `
             <tr>
-              <td>${subjectName}</td>
+              <td>${subjectName}${subject.assessmentTitle || typeLabel ? `<br/><small style="color:#6c757d;">${subject.assessmentTitle || ""} ${typeLabel ? `- <b style="color:#c0392b;">${typeLabel}</b>` : ""}</small>` : ""}</td>
               <td style="text-align:center;font-weight:bold;color:${scoreColor}">${subject.isGraded ? formatNumber(subject.percentage) + "%" : "N/A"}</td>
               <td style="text-align:center">
                 ${subject.isGraded ? `<span style="display:inline-block;padding:2px 10px;border-radius:50px;background:${gradeColor};color:white;font-size:0.7rem;">${subject.grade}</span>` : '<span style="color:#6c757d;">N/A</span>'}
@@ -647,8 +784,8 @@ const ChildResults = () => {
                   <div class="value">${attendance}%</div>
                 </div>
                 <div class="student-info-item">
-                  <div class="label">${isArabic ? "المواد المصححة" : "Graded Subjects"}</div>
-                  <div class="value">${formatNumber(selectedChild.gradedCount)} / ${formatNumber(selectedChild.totalSubjects)}</div>
+                  <div class="label">${isArabic ? "المصححة" : "Graded"}</div>
+                  <div class="value">${formatNumber(printRows.filter((s) => s.isGraded).length)} / ${formatNumber(printRows.length)}</div>
                 </div>
               </div>
               
@@ -892,12 +1029,17 @@ const ChildResults = () => {
                     fontSize: "clamp(1.2rem, 1.8vw, 1.6rem)",
                     fontWeight: "700",
                     flexShrink: 0,
+                    overflow: "hidden",
                   }}
                 >
-                  {(isArabic
-                    ? selectedChild.name
-                    : selectedChild.nameEn
-                  ).charAt(0)}
+                  {selectedChild.avatar ? (
+                    <img src={selectedChild.avatar} alt={selectedChild.name || 'Child'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                  ) : (
+                    (isArabic
+                      ? selectedChild.name
+                      : selectedChild.nameEn
+                    ).charAt(0)
+                  )}
                 </div>
                 <div className="flex-grow-1 min-width-0">
                   <h5
@@ -1056,8 +1198,18 @@ const ChildResults = () => {
                         fontWeight: "700",
                       }}
                     >
-                      {formatNumber(selectedChild.gradedCount)}/
-                      {formatNumber(selectedChild.totalSubjects)}
+                      {selectedChild.assessmentResults &&
+                      selectedChild.assessmentResults.length > 0
+                        ? formatNumber(
+                            selectedChild.assessmentResults.filter(
+                              (a) => a.isGraded,
+                            ).length,
+                          ) +
+                          "/" +
+                          formatNumber(selectedChild.assessmentResults.length)
+                        : formatNumber(selectedChild.gradedCount) +
+                          "/" +
+                          formatNumber(selectedChild.totalSubjects)}
                     </div>
                     <div
                       className="mini-stat-label"
@@ -1107,17 +1259,33 @@ const ChildResults = () => {
                   }}
                 >
                   <FaChartLine className="me-2 text-primary" />
-                  {isArabic ? "المواد الدراسية" : "Subjects"}
+                  {isArabic ? "التقييمات والنتائج" : "Assessments & Results"}
                 </h6>
                 <Badge
                   bg="light"
                   className="text-dark"
                   style={{ ...arabicFontStyle, fontSize: "0.7rem" }}
                 >
-                  {formatNumber(selectedChild.gradedCount)}{" "}
-                  {isArabic ? "مصحح" : "Graded"} /{" "}
-                  {formatNumber(selectedChild.totalSubjects)}{" "}
-                  {isArabic ? "مادة" : "Subjects"}
+                  {selectedChild.assessmentResults &&
+                  selectedChild.assessmentResults.length > 0
+                    ? formatNumber(
+                        selectedChild.assessmentResults.filter(
+                          (a) => a.isGraded,
+                        ).length,
+                      ) +
+                      " " +
+                      (isArabic ? "مصحح" : "Graded") +
+                      " / " +
+                      formatNumber(selectedChild.assessmentResults.length) +
+                      " " +
+                      (isArabic ? "تقييم" : "Assessments")
+                    : formatNumber(selectedChild.gradedCount) +
+                      " " +
+                      (isArabic ? "مصحح" : "Graded") +
+                      " / " +
+                      formatNumber(selectedChild.totalSubjects) +
+                      " " +
+                      (isArabic ? "مادة" : "Subjects")}
                 </Badge>
               </div>
             </Card.Header>
@@ -1151,6 +1319,20 @@ const ChildResults = () => {
                         }}
                       >
                         {isArabic ? "المادة" : "Subject"}
+                      </th>
+                      <th
+                        className="d-none d-sm-table-cell"
+                        style={{
+                          ...arabicFontStyle,
+                          fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.3px",
+                          color: darkMode ? "#adb5bd" : "#6c757d",
+                          borderBottom: `2px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
+                          padding: "8px 16px",
+                        }}
+                      >
+                        {isArabic ? "النوع" : "Type"}
                       </th>
                       <th
                         className="d-none d-sm-table-cell"
@@ -1239,7 +1421,11 @@ const ChildResults = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedChild.subjects.map((subject, index) => {
+                    {(selectedChild.assessmentResults &&
+                    selectedChild.assessmentResults.length > 0
+                      ? selectedChild.assessmentResults
+                      : selectedChild.subjects || []
+                    ).map((subject, index) => {
                       const subjectName = isArabic
                         ? subject.nameAr
                         : subject.name;
@@ -1279,7 +1465,7 @@ const ChildResults = () => {
                                 }}
                               >
                                 {subjectName}
-                                {subject.isExam && subject.isGraded && (
+                                {(subject.assessmentTitle || subject.type) && (
                                   <span
                                     className="text-muted ms-1"
                                     style={{
@@ -1287,11 +1473,48 @@ const ChildResults = () => {
                                       display: "block",
                                     }}
                                   >
-                                    {subject.assessmentTitle || "Exam"}
+                                    {subject.assessmentTitle || ""}
+                                    {subject.assessmentTitle && subject.type
+                                      ? " "
+                                      : ""}
+                                    {subject.type && (
+                                      <span
+                                        style={{
+                                          color: getTypeColor(subject.type),
+                                          fontWeight: 600,
+                                        }}
+                                      >
+                                        {getTypeLabel(subject.type)}
+                                      </span>
+                                    )}
                                   </span>
                                 )}
                               </span>
                             </div>
+                          </td>
+                          <td className="d-none d-sm-table-cell">
+                            {subject.type ? (
+                              <span
+                                style={{
+                                  background: `${getTypeColor(subject.type)}18`,
+                                  color: getTypeColor(subject.type),
+                                  padding: "2px 10px",
+                                  borderRadius: "50px",
+                                  fontSize: "clamp(0.5rem, 0.6vw, 0.6rem)",
+                                  fontWeight: 600,
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {getTypeLabel(subject.type)}
+                              </span>
+                            ) : (
+                              <span
+                                className="text-muted"
+                                style={{ fontSize: "0.7rem" }}
+                              >
+                                -
+                              </span>
+                            )}
                           </td>
                           <td className="d-none d-sm-table-cell">
                             {subject.semester || "-"}

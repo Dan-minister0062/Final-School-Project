@@ -42,6 +42,8 @@ import {
   FaUsers,
   FaChild,
   FaUserGraduate,
+  FaBuilding,
+  FaUniversity,
   FaInfoCircle,
   FaFileAlt,
   FaDownload,
@@ -233,6 +235,69 @@ const ParentDashboard = () => {
     return statuses[status] || statuses.pending;
   };
 
+  // ===== GET LEVEL DISPLAY =====
+  const getLevelDisplay = (level) => {
+    const levels = {
+      kindergarten: isArabic ? "أولي" : "Kindergarten",
+      primary: isArabic ? "ابتدائي" : "Primary",
+      secondary: isArabic ? "إعدادي" : "Secondary",
+      high_school: isArabic ? "ثانوي" : "High School",
+    };
+    return levels[level] || level || "N/A";
+  };
+
+  // ===== GET LEVEL ICON =====
+  const getLevelIcon = (level) => {
+    const icons = {
+      kindergarten: <FaChild />,
+      primary: <FaSchool />,
+      secondary: <FaBuilding />,
+      high_school: <FaUniversity />,
+    };
+    return icons[level] || <FaSchool />;
+  };
+
+  // ===== GET LEVEL COLOR =====
+  const getLevelColor = (level) => {
+    const colors = {
+      kindergarten: "#f39c12",
+      primary: "#2d6a4f",
+      secondary: "#c49a6c",
+      high_school: "#9b59b6",
+    };
+    return colors[level] || "#6c757d";
+  };
+
+  // ===== GET ASSESSMENT TYPE LABEL =====
+  const getTypeLabel = (type) => {
+    const labels = {
+      'homework': isArabic ? 'واجب منزلي' : 'Homework',
+      'assignment': isArabic ? 'مشروع' : 'Assignment',
+      'test': isArabic ? 'اختبار' : 'Test',
+      'exam': isArabic ? 'امتحان' : 'Exam',
+      'classwork': isArabic ? 'عمل صفي' : 'Classwork',
+      'quiz': isArabic ? 'اختبار قصير' : 'Quiz',
+      'project': isArabic ? 'مشروع' : 'Project',
+      'other': isArabic ? 'أخرى' : 'Other',
+    };
+    return labels[type] || type || 'Assignment';
+  };
+
+  // ===== GET ASSESSMENT TYPE COLOR =====
+  const getTypeColor = (type) => {
+    const colors = {
+      'homework': '#8e44ad',
+      'assignment': '#2d6a4f',
+      'test': '#e67e22',
+      'exam': '#c0392b',
+      'classwork': '#2980b9',
+      'quiz': '#16a085',
+      'project': '#34495e',
+      'other': '#6c757d',
+    };
+    return colors[type] || '#6c757d';
+  };
+
   // ===== GET PRIORITY BADGE =====
   const getPriorityBadge = (priority) => {
     if (priority === "high") {
@@ -270,13 +335,14 @@ const ParentDashboard = () => {
       if (parentChildren.length > 0) {
         let enrichedChildren;
         try {
-          const [classesRes, assessmentsRes, submissionsRes, attendanceRes, announcementsRes] =
+          const [classesRes, assessmentsRes, submissionsRes, attendanceRes, announcementsRes, subjectsRes] =
             await Promise.all([
               syncGet("/classes"),
               syncGet("/assessments"),
               syncGet("/submissions"),
               syncGet("/attendance"),
               syncGet("/announcements/published"),
+              syncGet("/subjects", { limit: 100 }),
             ]);
 
           const classes = Array.isArray(classesRes?.data) ? classesRes.data : [];
@@ -289,6 +355,12 @@ const ParentDashboard = () => {
           const allAttendance = Array.isArray(attendanceRes?.data)
             ? attendanceRes.data
             : [];
+          const allSubjects =
+            Array.isArray(subjectsRes?.allData) && subjectsRes.allData.length > 0
+              ? subjectsRes.allData
+              : Array.isArray(subjectsRes?.data)
+                ? subjectsRes.data
+                : [];
           const allAnnouncements = Array.isArray(announcementsRes)
             ? announcementsRes
             : Array.isArray(announcementsRes?.data)
@@ -345,13 +417,33 @@ const ParentDashboard = () => {
               return childIds.has(key);
             });
 
-            // Row list comes from the child's actual MySQL-backed assessments,
-            // never a hardcoded curriculum fallback.
+            // Row list comes from the MySQL subject catalog for the child's
+            // exact level, never a hardcoded curriculum or assessment-only list.
+            const childLevel =
+              classInfo?.level ||
+              classInfo?.level_key ||
+              child.level ||
+              child.educationLevel ||
+              "";
+            const levelSubjects = allSubjects.filter(
+              (s) =>
+                String(s.level || s.level_key || s.category || "").toLowerCase() ===
+                String(childLevel).toLowerCase(),
+            );
             const childSubjects = new Map();
+            levelSubjects.forEach((s) =>
+              childSubjects.set(s.name, {
+                name: s.name,
+                nameAr: s.nameAr || s.name,
+              }),
+            );
             studentAssessments.forEach((a) =>
               childSubjects.set(a.subject, {
                 name: a.subject,
-                nameAr: a.subjectAr || a.subject,
+                nameAr:
+                  levelSubjects.find((s) => s.name === a.subject)?.nameAr ||
+                  a.subjectAr ||
+                  a.subject,
               }),
             );
             studentSubmissions.forEach((s) => {
@@ -361,7 +453,10 @@ const ParentDashboard = () => {
               if (a && a.subject) {
                 childSubjects.set(a.subject, {
                   name: a.subject,
-                  nameAr: a.subjectAr || a.subject,
+                  nameAr:
+                    levelSubjects.find((x) => x.name === a.subject)?.nameAr ||
+                    a.subjectAr ||
+                    a.subject,
                 });
               }
             });
@@ -391,6 +486,67 @@ const ParentDashboard = () => {
                 totalMarks: assessment?.totalMarks || 100,
               };
             });
+
+            // Per-assessment result rows - one entry per assessment (subject,
+            // type, title and score) so the same subject with multiple
+            // assessments (Homework, Assignment, Test, Exam, Classwork) each
+            // show their own recorded grade.
+            const assessmentResults = studentAssessments
+              .filter((a) => a.subject)
+              .map((assessment) => {
+                const submissionsForAssn = studentSubmissions.filter(
+                  (s) =>
+                    Number(s.assessmentId) ===
+                    Number(assessment.id ?? assessment._serverId),
+                );
+                let best = null;
+                submissionsForAssn.forEach((s) => {
+                  if (
+                    Number(s.score) > 0 &&
+                    (!best || Number(s.score) > Number(best.score))
+                  ) {
+                    best = s;
+                  }
+                });
+                const isGraded = !!best;
+                const score = isGraded ? Number(best.score) : 0;
+                const totalMarks =
+                  assessment.totalMarks || assessment.maxScore || 20;
+                const subjectMeta = levelSubjects.find(
+                  (s) => s.name === assessment.subject,
+                );
+
+                return {
+                  id: assessment.id ?? assessment._serverId,
+                  name: assessment.subject,
+                  nameAr: subjectMeta?.nameAr || assessment.subject,
+                  type: assessment.type || "assignment",
+                  assessmentTitle: assessment.title || "",
+                  score: score,
+                  totalMarks: totalMarks,
+                  grade: isGraded
+                    ? getGradeLetter(score, totalMarks)
+                    : "N/A",
+                  isGraded: isGraded,
+                  hasSubmitted: submissionsForAssn.length > 0,
+                  status: isGraded
+                    ? "graded"
+                    : submissionsForAssn.length > 0
+                      ? "submitted"
+                      : "pending",
+                  percentage: isGraded
+                    ? Math.round((score / totalMarks) * 100)
+                    : 0,
+                  semester: "First Semester",
+                  teacher:
+                    assessment.teacherName ||
+                    classInfo?.teacher ||
+                    "Teacher",
+                  date: best?.submittedAt
+                    ? String(best.submittedAt).split("T")[0]
+                    : "",
+                };
+              });
 
             let present = 0,
               absent = 0,
@@ -496,13 +652,15 @@ const ParentDashboard = () => {
             return {
               id: child.id,
               name: child.name || child.firstName || "Student",
+              avatar: child.avatar || child.profilePhoto || null,
               class: classInfo?.name || child.className || child.class || "N/A",
-              level:
-                classInfo?.level || child.level || child.educationLevel || "N/A",
+              level: childLevel || "N/A",
               status: child.status || "active",
               attendance: attendanceRate,
               attendanceCount: { present, absent, late, excused, total },
               subjects: subjectsWithGrades,
+              assessmentResults: assessmentResults,
+              assessmentCount: assessmentResults.length,
               recentActivities:
                 topActivities.length > 0
                   ? topActivities
@@ -536,6 +694,7 @@ const ParentDashboard = () => {
             return {
               id: child.id,
               name: child.name || child.firstName || "Student",
+              avatar: child.avatar || child.profilePhoto || null,
               class: child.className || child.class || "N/A",
               level: child.level || child.educationLevel || "",
               status: child.status || "active",
@@ -548,6 +707,8 @@ const ParentDashboard = () => {
                 total: 0,
               },
               subjects: [],
+              assessmentResults: [],
+              assessmentCount: 0,
               recentActivities: [
                 {
                   date: new Date().toISOString().split("T")[0],
@@ -810,7 +971,12 @@ const ParentDashboard = () => {
     },
     {
       icon: <FaClipboardList />,
-      value: formatNumber(selectedChild.gradedCount || 0),
+      value: formatNumber(
+        selectedChild.assessmentResults &&
+          selectedChild.assessmentResults.length > 0
+          ? selectedChild.assessmentResults.filter((a) => a.isGraded).length
+          : selectedChild.gradedCount || 0,
+      ),
       label: isArabic ? "مصحح" : "Graded",
       gradient: "linear-gradient(135deg, #1a5f7a, #4a9eff)",
     },
@@ -980,9 +1146,14 @@ const ParentDashboard = () => {
                   fontSize: "clamp(1.2rem, 1.8vw, 1.6rem)",
                   fontWeight: "700",
                   flexShrink: 0,
+                  overflow: "hidden",
                 }}
               >
-                {selectedChild.name.charAt(0)}
+                {selectedChild.avatar ? (
+                  <img src={selectedChild.avatar} alt={selectedChild.name || 'Child'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                ) : (
+                  selectedChild.name.charAt(0)
+                )}
               </div>
               <div className="flex-grow-1 min-width-0">
                 <h5
@@ -1012,6 +1183,25 @@ const ParentDashboard = () => {
                   >
                     <FaBook className="me-1" style={{ fontSize: "0.7rem" }} />{" "}
                     {selectedChild.class}
+                  </span>
+                  <span
+                    className="profile-tag"
+                    style={{
+                      ...arabicFontStyle,
+                      fontSize: "clamp(0.65rem, 0.8vw, 0.8rem)",
+                      color: getLevelColor(selectedChild.level),
+                      padding: "2px 12px",
+                      borderRadius: "50px",
+                      background: `${getLevelColor(selectedChild.level)}15`,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                    }}
+                  >
+                    <span style={{ marginRight: "4px" }}>
+                      {getLevelIcon(selectedChild.level)}
+                    </span>{" "}
+                    {getLevelDisplay(selectedChild.level)}
                   </span>
                   <span
                     className="profile-tag status-active"
@@ -1126,16 +1316,23 @@ const ParentDashboard = () => {
                     minWidth: "50px",
                   }}
                 >
-                  <div
-                    className="mini-stat-value"
-                    style={{
-                      color: "#f39c12",
-                      fontSize: "clamp(0.85rem, 1.1vw, 1.1rem)",
-                      fontWeight: "700",
-                    }}
-                  >
-                    {formatNumber(selectedChild.gradedCount || 0)}
-                  </div>
+<div
+                      className="mini-stat-value"
+                      style={{
+                        color: "#f39c12",
+                        fontSize: "clamp(0.85rem, 1.1vw, 1.1rem)",
+                        fontWeight: "700",
+                      }}
+                    >
+                      {formatNumber(
+                        selectedChild.assessmentResults &&
+                          selectedChild.assessmentResults.length > 0
+                          ? selectedChild.assessmentResults.filter(
+                              (a) => a.isGraded,
+                            ).length
+                          : selectedChild.gradedCount || 0,
+                      )}
+                    </div>
                   <div
                     className="mini-stat-label"
                     style={{
@@ -1452,18 +1649,24 @@ const ParentDashboard = () => {
         {/* ===== TAB CONTENT - ACADEMICS ===== */}
         {activeTab === "academics" && (
           <Row className="g-3">
-            {selectedChild.subjects && selectedChild.subjects.length > 0 ? (
-              selectedChild.subjects.map((subject, index) => {
-                const isGraded = subject.isGraded && subject.score > 0;
-                const statusInfo = isGraded
-                  ? getStatusBadge("graded")
-                  : subject.hasSubmitted
-                    ? getStatusBadge("submitted")
-                    : getStatusBadge("pending");
-                const gradeColor = getGradeColor(
-                  subject.score,
-                  subject.totalMarks,
-                );
+            {(() => {
+              const academicRows =
+                selectedChild.assessmentResults &&
+                selectedChild.assessmentResults.length > 0
+                  ? selectedChild.assessmentResults
+                  : selectedChild.subjects || [];
+              return academicRows.length > 0 ? (
+                academicRows.map((subject, index) => {
+                  const isGraded = subject.isGraded && subject.score > 0;
+                  const statusInfo = isGraded
+                    ? getStatusBadge("graded")
+                    : subject.hasSubmitted
+                      ? getStatusBadge("submitted")
+                      : getStatusBadge("pending");
+                  const gradeColor = getGradeColor(
+                    subject.score,
+                    subject.totalMarks,
+                  );
 
                 return (
                   <Col key={index} xs={12} sm={6} lg={4}>
@@ -1513,8 +1716,36 @@ const ParentDashboard = () => {
                                   : subject.name}
                               </span>
                             </h6>
+                            {subject.assessmentTitle && (
+                              <small
+                                className="text-muted d-block"
+                                style={{
+                                  ...arabicFontStyle,
+                                  color: darkMode ? "#adb5bd" : "#6c757d",
+                                  fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
+                                }}
+                              >
+                                {subject.assessmentTitle}
+                              </small>
+                            )}
+                            {subject.type && (
+                              <span
+                                className="mt-1"
+                                style={{
+                                  display: "inline-block",
+                                  padding: "2px 8px",
+                                  borderRadius: "50px",
+                                  background: `${getTypeColor(subject.type)}18`,
+                                  color: getTypeColor(subject.type),
+                                  fontSize: "clamp(0.5rem, 0.6vw, 0.6rem)",
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {getTypeLabel(subject.type)}
+                              </span>
+                            )}
                             <small
-                              className="text-muted d-block"
+                              className="text-muted d-block mt-1"
                               style={{
                                 ...arabicFontStyle,
                                 color: darkMode ? "#adb5bd" : "#6c757d",
@@ -1661,23 +1892,24 @@ const ParentDashboard = () => {
                       </Card.Body>
                     </div>
                   </Col>
-                );
-              })
-            ) : (
-              <Col md={12}>
-                <div className="text-center py-4">
-                  <div className="display-4 text-muted opacity-25 mb-2">📚</div>
-                  <h5 style={arabicFontStyle}>
-                    {isArabic ? "لا توجد مواد مسجلة" : "No subjects registered"}
-                  </h5>
-                  <p className="text-muted" style={arabicFontStyle}>
-                    {isArabic
-                      ? "سيتم عرض المواد الدراسية هنا"
-                      : "Subjects will appear here"}
-                  </p>
-                </div>
-              </Col>
-            )}
+);
+                })
+              ) : (
+                <Col md={12}>
+                  <div className="text-center py-4">
+                    <div className="display-4 text-muted opacity-25 mb-2">📚</div>
+                    <h5 style={arabicFontStyle}>
+                      {isArabic ? "لا توجد مواد مسجلة" : "No subjects registered"}
+                    </h5>
+                    <p className="text-muted" style={arabicFontStyle}>
+                      {isArabic
+                        ? "سيتم عرض المواد الدراسية هنا"
+                        : "Subjects will appear here"}
+                    </p>
+                  </div>
+                </Col>
+              );
+            })()}
           </Row>
         )}
 

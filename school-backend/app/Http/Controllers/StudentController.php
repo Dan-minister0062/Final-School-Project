@@ -19,7 +19,7 @@ class StudentController extends Controller
         $students = Student::orderBy('name')->get();
         $userByEmail = User::query()
             ->where('role', 'student')
-            ->get(['id', 'email', 'student_id'])
+            ->get(['id', 'email', 'student_id', 'avatar'])
             ->keyBy(fn ($u) => mb_strtolower(trim((string) $u->email)));
         $userByStudentId = $userByEmail->groupBy('student_id');
 
@@ -44,6 +44,7 @@ class StudentController extends Controller
                 'gender' => $s->gender,
                 'dob' => $s->dob,
                 'status' => $s->status,
+                'avatar' => $user?->avatar,
                 'parentId' => $s->parent_id,
             ];
         });

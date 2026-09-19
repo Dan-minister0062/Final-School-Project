@@ -893,10 +893,15 @@ const TeachersManagement = () => {
                                 color: 'white',
                                 fontWeight: '700',
                                 fontSize: 'clamp(0.6rem, 0.7vw, 0.85rem)',
-                                flexShrink: 0
+                                flexShrink: 0,
+                                overflow: 'hidden'
                               }}
                             >
-                              {teacher.displayName.charAt(0).toUpperCase()}
+                              {teacher.avatar || teacher.profilePhoto ? (
+                                <img src={teacher.avatar || teacher.profilePhoto} alt={teacher.displayName || 'Teacher'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                              ) : (
+                                teacher.displayName.charAt(0).toUpperCase()
+                              )}
                             </div>
                             <div className="teacher-info" style={{ minWidth: 0 }}>
                               <div className="fw-semibold text-truncate" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', fontSize: 'clamp(0.6rem, 0.8vw, 0.85rem)' }}>
@@ -1056,10 +1061,15 @@ const TeachersManagement = () => {
                     fontWeight: '700',
                     fontSize: 'clamp(2rem, 4vw, 3rem)',
                     margin: '0 auto',
-                    boxShadow: '0 8px 30px rgba(45, 106, 79, 0.3)'
+                    boxShadow: '0 8px 30px rgba(45, 106, 79, 0.3)',
+                    overflow: 'hidden'
                   }}
                 >
-                  {selectedTeacher.displayName.charAt(0).toUpperCase()}
+                  {selectedTeacher.avatar || selectedTeacher.profilePhoto ? (
+                    <img src={selectedTeacher.avatar || selectedTeacher.profilePhoto} alt={selectedTeacher.displayName || 'Teacher'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                  ) : (
+                    selectedTeacher.displayName.charAt(0).toUpperCase()
+                  )}
                 </div>
                 <h5 className="fw-bold mt-3" style={{ color: darkMode ? '#e9ecef' : '#212529', fontSize: 'clamp(1rem, 1.5vw, 1.25rem)' }}>
                   {selectedTeacher.displayName}

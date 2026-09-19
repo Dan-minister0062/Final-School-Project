@@ -232,7 +232,7 @@ const StudentDashboard = () => {
       
       let levelSubjects = [];
       levelSubjects = allSubjects.filter(s => {
-        const subjectLevel = s.category || s.level || s.educationLevel;
+        const subjectLevel = s.level || s.level_key || s.category || s.educationLevel;
         return subjectLevel === level;
       });
       console.log('📚 Filtered subjects:', levelSubjects.length);
@@ -309,6 +309,7 @@ const StudentDashboard = () => {
             classId: currentUser.classId || currentUser.class_id || null,
             className: currentUser.className || currentUser.class_name || '',
             level: currentUser.level || '',
+            avatar: currentUser.avatar || currentUser.profilePhoto || null,
           };
           allStudentsData = [student];
           setAllStudents(allStudentsData);
@@ -329,16 +330,17 @@ const StudentDashboard = () => {
 
       // ===== Fetch all data in parallel =====
       const [subjectsRes, classesRes, attendanceRes, paymentsRes] = await Promise.all([
-        syncGet('/subjects'),
+        syncGet('/subjects', { level: studentLevel, limit: 100 }),
         syncGet('/classes'),
         syncGet('/attendance'),
         syncGet('/payments'),
       ]);
 
       // ===== SUBJECTS =====
-      const allSubjectsRows = Array.isArray(subjectsRes?.data) ? subjectsRes.data : [];
-      const allSubjects = allSubjectsRows.length > 0 ? allSubjectsRows : (Array.isArray(subjectsRes?.allData) ? subjectsRes.allData : []);
-      const levelSubjects = loadSubjectsForLevel(allSubjects, studentLevel);
+      const allSubjectsRows = Array.isArray(subjectsRes?.allData) && subjectsRes.allData.length > 0
+        ? subjectsRes.allData
+        : (Array.isArray(subjectsRes?.data) ? subjectsRes.data : []);
+      const levelSubjects = loadSubjectsForLevel(allSubjectsRows, studentLevel);
       console.log('📚 Subjects for level:', levelSubjects.length);
 
       // ===== CLASSES =====
@@ -710,9 +712,14 @@ const StudentDashboard = () => {
               flexShrink: 0,
               position: 'relative',
               boxShadow: `0 4px 20px ${levelColor}40`,
-              transition: 'transform 0.4s ease'
+              transition: 'transform 0.4s ease',
+              overflow: 'hidden'
             }}>
-              {(studentData.name || studentData.firstName || 'S').charAt(0).toUpperCase()}
+              {studentData.avatar ? (
+                <img src={studentData.avatar} alt={studentData.name || 'Student'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+              ) : (
+                (studentData.name || studentData.firstName || 'S').charAt(0).toUpperCase()
+              )}
             </div>
             <div>
               <h5 className="fw-bold mb-1" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>

@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\AdmissionReceived;
 use App\Models\Notification;
 use App\Models\Registration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 class AdmissionController extends Controller
 {
@@ -43,6 +45,10 @@ class AdmissionController extends Controller
         }
 
         $registration = Registration::create($data);
+
+        if (! empty($registration->parent_email)) {
+            Mail::to($registration->parent_email)->send(new AdmissionReceived($registration));
+        }
 
         Notification::create([
             'title' => '📝 New Student Registration: ' . $registration->full_name,

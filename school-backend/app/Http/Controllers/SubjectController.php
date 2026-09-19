@@ -25,6 +25,13 @@ class SubjectController extends Controller
             $query->where('category', $request->category);
         }
 
+        if ($request->filled('level') && $request->level !== 'all') {
+            $query->where(function ($q) use ($request) {
+                $q->where('level_key', $request->level)
+                    ->orWhere('category', $request->level);
+            });
+        }
+
         $page = max(1, (int) $request->input('page', 1));
         $limit = max(1, (int) $request->input('limit', $request->input('per_page', 10)));
 
@@ -83,10 +90,13 @@ class SubjectController extends Controller
 
     protected function mapStore(Request $request): array
     {
+        $level = $request->input('level', $request->input('level_key', $request->input('category')));
+
         return [
             'name' => $request->input('name'),
             'name_ar' => $request->input('nameAr'),
             'category' => $request->input('category'),
+            'level_key' => $level,
             'status' => $request->input('isActive', true) ? 'active' : 'inactive',
         ];
     }
@@ -116,10 +126,11 @@ class SubjectController extends Controller
             'name' => $s->name,
             'nameAr' => $s->name_ar ?? '',
             'category' => $s->category ?? $s->level_key ?? 'primary',
-            'isActive' => $s->status === 'active',
+            'level' => $s->level_key ?? $s->category ?? 'primary',
             'level_key' => $s->level_key,
             'class_code' => $s->class_code,
             'coefficient' => $s->coefficient,
+            'isActive' => $s->status === 'active',
         ];
     }
 }

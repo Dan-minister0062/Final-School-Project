@@ -240,6 +240,7 @@ const StudentsManagement = () => {
         parent_name: userData.parentName || null,
         parent_phone: userData.parentPhone || null,
         parent_email: userData.parentEmail || null,
+        avatar: userData.avatar || userData.profilePhoto || '',
       };
 
       if (userData._serverId) {

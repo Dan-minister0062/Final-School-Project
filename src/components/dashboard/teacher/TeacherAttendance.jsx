@@ -940,8 +940,13 @@ const TeacherAttendance = () => {
                               fontWeight: '700',
                               fontSize: isMobile ? '0.6rem' : '0.75rem',
                               flexShrink: 0,
+                              overflow: 'hidden',
                             }}>
-                              {(student.name || student.firstName || 'U').charAt(0).toUpperCase()}
+                              {student.avatar ? (
+                                <img src={student.avatar} alt={student.name || 'Student'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                              ) : (
+                                (student.name || student.firstName || 'U').charAt(0).toUpperCase()
+                              )}
                             </div>
                             <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
                               {student.name || student.firstName || 'Unknown'}

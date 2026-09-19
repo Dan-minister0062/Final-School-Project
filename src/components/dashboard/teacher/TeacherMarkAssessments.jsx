@@ -128,7 +128,7 @@ const TeacherMarkAssessments = () => {
 
       const classStudents = allStudents
         .filter(s => classKeys.has(String(s.class_code)) || classKeys.has(String(s.classId)) || classKeys.has(String(s.className)))
-        .map(s => ({ id: s.id, name: s.name, userId: s.userId || s.user_id, classId: s.class_code || s.classId }));
+        .map(s => ({ id: s.id, name: s.name, userId: s.userId || s.user_id, classId: s.class_code || s.classId, avatar: s.avatar || s.profilePhoto || null }));
       setStudents(classStudents);
       
       const initialGrades = classStudents.map(student => ({
@@ -383,6 +383,36 @@ const TeacherMarkAssessments = () => {
     }
   };
 
+  // ===== GET ASSESSMENT TYPE LABEL =====
+  const getTypeLabel = (type) => {
+    const labels = {
+      'homework': isArabic ? 'واجب منزلي' : 'Homework',
+      'assignment': isArabic ? 'مشروع' : 'Assignment',
+      'test': isArabic ? 'اختبار' : 'Test',
+      'exam': isArabic ? 'امتحان' : 'Exam',
+      'classwork': isArabic ? 'عمل صفي' : 'Classwork',
+      'quiz': isArabic ? 'اختبار قصير' : 'Quiz',
+      'project': isArabic ? 'مشروع' : 'Project',
+      'other': isArabic ? 'أخرى' : 'Other',
+    };
+    return labels[type] || type || 'Assignment';
+  };
+
+  // ===== GET ASSESSMENT TYPE COLOR =====
+  const getTypeColor = (type) => {
+    const colors = {
+      'homework': '#8e44ad',
+      'assignment': '#2d6a4f',
+      'test': '#e67e22',
+      'exam': '#c0392b',
+      'classwork': '#2980b9',
+      'quiz': '#16a085',
+      'project': '#34495e',
+      'other': '#6c757d',
+    };
+    return colors[type] || '#6c757d';
+  };
+
   // ===== GET GRADE LETTER =====
   const getGradeLetter = (score, totalMarks) => {
     if (!score || score === '' || !totalMarks) return '-';
@@ -494,7 +524,7 @@ const TeacherMarkAssessments = () => {
                 <option value="">{isArabic ? 'اختر تقييم' : 'Select an assessment'}</option>
                 {getAvailableAssessments().map(a => (
                   <option key={a.id} value={a.id}>
-                    {a.title} - {a.type} ({a.status})
+                    {a.title} - {getTypeLabel(a.type)} ({a.status})
                   </option>
                 ))}
               </Form.Select>
@@ -530,6 +560,21 @@ const TeacherMarkAssessments = () => {
               <div className="fw-bold" style={arabicFontStyle}>
                 <FaFileAlt className="me-2 text-primary" />
                 {selectedAssessmentData.title}
+                <span
+                  className="ms-2"
+                  style={{
+                    display: 'inline-block',
+                    padding: '2px 10px',
+                    borderRadius: '50px',
+                    background: `${getTypeColor(selectedAssessmentData.type)}18`,
+                    color: getTypeColor(selectedAssessmentData.type),
+                    fontSize: '0.65rem',
+                    fontWeight: 600,
+                    verticalAlign: 'middle',
+                  }}
+                >
+                  {getTypeLabel(selectedAssessmentData.type)}
+                </span>
               </div>
             </Col>
             <Col md={3}>
@@ -661,9 +706,14 @@ const TeacherMarkAssessments = () => {
                               color: 'white',
                               fontWeight: '700',
                               fontSize: isMobile ? '0.6rem' : '0.85rem',
-                              flexShrink: 0
+                              flexShrink: 0,
+                              overflow: 'hidden'
                             }}>
-                              {(student.name || student.firstName || 'U').charAt(0).toUpperCase()}
+                              {student.avatar ? (
+                                <img src={student.avatar} alt={student.name || 'Student'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                              ) : (
+                                (student.name || student.firstName || 'U').charAt(0).toUpperCase()
+                              )}
                             </div>
                             <div>
                               <div className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
@@ -849,9 +899,14 @@ const TeacherMarkAssessments = () => {
                   justifyContent: 'center',
                   color: 'white',
                   fontWeight: '700',
-                  fontSize: '1.2rem'
+                  fontSize: '1.2rem',
+                  overflow: 'hidden'
                 }}>
-                  {(selectedStudent.name || selectedStudent.firstName || 'U').charAt(0).toUpperCase()}
+                  {selectedStudent.avatar ? (
+                    <img src={selectedStudent.avatar} alt={selectedStudent.name || 'Student'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                  ) : (
+                    (selectedStudent.name || selectedStudent.firstName || 'U').charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div>
                   <h6 className="fw-bold mb-0" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>

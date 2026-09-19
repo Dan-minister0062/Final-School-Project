@@ -312,8 +312,12 @@ const NavbarComponent = () => {
                   title={
                     <span className="d-flex align-items-center">
                       <span className="bg-white text-primary rounded-circle d-inline-flex align-items-center justify-content-center me-1"
-                        style={{ width: '30px', height: '30px', fontSize: '0.75rem', fontWeight: '600', color: headerColor }}>
-                        {getInitials(user?.name)}
+                        style={{ width: '30px', height: '30px', fontSize: '0.75rem', fontWeight: '600', color: headerColor, overflow: 'hidden' }}>
+                        {user?.avatar || user?.profilePhoto ? (
+                          <img src={user.avatar || user.profilePhoto} alt={user?.name || 'User'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                        ) : (
+                          getInitials(user?.name)
+                        )}
                       </span>
                       <span className="d-none d-md-inline text-white" style={{ 
                         fontSize: '0.85rem',

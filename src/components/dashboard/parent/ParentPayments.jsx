@@ -853,10 +853,15 @@ const ParentPayments = () => {
                               color: 'white',
                               fontSize: 'clamp(0.8rem, 0.9vw, 0.95rem)',
                               fontWeight: '700',
-                              flexShrink: 0
+                              flexShrink: 0,
+                              overflow: 'hidden'
                             }}
                           >
-                            {(child.name || 'S').charAt(0).toUpperCase()}
+                            {child.avatar || child.profilePhoto ? (
+                              <img src={child.avatar || child.profilePhoto} alt={child.name || 'Child'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                            ) : (
+                              (child.name || 'S').charAt(0).toUpperCase()
+                            )}
                           </div>
                           <div style={{ minWidth: 0 }}>
                             <div className="fw-semibold" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', fontSize: 'clamp(0.9rem, 1vw, 1.05rem)' }}>

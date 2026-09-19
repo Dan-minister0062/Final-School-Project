@@ -1,6 +1,6 @@
 // src/components/dashboard/teacher/TeacherStudents.jsx
 import React, { useState, useEffect } from 'react';
-import { Card, Row, Col, Button, Modal, Form, ProgressBar } from 'react-bootstrap';
+import { Card, Row, Col, Button, Modal, Form, ProgressBar, Badge } from 'react-bootstrap';
 import { 
   FaSearch, 
   FaUserGraduate, 
@@ -158,6 +158,106 @@ const TeacherStudents = () => {
     }
   };
 
+  // ===== BUILD PER-ASSESSMENT RESULTS RECORD FOR A STUDENT =====
+  // One row per assessment (subject + type + title + score) so the same
+  // subject with Homework, Assignment, Test, Exam and Classwork each record
+  // their own grade in the student's result.
+  const buildStudentResults = (student, assessments = [], submissions = []) => {
+    try {
+      const studentKey = String(
+        student.userId ?? student.user_id ?? student.studentId ?? student.student_id ?? student._serverId ?? student.id ?? ''
+      );
+
+      const studentClassKeys = new Set(
+        [
+          student.class_code,
+          student.classId,
+          student.class_id,
+          student.className,
+          student.class_name,
+          student.class,
+        ]
+          .map(v => String(v ?? ''))
+          .filter(Boolean),
+      );
+
+      const studentSubmissions = submissions.filter(s =>
+        String(s.studentId ?? s.student_id ?? '') === studentKey
+      );
+      const submissionByAssessment = {};
+      studentSubmissions.forEach(s => {
+        submissionByAssessment[String(s.assessmentId ?? s.assessment_id)] = s;
+      });
+
+      return (Array.isArray(assessments) ? assessments : [])
+        .filter(a => a.subject)
+        .filter(a => {
+          const aKeys = [
+            a.class_code,
+            a.classCode,
+            a.class_id,
+            a.classId,
+          ].map(v => String(v ?? '')).filter(Boolean);
+          return aKeys.some(k => studentClassKeys.has(k));
+        })
+        .map((assessment) => {
+          const sub = submissionByAssessment[String(assessment.id ?? assessment._serverId)];
+          const isGraded = sub && (sub.status === 'graded' || sub.score != null) && sub.score != null;
+          const score = isGraded ? Number(sub.score) : null;
+          const totalMarks =
+            assessment.totalMarks || assessment.maxScore || assessment.max_score || 20;
+          const type = assessment.type || 'assignment';
+          const status = isGraded
+            ? 'graded'
+            : sub
+              ? 'submitted'
+              : 'not_submitted';
+
+          return {
+            id: isGraded
+              ? sub._serverId || sub.id
+              : `assessment_${assessment.id || assessment._serverId}`,
+            name: assessment.subject,
+            nameAr: assessment.subject,
+            type: type,
+            assessmentTitle: assessment.title || '',
+            semester: 'First Semester',
+            score,
+            totalMarks,
+            grade: isGraded ? getGradeFromScore(score, totalMarks) : null,
+            isGraded,
+            hasSubmitted: !!sub,
+            assessmentId: assessment.id || assessment._serverId,
+            status,
+            percentage: isGraded ? Math.round((score / totalMarks) * 100) : 0,
+            teacher:
+              assessment.teacherName ||
+              assessment.teacher_name ||
+              'Teacher',
+            date: sub && sub.submittedAt
+              ? String(sub.submittedAt).split('T')[0]
+              : '',
+            isExam: isGraded && type === 'exam',
+          };
+        });
+    } catch (err) {
+      console.error('Error building student results:', err);
+      return [];
+    }
+  };
+
+  // ===== GET GRADE FROM SCORE =====
+  const getGradeFromScore = (score, totalMarks) => {
+    if (score === null || score === undefined || score === '' || !totalMarks) return 'N/A';
+    const percentage = (Number(score) / totalMarks) * 100;
+    if (percentage >= 90) return 'A+';
+    if (percentage >= 80) return 'A';
+    if (percentage >= 70) return 'B';
+    if (percentage >= 60) return 'C';
+    if (percentage >= 50) return 'D';
+    return 'F';
+  };
+
   // ===== LOAD DATA (MySQL-backed: /classes, /students, /attendance) =====
   const loadData = async () => {
     try {
@@ -187,15 +287,21 @@ const TeacherStudents = () => {
             ? currentTeacher.classes
             : (Array.isArray(currentTeacher.classIds) ? currentTeacher.classIds : []);
       
-      // Fetch classes, student roster and attendance straight from MySQL.
-      const [classesRes, studentsRes, attendanceRes] = await Promise.all([
+      // Fetch classes, student roster, attendance, assessments and
+      // submissions straight from MySQL so each student's results record can
+      // be shown (one row per assessment with its type + score).
+      const [classesRes, studentsRes, attendanceRes, assessmentsRes, submissionsRes] = await Promise.all([
         syncGet('/classes'),
         syncGet('/students'),
         syncGet('/attendance'),
+        syncGet('/assessments'),
+        syncGet('/submissions'),
       ]);
       const allClasses = classesRes?.data || (Array.isArray(classesRes) ? classesRes : []);
       const allStudents = studentsRes?.data || (Array.isArray(studentsRes) ? studentsRes : []);
       const attendanceRecords = attendanceRes?.data || (Array.isArray(attendanceRes) ? attendanceRes : []);
+      const allAssessments = assessmentsRes?.data || (Array.isArray(assessmentsRes) ? assessmentsRes : []);
+      const allSubmissions = submissionsRes?.data || (Array.isArray(submissionsRes) ? submissionsRes : []);
       
       // Assigned classes (class code is the canonical id)
       const assignedClasses = (Array.isArray(allClasses) ? allClasses : [])
@@ -220,7 +326,7 @@ const TeacherStudents = () => {
         });
       console.log('👨‍🎓 Assigned students loaded:', assignedStudents.length);
 
-      // Enrich students with class name and attendance data
+      // Enrich students with class name, attendance and per-assessment results
       const enrichedStudents = assignedStudents.map(student => {
         const classInfo = assignedClasses.find(c =>
           String(c.id) === String(student.class_code) ||
@@ -228,12 +334,16 @@ const TeacherStudents = () => {
           String(c.name) === String(student.class_code)
         );
         const attendance = calculateStudentAttendance(student, attendanceRecords);
+        const assessmentResults = buildStudentResults(student, allAssessments, allSubmissions);
         
         return {
           ...student,
           className: classInfo?.name || student.className || student.class_code || 'N/A',
           classLevel: classInfo?.level || student.level || 'N/A',
           attendance: attendance,
+          assessmentResults: assessmentResults,
+          assessmentCount: assessmentResults.length,
+          gradedResults: assessmentResults.filter(r => r.isGraded).length,
         };
       });
       
@@ -393,6 +503,55 @@ const TeacherStudents = () => {
       high_school: '#9b59b6',
     };
     return colors[level] || '#6c757d';
+  };
+
+  // ===== GET ASSESSMENT TYPE LABEL =====
+  const getTypeLabel = (type) => {
+    const labels = {
+      'homework': isArabic ? 'واجب منزلي' : 'Homework',
+      'assignment': isArabic ? 'مشروع' : 'Assignment',
+      'test': isArabic ? 'اختبار' : 'Test',
+      'exam': isArabic ? 'امتحان' : 'Exam',
+      'classwork': isArabic ? 'عمل صفي' : 'Classwork',
+      'quiz': isArabic ? 'اختبار قصير' : 'Quiz',
+      'project': isArabic ? 'مشروع' : 'Project',
+      'other': isArabic ? 'أخرى' : 'Other',
+    };
+    return labels[type] || type || 'Assignment';
+  };
+
+  // ===== GET ASSESSMENT TYPE COLOR =====
+  const getTypeColor = (type) => {
+    const colors = {
+      'homework': '#8e44ad',
+      'assignment': '#2d6a4f',
+      'test': '#e67e22',
+      'exam': '#c0392b',
+      'classwork': '#2980b9',
+      'quiz': '#16a085',
+      'project': '#34495e',
+      'other': '#6c757d',
+    };
+    return colors[type] || '#6c757d';
+  };
+
+  // ===== GET GRADE COLOR =====
+  const getGradeColor = (score, totalMarks) => {
+    if (score === null || score === undefined || score === '' || !totalMarks) return '#6c757d';
+    const percentage = (Number(score) / totalMarks) * 100;
+    if (percentage >= 80) return '#2ecc71';
+    if (percentage >= 60) return '#f39c12';
+    return '#e74c3c';
+  };
+
+  // ===== GET STATUS BADGE FOR RESULTS RECORD =====
+  const getResultStatusBadge = (status) => {
+    const statuses = {
+      graded: { bg: 'success', icon: '✓', label: isArabic ? 'مصحح' : 'Graded' },
+      submitted: { bg: 'info', icon: '↗', label: isArabic ? 'مرسل' : 'Submitted' },
+      not_submitted: { bg: 'secondary', icon: '✕', label: isArabic ? 'لم يقدم' : 'Not Submitted' },
+    };
+    return statuses[status] || statuses.not_submitted;
   };
 
   // ===== RENDER STATES =====
@@ -720,8 +879,13 @@ const TeacherStudents = () => {
                         justifyContent: 'center',
                         fontSize: isMobile ? '1.2rem' : '1.5rem',
                         flexShrink: 0,
+                        overflow: 'hidden',
                       }}>
-                        {(student.name || student.firstName || 'U').charAt(0).toUpperCase()}
+                        {student.avatar ? (
+                          <img src={student.avatar} alt={student.name || 'Student'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                        ) : (
+                          (student.name || student.firstName || 'U').charAt(0).toUpperCase()
+                        )}
                       </div>
                       <div className="flex-grow-1 min-width-0">
                         <h6 className="fw-bold mb-0 text-truncate" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
@@ -838,8 +1002,13 @@ const TeacherStudents = () => {
                   justifyContent: 'center',
                   fontSize: isMobile ? '2rem' : '2.5rem',
                   flexShrink: 0,
+                  overflow: 'hidden',
                 }}>
-                  {(selectedStudent.name || selectedStudent.firstName || 'U').charAt(0).toUpperCase()}
+                  {selectedStudent.avatar ? (
+                    <img src={selectedStudent.avatar} alt={selectedStudent.name || 'Student'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                  ) : (
+                    (selectedStudent.name || selectedStudent.firstName || 'U').charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div>
                   <h5 className="fw-bold mb-0" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
@@ -988,6 +1157,173 @@ const TeacherStudents = () => {
                     </small>
                   </div>
                 </>
+              )}
+
+              {/* ===== RESULTS RECORD (per-assessment rows with type + score) ===== */}
+              {selectedStudent.assessmentResults && (
+                <div className="mt-4">
+                  <div className="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                    <h6
+                      className="fw-bold mb-0"
+                      style={{
+                        ...arabicFontStyle,
+                        color: darkMode ? '#e9ecef' : '#212529',
+                      }}
+                    >
+                      <FaChartBar className="me-2 text-primary" />
+                      {isArabic ? 'سجل التقييمات والنتائج' : 'Assessments & Results'}
+                    </h6>
+                    <Badge
+                      bg="light"
+                      className="text-dark"
+                      style={{ ...arabicFontStyle, fontSize: '0.7rem' }}
+                    >
+                      {formatNumber(selectedStudent.gradedResults || 0)}{' '}
+                      {isArabic ? 'مصحح' : 'Graded'} /{' '}
+                      {formatNumber(selectedStudent.assessmentCount || 0)}{' '}
+                      {isArabic ? 'تقييم' : 'Assessments'}
+                    </Badge>
+                  </div>
+
+                  {selectedStudent.assessmentResults.length === 0 ? (
+                    <div
+                      className="text-center py-3 text-muted"
+                      style={arabicFontStyle}
+                    >
+                      {isArabic
+                        ? 'لا توجد تقييمات مسجلة لهذا الطالب بعد'
+                        : 'No assessments recorded for this student yet'}
+                    </div>
+                  ) : (
+                    <div
+                      className="table-responsive"
+                      style={{ maxHeight: '320px', overflowY: 'auto', borderRadius: '12px' }}
+                    >
+                      <table
+                        className="table table-sm table-hover align-middle mb-0"
+                        style={{
+                          fontSize: 'clamp(0.65rem, 0.75vw, 0.8rem)',
+                          color: darkMode ? '#e9ecef' : '#212529',
+                        }}
+                      >
+                        <thead
+                          style={{
+                            position: 'sticky',
+                            top: 0,
+                            background: darkMode ? '#2d2d44' : '#f8f9fa',
+                            zIndex: 1,
+                          }}
+                        >
+                          <tr>
+                            <th style={arabicFontStyle}>#</th>
+                            <th style={arabicFontStyle}>{isArabic ? 'المادة' : 'Subject'}</th>
+                            <th className="d-none d-sm-table-cell" style={arabicFontStyle}>
+                              {isArabic ? 'التقييم' : 'Assessment'}
+                            </th>
+                            <th className="text-center" style={arabicFontStyle}>
+                              {isArabic ? 'النوع' : 'Type'}
+                            </th>
+                            <th className="text-center d-none d-sm-table-cell" style={arabicFontStyle}>
+                              {isArabic ? 'الدرجة' : 'Score'}
+                            </th>
+                            <th className="text-center" style={arabicFontStyle}>
+                              {isArabic ? 'التقدير' : 'Grade'}
+                            </th>
+                            <th className="text-center" style={arabicFontStyle}>
+                              {isArabic ? 'الحالة' : 'Status'}
+                            </th>
+                            <th className="d-none d-md-table-cell" style={arabicFontStyle}>
+                              {isArabic ? 'الموعد' : 'Date'}
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedStudent.assessmentResults.map((item, idx) => {
+                            const statusInfo = getResultStatusBadge(item.status);
+                            const gradeColor = getGradeColor(item.score, item.totalMarks);
+                            return (
+                              <tr key={item.id || idx}>
+                                <td className="text-muted" style={arabicFontStyle}>
+                                  {formatNumber(idx + 1)}
+                                </td>
+                                <td>
+                                  <span className="fw-semibold" style={arabicFontStyle}>
+                                    {item.name}
+                                  </span>
+                                  <small
+                                    className="text-muted d-block"
+                                    style={{ fontSize: '0.55rem' }}
+                                  >
+                                    {item.assessmentTitle || ''}
+                                  </small>
+                                </td>
+                                <td className="d-none d-sm-table-cell" style={arabicFontStyle}>
+                                  {item.assessmentTitle || '-'}
+                                </td>
+                                <td className="text-center">
+                                  <span
+                                    style={{
+                                      display: 'inline-block',
+                                      padding: '2px 10px',
+                                      borderRadius: '50px',
+                                      background: `${getTypeColor(item.type)}18`,
+                                      color: getTypeColor(item.type),
+                                      fontSize: 'clamp(0.5rem, 0.55vw, 0.6rem)',
+                                      fontWeight: 600,
+                                      whiteSpace: 'nowrap',
+                                    }}
+                                  >
+                                    {getTypeLabel(item.type)}
+                                  </span>
+                                </td>
+                                <td
+                                  className="text-center d-none d-sm-table-cell fw-bold"
+                                  style={{ color: gradeColor }}
+                                >
+                                  {item.isGraded
+                                    ? `${formatNumber(item.score)}/${formatNumber(item.totalMarks)}`
+                                    : '-'}
+                                </td>
+                                <td className="text-center">
+                                  {item.isGraded ? (
+                                    <span
+                                      style={{
+                                        display: 'inline-block',
+                                        padding: '2px 10px',
+                                        borderRadius: '50px',
+                                        background: gradeColor,
+                                        color: 'white',
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      {item.grade}
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted">-</span>
+                                  )}
+                                </td>
+                                <td className="text-center">
+                                  <Badge
+                                    bg={statusInfo.bg}
+                                    className="rounded-pill"
+                                    style={{ fontSize: '0.55rem' }}
+                                  >
+                                    {statusInfo.icon} {statusInfo.label}
+                                  </Badge>
+                                </td>
+                                <td className="d-none d-md-table-cell text-muted">
+                                  {item.date
+                                    ? new Date(item.date).toLocaleDateString()
+                                    : '-'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           )}

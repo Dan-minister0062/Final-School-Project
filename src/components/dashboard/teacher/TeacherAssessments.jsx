@@ -2068,9 +2068,14 @@ const TeacherAssessments = () => {
                               color: 'white',
                               fontWeight: '700',
                               fontSize: isMobile ? '0.6rem' : '0.85rem',
-                              flexShrink: 0
+                              flexShrink: 0,
+                              overflow: 'hidden'
                             }}>
-                              {(item.studentName || 'U').charAt(0).toUpperCase()}
+                              {item.student?.avatar ? (
+                                <img src={item.student.avatar} alt={item.studentName || 'Student'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                              ) : (
+                                (item.studentName || 'U').charAt(0).toUpperCase()
+                              )}
                             </div>
                             <div>
                               <div className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
@@ -2697,9 +2702,14 @@ const TeacherAssessments = () => {
                                 color: 'white',
                                 fontWeight: '700',
                                 fontSize: isMobile ? '0.6rem' : '0.85rem',
-                                flexShrink: 0
+                                flexShrink: 0,
+                                overflow: 'hidden'
                               }}>
-                                {(item.student.name || item.student.firstName || 'U').charAt(0).toUpperCase()}
+                                {item.student.avatar ? (
+                                  <img src={item.student.avatar} alt={item.student.name || 'Student'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                                ) : (
+                                  (item.student.name || item.student.firstName || 'U').charAt(0).toUpperCase()
+                                )}
                               </div>
                               <div>
                                 <div className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
@@ -2837,9 +2847,14 @@ const TeacherAssessments = () => {
                   justifyContent: 'center',
                   color: 'white',
                   fontWeight: '700',
-                  fontSize: '1.2rem'
+                  fontSize: '1.2rem',
+                  overflow: 'hidden'
                 }}>
-                  {(viewingSubmission.student?.name || viewingSubmission.studentName || 'U').charAt(0).toUpperCase()}
+                  {viewingSubmission.student?.avatar ? (
+                    <img src={viewingSubmission.student.avatar} alt={viewingSubmission.student?.name || viewingSubmission.studentName || 'Student'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                  ) : (
+                    (viewingSubmission.student?.name || viewingSubmission.studentName || 'U').charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div>
                   <h6 className="fw-bold mb-0" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
@@ -3078,9 +3093,14 @@ const TeacherAssessments = () => {
                     justifyContent: 'center',
                     color: 'white',
                     fontWeight: '700',
-                    fontSize: '1.1rem'
+                    fontSize: '1.1rem',
+                    overflow: 'hidden'
                   }}>
-                    {(selectedSubmissionItem.studentName || 'U').charAt(0).toUpperCase()}
+                    {selectedSubmissionItem.student?.avatar ? (
+                      <img src={selectedSubmissionItem.student.avatar} alt={selectedSubmissionItem.studentName || 'Student'} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                    ) : (
+                      (selectedSubmissionItem.studentName || 'U').charAt(0).toUpperCase()
+                    )}
                   </div>
                   <div>
                     <h6 className="fw-bold mb-0" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
