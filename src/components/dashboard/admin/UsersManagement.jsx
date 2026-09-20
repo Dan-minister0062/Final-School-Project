@@ -75,6 +75,8 @@ import {
   FaChild,
   FaUniversity,
   FaCity,
+  FaCamera,
+  FaHandshake
 } from "react-icons/fa";
 import { useLanguage } from "../../../context/LanguageContext";
 import { useAuth } from "../../../hooks/useAuth";

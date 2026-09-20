@@ -5,7 +5,7 @@ const WhatsAppButton = () => {
   // 🔥 IMPORTANT: Use your actual phone number with country code
   // Example: For Morocco +212 6XX-XXXXXX, use '2126XXXXXXXX'
   // For US +1 234-567-8900, use '12345678900'
-  const phoneNumber = '+212 0783797850'; // Replace with YOUR number (no + sign)
+  const phoneNumber = '+212 666870638'; // Replace with YOUR number (no + sign)
 
   // Pre-filled message
   const message = 'السلام عليكم، أرغب في الاستفسار عن مدرسة الفتحي';

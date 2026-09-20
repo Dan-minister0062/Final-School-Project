@@ -3,7 +3,7 @@ import { FaFacebook, FaWhatsapp } from 'react-icons/fa';
 
 const SocialButtons = () => {
   // WhatsApp Configuration
-  const phoneNumber = '+212 0668788829';
+  const phoneNumber = '+212 666870638';
   const whatsappMessage = 'السلام عليكم، أرغب في الاستفسار عن مدرسة الفتح الخاصة';
 
   // Facebook Configuration
