@@ -73,6 +73,8 @@ export function toCatalogClasses(rows, fallbackList) {
     return {
       id,
       name: fb ? fb.name : row.name,
+      nameEn: row.nameEn ?? row.name_en ?? (fb ? fb.nameEn || fb.name : null) ?? row.name,
+      nameAr: row.nameAr ?? row.name_ar ?? (fb ? fb.nameAr || fb.name : null) ?? row.name,
       level: levelKey,
     };
   });

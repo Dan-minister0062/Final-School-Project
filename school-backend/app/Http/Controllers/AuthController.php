@@ -77,6 +77,7 @@ class AuthController extends Controller
         $this->syncRoleFields($user, $request);
 
         \App\Support\ChildLinker::link($user);
+        \App\Support\ChildLinker::linkAll();
 
         Auth::login($user);
         $request->session()->regenerate();

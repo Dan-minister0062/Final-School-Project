@@ -5,7 +5,7 @@ import {
   FaBell, FaUserPlus, FaBullhorn, FaCog, FaUser, FaCheckCircle,
   FaSync, FaSearch, FaTimesCircle, FaClock, FaTrash,
   FaTasks, FaFileAlt, FaUserGraduate, FaCalendarCheck, FaBook,
-  FaEye, FaCheckDouble, FaFilter, FaSpinner
+  FaEye, FaCheckDouble, FaFilter, FaSpinner, FaEnvelope
 } from 'react-icons/fa';
 import { useNotification } from '../../../hooks/useNotification';
 import { useLanguage } from '../../../context/LanguageContext';
@@ -51,7 +51,7 @@ const Notifications = () => {
   // Get role-specific notification types
   const getNotificationTypes = () => {
     const types = {
-      admin: ['registration', 'payment', 'system', 'announcement', 'reminder'],
+      admin: ['registration', 'contact', 'payment', 'system', 'announcement', 'reminder'],
       teacher: ['assignment', 'submission', 'schedule', 'announcement'],
       parent: ['grade', 'attendance', 'announcement', 'payment'],
       student: ['grade', 'announcement', 'assignment', 'payment']
@@ -74,6 +74,7 @@ const Notifications = () => {
   const getTypeLabel = (type) => {
     const labels = {
       registration: isArabic ? 'تسجيل' : 'Registration',
+      contact: isArabic ? 'رسالة تواصل' : 'Contact',
       announcement: isArabic ? 'إعلان' : 'Announcement',
       assignment: isArabic ? 'واجب' : 'Assignment',
       submission: isArabic ? 'تسليم' : 'Submission',
@@ -92,6 +93,7 @@ const Notifications = () => {
   const getNotificationIcon = (type) => {
     const icons = {
       registration: <FaUserPlus />,
+      contact: <FaEnvelope />,
       announcement: <FaBullhorn />,
       assignment: <FaTasks />,
       submission: <FaFileAlt />,
@@ -110,6 +112,7 @@ const Notifications = () => {
   const getNotificationColor = (type) => {
     const colors = {
       registration: '#f39c12',
+      contact: '#1a5f7a',
       announcement: '#e67e22',
       assignment: '#3498db',
       submission: '#2ecc71',
@@ -128,6 +131,7 @@ const Notifications = () => {
   const getTypeOptions = () => {
     const allTypes = {
       registration: isArabic ? 'تسجيل' : 'Registration',
+      contact: isArabic ? 'رسالة تواصل' : 'Contact',
       announcement: isArabic ? 'إعلان' : 'Announcement',
       assignment: isArabic ? 'واجب' : 'Assignment',
       submission: isArabic ? 'تسليم' : 'Submission',
@@ -433,7 +437,9 @@ const Notifications = () => {
                         <div className="notification-header">
                           <div className="notification-title-group">
                             <h6 className="fw-bold mb-0" style={{ fontSize: isMobile ? '0.85rem' : 'inherit' }}>
-                              {notification.title}
+                              {isArabic
+                                ? notification.titleAr || notification.title
+                                : notification.title}
                             </h6>
                             <div className="d-flex flex-wrap align-items-center gap-1 mt-1">
                               {!notification.read && (
@@ -466,7 +472,9 @@ const Notifications = () => {
 
                         {/* Message */}
                         <p className="text-muted small mb-1 notification-message" style={{ fontSize: isMobile ? '0.75rem' : '0.85rem' }}>
-                          {notification.message}
+                          {isArabic
+                            ? notification.messageAr || notification.message
+                            : notification.message}
                         </p>
 
                         {/* Metadata */}

@@ -10,7 +10,8 @@ class Announcement extends Model
     use HasFactory;
 
     protected $fillable = [
-        'title', 'content', 'category', 'audience', 'start_date',
+        'title', 'content', 'title_en', 'title_ar', 'content_en', 'content_ar',
+        'category', 'audience', 'start_date',
         'end_date', 'published_by', 'status',
         'type', 'priority', 'author', 'target_audience', 'image', 'video',
         'media_type', 'views', 'likes', 'comments', 'date', 'time',

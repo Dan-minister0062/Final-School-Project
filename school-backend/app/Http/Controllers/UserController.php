@@ -55,6 +55,7 @@ class UserController extends Controller
         $this->linkProfile($user, $request);
 
         \App\Support\ChildLinker::link($user->fresh(['student', 'parent']));
+        \App\Support\ChildLinker::linkAll();
 
         $this->syncClassTeacher($user->fresh());
 
@@ -161,6 +162,7 @@ class UserController extends Controller
         }
 
         \App\Support\ChildLinker::link($user->fresh(['student', 'parent']));
+        \App\Support\ChildLinker::linkAll();
 
         return response()->json([
             'success' => true,
@@ -427,6 +429,8 @@ class UserController extends Controller
             $user->parent_id = $parent->id;
             $user->save();
 
+            $this->linkChildrenByIds($parent, $request);
+
             return;
         }
 
@@ -439,6 +443,50 @@ class UserController extends Controller
             $parent->code = 'PRT-'.str_pad((string) $parent->id, 4, '0', STR_PAD_LEFT);
         }
         $parent->save();
+
+        $this->linkChildrenByIds($parent, $request);
+    }
+
+    /**
+     * Link students to a parent row explicitly by id when the admin provides
+     * childrenIds (student-row ids and/or user ids) and keep the parent user's
+     * children_names list aligned with the linked students.
+     */
+    protected function linkChildrenByIds(\App\Models\StudentDataParent $parent, Request $request): void
+    {
+        $childrenIds = $request->input('childrenIds');
+        if (! is_array($childrenIds) || empty($childrenIds)) {
+            return;
+        }
+
+        $childrenIds = array_values(array_filter(array_map('intval', $childrenIds)));
+
+        if (empty($childrenIds)) {
+            return;
+        }
+
+        \App\Models\Student::whereIn('id', $childrenIds)->update(['parent_id' => $parent->id]);
+
+        User::where('role', 'student')->whereIn('id', $childrenIds)
+            ->pluck('student_id')
+            ->filter()
+            ->each(function (int $studentId) use ($parent): void {
+                \App\Models\Student::where('id', $studentId)->update(['parent_id' => $parent->id]);
+            });
+
+        $names = \App\Models\Student::where('parent_id', $parent->id)
+            ->pluck('name')
+            ->filter()
+            ->values()
+            ->all();
+
+        if (! empty($names)) {
+            $parentUser = User::where('role', 'parent')->where('parent_id', $parent->id)->first();
+            if ($parentUser) {
+                $parentUser->children_names = array_values($names);
+                $parentUser->save();
+            }
+        }
     }
 
     /**
@@ -454,6 +502,7 @@ class UserController extends Controller
 
         $classCode = $request->input('classCode') ?: $request->input('class_code') ?: $user->class_name;
         $guardian = $this->guardianPayload($user);
+        $parentId = $this->resolveParentId($request);
 
         if (! $user->student_id) {
             $student = \App\Models\Student::create([
@@ -466,6 +515,7 @@ class UserController extends Controller
                 'status' => $user->status ?? 'active',
                 'guardian' => $guardian ?: null,
                 'code' => $request->input('code'),
+                'parent_id' => $parentId,
             ]);
 
             if (empty($student->code)) {
@@ -515,10 +565,31 @@ class UserController extends Controller
         if (empty($student->code) && $request->filled('code')) {
             $fill['code'] = $request->input('code');
         }
+        if ($request->has('parentId')) {
+            $fill['parent_id'] = $this->resolveParentId($request);
+        }
 
         if (! empty($fill)) {
             $student->fill($fill)->save();
         }
+    }
+
+    /**
+     * Resolve the parent row id from the request's parentId, validating that
+     * the referenced parents row actually exists. Returns null otherwise so a
+     * bogus id never leaves the student row pointing nowhere.
+     */
+    protected function resolveParentId(Request $request): ?int
+    {
+        $parentId = $request->input('parentId');
+
+        if ($parentId === null || $parentId === '' || $parentId === 0) {
+            return null;
+        }
+
+        $parent = \App\Models\StudentDataParent::find((int) $parentId);
+
+        return $parent ? $parent->id : null;
     }
 
     protected function guardianPayload(User $user): array

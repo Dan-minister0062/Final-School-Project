@@ -115,6 +115,24 @@ const RegistrationsManagement = () => {
         serverRows = serverRes.data.map(normalizeServerRegistration);
       }
 
+      const payRes = await syncGet('/payments');
+      if (Array.isArray(payRes?.data)) {
+        const paidByAdmission = {};
+        payRes.data.forEach((p) => {
+          if (!['approved', 'paid'].includes(p.status)) return;
+          const paidAt = p.paidAt || p.paid_at || p.updatedAt || null;
+          const aid = p.admissionId ?? p.admission_id ?? null;
+          if (aid != null && aid !== '') paidByAdmission[String(aid)] = paidAt;
+        });
+        serverRows = serverRows.map((r) => {
+          const paidAt = paidByAdmission[String(r._serverId ?? r.id)];
+          if (paidAt && r.paymentStatus !== 'paid') {
+            return { ...r, paymentStatus: 'paid', paymentPaidAt: paidAt };
+          }
+          return r;
+        });
+      }
+
       serverRows.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
       setRegistrations(serverRows);
       setFilteredRegistrations(serverRows);
@@ -1193,7 +1211,7 @@ const handleReject = async () => {
                 >
                   <option value="">{isArabic ? 'اختر الفصل' : 'Select Class'}</option>
                   {classList.map((cls) => (
-                    <option key={cls.id} value={cls.id}>{cls.name}</option>
+                    <option key={cls.id} value={cls.id}>{isArabic ? cls.nameAr || cls.name : cls.name}</option>
                   ))}
                 </Form.Select>
                 {selectedRegistration.requestedClass && (

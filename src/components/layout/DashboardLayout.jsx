@@ -10,7 +10,7 @@ import {
   FaStar, FaAward,
   FaClock, FaChevronDown,
   FaLanguage, FaCheckDouble, FaTimes, FaUsers, FaUserCog, FaBook, FaMoneyBillWave,
-  FaClipboardList // Added for assessments
+  FaClipboardList, FaEnvelope // Added for assessments
 } from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { useLanguage } from '../../context/LanguageContext';
@@ -216,6 +216,7 @@ const DashboardLayout = () => {
         { path: '/dashboard/admin/subjects', icon: <FaBook />, label: isArabic ? 'المواد الدراسية' : 'Subjects' },
         { path: '/dashboard/admin/admissions', icon: <FaBook />, label: isArabic ? 'القبول' : 'Admission' },
         { path: '/dashboard/admin/payments', icon: <FaMoneyBillWave />, label: isArabic ? 'المدفوعات' : 'Payments' },
+        { path: '/dashboard/admin/contacts', icon: <FaEnvelope />, label: isArabic ? 'رسائل التواصل' : 'Contact Messages' },
         { path: '/dashboard/admin/notifications', icon: <FaBell />, label: isArabic ? 'الإشعارات' : 'Notifications' },
       ];
     }
@@ -568,8 +569,8 @@ const DashboardLayout = () => {
                               {renderNotificationIcon(notif.type)}
                             </div>
                             <div className="notification-content">
-                              <div className="fw-semibold notification-title">{notif.title}</div>
-                              <div className="text-muted small notification-message">{notif.message}</div>
+                              <div className="fw-semibold notification-title">{isArabic ? notif.titleAr || notif.title : notif.title}</div>
+                              <div className="text-muted small notification-message">{isArabic ? notif.messageAr || notif.message : notif.message}</div>
                               <div className="text-muted small notification-time">{notif.time}</div>
                             </div>
                             {!notif.read && <div className="notification-dot"></div>}

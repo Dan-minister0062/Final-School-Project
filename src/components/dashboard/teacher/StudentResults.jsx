@@ -586,7 +586,9 @@ const StudentResults = () => {
                     <div className="d-flex justify-content-between align-items-start mb-2">
                       <div>
                         <h6 className="fw-bold mb-0" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
-                          {assessment.title}
+                          {isArabic
+                            ? assessment.titleAr || assessment.title
+                            : assessment.title}
                         </h6>
                         <small className="text-muted d-block" style={arabicFontStyle}>
                           <FaBook className="me-1" size={12} />

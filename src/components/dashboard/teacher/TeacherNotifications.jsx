@@ -585,7 +585,9 @@ const TeacherNotifications = () => {
                       <div className="d-flex flex-wrap justify-content-between align-items-start gap-2">
                         <div>
                           <h6 className="fw-bold mb-1" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                            {notification.title || notification.message?.substring(0, 50) || 'Notification'}
+                            {isArabic
+                              ? notification.titleAr || notification.title
+                              : notification.title || notification.message?.substring(0, 50) || 'Notification'}{' '}
                             {!notification.read && (
                               <Badge bg="primary" className="ms-2" style={{ fontSize: '0.6rem' }}>
                                 {isArabic ? 'جديد' : 'New'}
@@ -627,7 +629,9 @@ const TeacherNotifications = () => {
                         </div>
                       </div>
                       <p className="mb-2" style={{ color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? '0.85rem' : '0.95rem' }}>
-                        {notification.message}
+                        {isArabic
+                          ? notification.messageAr || notification.message
+                          : notification.message}
                       </p>
                       {notification.link && (
                         <a 

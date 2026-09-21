@@ -180,26 +180,28 @@ const ParentDashboard = () => {
     return () => observer.disconnect();
   }, []);
 
-  // ===== GET GRADE LETTER =====
+  // ===== GET GRADE MEANING (out of 20 scale) =====
   const getGradeLetter = (score, totalMarks) => {
     if (!score || score === "" || !totalMarks) return "N/A";
-    const percentage = (parseFloat(score) / totalMarks) * 100;
-    if (percentage >= 90) return "A+";
-    if (percentage >= 85) return "A";
-    if (percentage >= 80) return "B+";
-    if (percentage >= 75) return "B";
-    if (percentage >= 70) return "C+";
-    if (percentage >= 60) return "C";
-    if (percentage >= 50) return "D";
-    return "F";
+    const value20 = (parseFloat(score) / totalMarks) * 20;
+    if (value20 >= 16)
+      return isArabic ? "جيد جدا" : "Very good";
+    if (value20 >= 14) return isArabic ? "جيد" : "Good";
+    if (value20 >= 12)
+      return isArabic ? "جيد نوعا ما" : "Quite satisfactory";
+    if (value20 >= 10)
+      return isArabic ? "مقبول / ناجح" : "Satisfactory / Pass";
+    return isArabic ? "غير مرضٍ / راسب" : "Unsatisfactory / Fail";
   };
 
-  // ===== GET GRADE COLOR =====
+  // ===== GET GRADE COLOR (out of 20 scale) =====
   const getGradeColor = (score, totalMarks) => {
     if (!score || score === "" || !totalMarks) return "#6c757d";
-    const percentage = (parseFloat(score) / totalMarks) * 100;
-    if (percentage >= 80) return "#2ecc71";
-    if (percentage >= 60) return "#f39c12";
+    const value20 = (parseFloat(score) / totalMarks) * 20;
+    if (value20 >= 16) return "#2ecc71";
+    if (value20 >= 14) return "#40c057";
+    if (value20 >= 12) return "#ffc107";
+    if (value20 >= 10) return "#fd7e14";
     return "#e74c3c";
   };
 
@@ -2002,7 +2004,9 @@ const ParentDashboard = () => {
                                 className="text-truncate d-inline-block"
                                 style={{ maxWidth: "200px" }}
                               >
-                                {announcement.title}
+                                {isArabic
+                                  ? announcement.titleAr || announcement.title
+                                  : announcement.title}
                               </span>
                             </div>
                             <div className="d-flex flex-wrap gap-2 mt-1">
@@ -2113,7 +2117,11 @@ const ParentDashboard = () => {
                 className="text-warning"
                 style={{ fontSize: "clamp(0.9rem, 1.1vw, 1.1rem)" }}
               />
-              <span>{selectedAnnouncement?.title}</span>
+              <span>
+                {isArabic
+                  ? selectedAnnouncement?.titleAr || selectedAnnouncement?.title
+                  : selectedAnnouncement?.title}
+              </span>
             </Modal.Title>
           </Modal.Header>
           <Modal.Body
@@ -2256,7 +2264,9 @@ const ParentDashboard = () => {
                       padding: "0 4px",
                     }}
                   >
-                    {selectedAnnouncement.content}
+                    {isArabic
+                      ? selectedAnnouncement?.contentAr || selectedAnnouncement?.content
+                      : selectedAnnouncement?.content}
                   </div>
                   <div
                     className="announcement-quote-icon-end"

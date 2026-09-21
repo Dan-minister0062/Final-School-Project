@@ -245,6 +245,10 @@ class UserDataService {
           payload[key] = user[key];
         }
       });
+      const parentId = user.parentId ?? user.parent_id;
+      if (parentId !== undefined && parentId !== null && parentId !== "") {
+        payload.parentId = parentId;
+      }
       if (user.attendance !== undefined && user.attendance !== null)
         payload.attendance = Number(user.attendance) || 0;
       if (user.averageGrade !== undefined && user.averageGrade !== null)
@@ -252,6 +256,9 @@ class UserDataService {
     }
 
     if (user.role === "parent") {
+      if (Array.isArray(user.childrenIds) && user.childrenIds.length > 0) {
+        payload.childrenIds = user.childrenIds;
+      }
       ["occupation", "employer"].forEach((key) => {
         if (user[key] !== undefined && user[key] !== null && user[key] !== "") {
           payload[key] = user[key];
@@ -352,6 +359,7 @@ class UserDataService {
       "classCode",
       "classId",
       "class_code",
+      "parentId",
       "attendance",
       "averageGrade",
       // Parent fields
@@ -359,6 +367,7 @@ class UserDataService {
       "employer",
       "childrenNames",
       "children_names",
+      "childrenIds",
       "relationship",
     ];
     const payload = {};

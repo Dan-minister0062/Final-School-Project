@@ -511,7 +511,7 @@ const TeacherClasses = () => {
                       </div>
                       <div>
                         <h6 className="fw-bold mb-0" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
-                          {cls.name}
+                          {isArabic ? (cls.nameAr || cls.name) : cls.name}
                         </h6>
                         <small className="text-muted" style={arabicFontStyle}>
                           {getLevelDisplay(cls.level)}

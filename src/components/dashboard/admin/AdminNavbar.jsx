@@ -99,7 +99,8 @@ const AdminNavbar = ({ userRole = 'admin' }) => {
       n.type === 'registration_approved' ||
       n.type === 'registration_declined' ||
       n.type === 'new_registration' ||
-      n.type === 'payment'
+      n.type === 'payment' ||
+      n.type === 'contact'
     );
     setNotifications(filteredNotifications);
     setUnreadCount(filteredNotifications.filter(n => !n.read).length);
@@ -112,7 +113,7 @@ const AdminNavbar = ({ userRole = 'admin' }) => {
     // Listen for new notifications
     const handleNewNotification = (event) => {
       const newNotif = event.detail;
-      if (newNotif && (newNotif.type === 'announcement' || newNotif.type === 'registration' || newNotif.type === 'new_registration' || newNotif.type === 'payment')) {
+      if (newNotif && (newNotif.type === 'announcement' || newNotif.type === 'registration' || newNotif.type === 'new_registration' || newNotif.type === 'payment' || newNotif.type === 'contact')) {
         loadNotifications();
       }
     };
@@ -171,6 +172,7 @@ const AdminNavbar = ({ userRole = 'admin' }) => {
     { path: '/dashboard/admin/teachers', icon: <FaChalkboardTeacher />, label: t('Teachers') },
     { path: '/dashboard/admin/classes', icon: <FaGraduationCap />, label: t('Classes') },
     { path: '/dashboard/admin/announcements', icon: <FaBullhorn />, label: t('Announcements') },
+    { path: '/dashboard/admin/contacts', icon: <FaEnvelope />, label: isArabic ? 'رسائل التواصل' : 'Contact Messages' },
     { path: '/dashboard/admin/subjects', icon: <FaBook />, label: t('Academics') },
   ];
 
@@ -189,6 +191,8 @@ const AdminNavbar = ({ userRole = 'admin' }) => {
       navigate('/dashboard/admin/registrations');
     } else if (notification.type === 'registration_approved' || notification.type === 'registration_declined') {
       navigate('/dashboard/admin/registrations');
+    } else if (notification.type === 'contact') {
+      navigate('/dashboard/admin/contacts');
     }
     
     setShowNotifications(false);
@@ -215,6 +219,8 @@ const AdminNavbar = ({ userRole = 'admin' }) => {
       case 'registration':
       case 'new_registration':
         return <FaUserPlus />;
+      case 'contact':
+        return <FaEnvelope />;
       case 'registration_approved':
         return <FaCheckCircle />;
       case 'registration_declined':
@@ -232,6 +238,8 @@ const AdminNavbar = ({ userRole = 'admin' }) => {
       case 'registration':
       case 'new_registration':
         return '#f39c12';
+      case 'contact':
+        return '#1a5f7a';
       case 'registration_approved':
         return '#2ecc71';
       case 'registration_declined':
@@ -291,8 +299,8 @@ const AdminNavbar = ({ userRole = 'admin' }) => {
                       {getNotificationIcon(notif.type)}
                     </div>
                     <div className="notif-content">
-                      <div className="notif-title">{notif.title}</div>
-                      <div className="notif-message">{notif.message}</div>
+                      <div className="notif-title">{isArabic ? notif.titleAr || notif.title : notif.title}</div>
+                      <div className="notif-message">{isArabic ? notif.messageAr || notif.message : notif.message}</div>
                       <div className="notif-time">{notif.time}</div>
                     </div>
                     {isUnread && <div className="notif-dot" style={{ background: iconColor }}></div>}

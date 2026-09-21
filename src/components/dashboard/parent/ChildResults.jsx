@@ -23,6 +23,9 @@ import {
   FaCalculator,
   FaLanguage,
   FaFlask,
+  FaAtom,
+  FaDna,
+  FaMusic,
   FaQuran,
   FaMicroscope,
   FaLaptop,
@@ -107,6 +110,18 @@ const ChildResults = () => {
   // ===== ARABIC FONT STYLE =====
   const arabicFontStyle = getArabicFontStyle(isArabic);
 
+  // ===== ASSESSMENTS TABLE HEADER STYLE =====
+  const assessThStyle = {
+    ...arabicFontStyle,
+    fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
+    textTransform: "uppercase",
+    letterSpacing: "0.3px",
+    color: darkMode ? "#adb5bd" : "#6c757d",
+    borderBottom: `2px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
+    padding: "8px 16px",
+    whiteSpace: "nowrap",
+  };
+
   // ===== CHECK DARK MODE =====
   useEffect(() => {
     const checkDarkMode = () => {
@@ -124,46 +139,46 @@ const ChildResults = () => {
     return () => observer.disconnect();
   }, []);
 
-  // ===== GET GRADE FROM SCORE (student panel scale) =====
+  // ===== GET GRADE FROM SCORE (out of 20 scale) =====
   const getGradeFromScore = (score, maxMarks) => {
     if (score === null || score === undefined || !maxMarks) return "N/A";
-    const percentage = (Number(score) / maxMarks) * 100;
-    if (percentage >= 90) return "A+";
-    if (percentage >= 80) return "A";
-    if (percentage >= 75) return "A-";
-    if (percentage >= 70) return "B+";
-    if (percentage >= 65) return "B";
-    if (percentage >= 60) return "B-";
-    if (percentage >= 55) return "C+";
-    if (percentage >= 50) return "C";
-    if (percentage >= 45) return "D";
-    return "F";
+    const value20 = (Number(score) / maxMarks) * 20;
+    if (value20 >= 16)
+      return isArabic ? "جيد جدا" : "Very good";
+    if (value20 >= 14) return isArabic ? "جيد" : "Good";
+    if (value20 >= 12)
+      return isArabic ? "جيد نوعا ما" : "Quite satisfactory";
+    if (value20 >= 10)
+      return isArabic ? "مقبول / ناجح" : "Satisfactory / Pass";
+    return isArabic ? "غير مرضٍ / راسب" : "Unsatisfactory / Fail";
   };
 
-  // ===== GET GRADE BADGE COLOR (letter based, student panel style) =====
+  // ===== GET GRADE BADGE COLOR (out of 20 scale) =====
   const getGradeBadgeColor = (grade) => {
     if (!grade) return "#6c757d";
     const gradeMap = {
-      "A+": "#28a745",
-      A: "#28a745",
-      "A-": "#40c057",
-      "B+": "#5cb85c",
-      B: "#ffc107",
-      "B-": "#ffc107",
-      "C+": "#fd7e14",
-      C: "#fd7e14",
-      D: "#dc3545",
-      F: "#dc3545",
+      "Very good": "#28a745",
+      "جيد جدا": "#28a745",
+      "Good": "#40c057",
+      "جيد": "#40c057",
+      "Quite satisfactory": "#ffc107",
+      "جيد نوعا ما": "#ffc107",
+      "Satisfactory / Pass": "#fd7e14",
+      "مقبول / ناجح": "#fd7e14",
+      "Unsatisfactory / Fail": "#dc3545",
+      "غير مرضٍ / راسب": "#dc3545",
     };
     return gradeMap[grade] || "#6c757d";
   };
 
-  // ===== GET GRADE COLOR =====
+  // ===== GET GRADE COLOR (out of 20 scale) =====
   const getGradeColor = (score, totalMarks) => {
     if (!score || score === "" || !totalMarks) return "#6c757d";
-    const percentage = (parseFloat(score) / totalMarks) * 100;
-    if (percentage >= 80) return "#2ecc71";
-    if (percentage >= 60) return "#f39c12";
+    const value20 = (parseFloat(score) / totalMarks) * 20;
+    if (value20 >= 16) return "#2ecc71";
+    if (value20 >= 14) return "#40c057";
+    if (value20 >= 12) return "#ffc107";
+    if (value20 >= 10) return "#fd7e14";
     return "#e74c3c";
   };
 
@@ -212,21 +227,6 @@ const ChildResults = () => {
       'other': isArabic ? 'أخرى' : 'Other',
     };
     return labels[type] || type || 'Assignment';
-  };
-
-  // ===== GET ASSESSMENT TYPE COLOR =====
-  const getTypeColor = (type) => {
-    const colors = {
-      'homework': '#8e44ad',
-      'assignment': '#2d6a4f',
-      'test': '#e67e22',
-      'exam': '#c0392b',
-      'classwork': '#2980b9',
-      'quiz': '#16a085',
-      'project': '#34495e',
-      'other': '#6c757d',
-    };
-    return colors[type] || '#6c757d';
   };
 
   // ===== GET PERFORMANCE COLOR =====
@@ -511,6 +511,60 @@ const ChildResults = () => {
               };
             });
 
+          const rowsBySubject = new Map();
+          assessmentResults.forEach((result) => {
+            if (!rowsBySubject.has(result.name)) {
+              rowsBySubject.set(result.name, {
+                name: result.name,
+                nameAr: result.nameAr || result.name,
+                semester: result.semester || "First Semester",
+                teacher: result.teacher || "Teacher",
+                date: result.date || "",
+                rows: [],
+              });
+            }
+            rowsBySubject.get(result.name).rows.push(result);
+          });
+          const assessmentMatrix = [...rowsBySubject.values()].map((entry) => {
+            const bestForType = (type) =>
+              entry.rows
+                .filter(
+                  (r) => String(r.type || "assignment").toLowerCase() === type,
+                )
+                .sort((a, b) => Number(b.score) - Number(a.score))[0] || null;
+            const gradedRows = entry.rows.filter((r) => r.isGraded);
+            const best =
+              gradedRows.length > 0
+                ? [...gradedRows].sort(
+                    (a, b) => Number(b.score) - Number(a.score),
+                  )[0]
+                : null;
+            const hasSubmitted = entry.rows.some((r) => r.hasSubmitted);
+            return {
+              name: entry.name,
+              nameAr: entry.nameAr,
+              semester: entry.semester,
+              teacher: entry.teacher,
+              date: best ? best.date || entry.date : entry.date,
+              isGraded: !!best,
+              hasSubmitted: hasSubmitted,
+              score: best ? Number(best.score) : 0,
+              totalMarks: best ? Number(best.totalMarks) : 0,
+              grade: best ? best.grade : "N/A",
+              percentage: best ? best.percentage : 0,
+              status: best
+                ? "graded"
+                : hasSubmitted
+                  ? "submitted"
+                  : "pending",
+              homework: bestForType("homework"),
+              assignment: bestForType("assignment"),
+              test: bestForType("test"),
+              classwork: bestForType("classwork"),
+              exam: bestForType("exam"),
+            };
+          });
+
           // Calculate average from graded subjects only
           const gradedSubjects = subjectsWithGrades.filter((s) => s.isGraded);
           const average =
@@ -586,6 +640,7 @@ const ChildResults = () => {
             attendance: attendanceRate,
             subjects: subjectsWithGrades,
             assessmentResults: assessmentResults,
+            assessmentMatrix: assessmentMatrix,
             assessmentCount: assessmentResults.length,
             achievements:
               achievements.length > 0
@@ -1294,136 +1349,75 @@ const ChildResults = () => {
                 <Table hover className="mb-0">
                   <thead>
                     <tr>
-                      <th
-                        style={{
-                          ...arabicFontStyle,
-                          fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.3px",
-                          color: darkMode ? "#adb5bd" : "#6c757d",
-                          borderBottom: `2px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
-                          padding: "8px 16px",
-                        }}
-                      >
-                        #
-                      </th>
-                      <th
-                        style={{
-                          ...arabicFontStyle,
-                          fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.3px",
-                          color: darkMode ? "#adb5bd" : "#6c757d",
-                          borderBottom: `2px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
-                          padding: "8px 16px",
-                        }}
-                      >
+                      <th style={assessThStyle}>
                         {isArabic ? "المادة" : "Subject"}
                       </th>
                       <th
                         className="d-none d-sm-table-cell"
-                        style={{
-                          ...arabicFontStyle,
-                          fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.3px",
-                          color: darkMode ? "#adb5bd" : "#6c757d",
-                          borderBottom: `2px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
-                          padding: "8px 16px",
-                        }}
-                      >
-                        {isArabic ? "النوع" : "Type"}
-                      </th>
-                      <th
-                        className="d-none d-sm-table-cell"
-                        style={{
-                          ...arabicFontStyle,
-                          fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.3px",
-                          color: darkMode ? "#adb5bd" : "#6c757d",
-                          borderBottom: `2px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
-                          padding: "8px 16px",
-                        }}
+                        style={assessThStyle}
                       >
                         {isArabic ? "الفصل" : "Semester"}
                       </th>
                       <th
-                        className="text-center"
-                        style={{
-                          ...arabicFontStyle,
-                          fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.3px",
-                          color: darkMode ? "#adb5bd" : "#6c757d",
-                          borderBottom: `2px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
-                          padding: "8px 16px",
-                        }}
+                        className="text-center d-none d-sm-table-cell"
+                        style={assessThStyle}
                       >
+                        {isArabic ? "واجب منزلي" : "Homework"}
+                      </th>
+                      <th
+                        className="text-center d-none d-sm-table-cell"
+                        style={assessThStyle}
+                      >
+                        {isArabic ? "مشروع" : "Assignment"}
+                      </th>
+                      <th
+                        className="text-center d-none d-sm-table-cell"
+                        style={assessThStyle}
+                      >
+                        {isArabic ? "اختبار" : "Test"}
+                      </th>
+                      <th
+                        className="text-center d-none d-sm-table-cell"
+                        style={assessThStyle}
+                      >
+                        {isArabic ? "عمل صفي" : "Classwork"}
+                      </th>
+                      <th
+                        className="text-center d-none d-sm-table-cell"
+                        style={assessThStyle}
+                      >
+                        {isArabic ? "امتحان" : "Exam"}
+                      </th>
+                      <th className="text-center" style={assessThStyle}>
                         {isArabic ? "الدرجة" : "Score"}
                       </th>
                       <th
                         className="text-center d-none d-sm-table-cell"
-                        style={{
-                          ...arabicFontStyle,
-                          fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.3px",
-                          color: darkMode ? "#adb5bd" : "#6c757d",
-                          borderBottom: `2px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
-                          padding: "8px 16px",
-                        }}
+                        style={assessThStyle}
                       >
                         {isArabic ? "التقدير" : "Grade"}
                       </th>
-                      <th
-                        className="text-center"
-                        style={{
-                          ...arabicFontStyle,
-                          fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.3px",
-                          color: darkMode ? "#adb5bd" : "#6c757d",
-                          borderBottom: `2px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
-                          padding: "8px 16px",
-                        }}
-                      >
+                      <th className="text-center" style={assessThStyle}>
                         {isArabic ? "الحالة" : "Status"}
                       </th>
                       <th
                         className="d-none d-md-table-cell"
-                        style={{
-                          ...arabicFontStyle,
-                          fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.3px",
-                          color: darkMode ? "#adb5bd" : "#6c757d",
-                          borderBottom: `2px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
-                          padding: "8px 16px",
-                        }}
+                        style={assessThStyle}
                       >
                         {isArabic ? "المعلم" : "Teacher"}
                       </th>
                       <th
                         className="d-none d-md-table-cell"
-                        style={{
-                          ...arabicFontStyle,
-                          fontSize: "clamp(0.6rem, 0.7vw, 0.7rem)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.3px",
-                          color: darkMode ? "#adb5bd" : "#6c757d",
-                          borderBottom: `2px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
-                          padding: "8px 16px",
-                        }}
+                        style={assessThStyle}
                       >
                         {isArabic ? "التاريخ" : "Date"}
                       </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {(selectedChild.assessmentResults &&
-                    selectedChild.assessmentResults.length > 0
-                      ? selectedChild.assessmentResults
+                    {(selectedChild.assessmentMatrix &&
+                    selectedChild.assessmentMatrix.length > 0
+                      ? selectedChild.assessmentMatrix
                       : selectedChild.subjects || []
                     ).map((subject, index) => {
                       const subjectName = isArabic
@@ -1435,17 +1429,34 @@ const ChildResults = () => {
                         ? gradeColor
                         : "#6c757d";
 
-                      return (
-                        <tr key={index}>
-                          <td
-                            className="text-muted"
+                      const renderTypeScore = (typeRow) =>
+                        typeRow && typeRow.isGraded ? (
+                          <span
+                            className="fw-bold"
                             style={{
-                              ...arabicFontStyle,
-                              fontSize: "clamp(0.8rem, 0.9vw, 0.95rem)",
+                              color: getGradeBadgeColor(typeRow.grade),
+                              fontSize: "clamp(0.75rem, 0.85vw, 0.9rem)",
                             }}
                           >
-                            {formatNumber(index + 1)}
-                          </td>
+                            {formatNumber(typeRow.score)}
+                            <span
+                              className="text-muted"
+                              style={{ fontSize: "0.7em" }}
+                            >
+                              /{formatNumber(typeRow.totalMarks)}
+                            </span>
+                          </span>
+                        ) : (
+                          <span
+                            className="text-muted"
+                            style={{ fontSize: "0.75rem" }}
+                          >
+                            -
+                          </span>
+                        );
+
+                      return (
+                        <tr key={index}>
                           <td>
                             <div className="d-flex align-items-center gap-2">
                               <span
@@ -1465,59 +1476,26 @@ const ChildResults = () => {
                                 }}
                               >
                                 {subjectName}
-                                {(subject.assessmentTitle || subject.type) && (
-                                  <span
-                                    className="text-muted ms-1"
-                                    style={{
-                                      fontSize: "0.55rem",
-                                      display: "block",
-                                    }}
-                                  >
-                                    {subject.assessmentTitle || ""}
-                                    {subject.assessmentTitle && subject.type
-                                      ? " "
-                                      : ""}
-                                    {subject.type && (
-                                      <span
-                                        style={{
-                                          color: getTypeColor(subject.type),
-                                          fontWeight: 600,
-                                        }}
-                                      >
-                                        {getTypeLabel(subject.type)}
-                                      </span>
-                                    )}
-                                  </span>
-                                )}
                               </span>
                             </div>
                           </td>
                           <td className="d-none d-sm-table-cell">
-                            {subject.type ? (
-                              <span
-                                style={{
-                                  background: `${getTypeColor(subject.type)}18`,
-                                  color: getTypeColor(subject.type),
-                                  padding: "2px 10px",
-                                  borderRadius: "50px",
-                                  fontSize: "clamp(0.5rem, 0.6vw, 0.6rem)",
-                                  fontWeight: 600,
-                                  whiteSpace: "nowrap",
-                                }}
-                              >
-                                {getTypeLabel(subject.type)}
-                              </span>
-                            ) : (
-                              <span
-                                className="text-muted"
-                                style={{ fontSize: "0.7rem" }}
-                              >
-                                -
-                              </span>
-                            )}
-                          </td>
-                          <td className="d-none d-sm-table-cell">
                             {subject.semester || "-"}
+                          </td>
+                          <td className="text-center d-none d-sm-table-cell">
+                            {renderTypeScore(subject.homework)}
+                          </td>
+                          <td className="text-center d-none d-sm-table-cell">
+                            {renderTypeScore(subject.assignment)}
+                          </td>
+                          <td className="text-center d-none d-sm-table-cell">
+                            {renderTypeScore(subject.test)}
+                          </td>
+                          <td className="text-center d-none d-sm-table-cell">
+                            {renderTypeScore(subject.classwork)}
+                          </td>
+                          <td className="text-center d-none d-sm-table-cell">
+                            {renderTypeScore(subject.exam)}
                           </td>
                           <td className="text-center">
                             {subject.isGraded ? (

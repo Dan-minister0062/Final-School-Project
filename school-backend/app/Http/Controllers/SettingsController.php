@@ -10,10 +10,13 @@ class SettingsController extends Controller
 {
     protected array $defaults = [
         'schoolName' => 'Madrassat Al Fath',
+        'schoolNameAr' => 'مدرسة الفتح الخاصة',
         'schoolEmail' => 'info@madrassatalfath.edu',
         'schoolPhone' => '+123 456 7890',
         'schoolAddress' => '123 Education Street, City',
+        'schoolAddressAr' => 'شارع التعليم 123، المدينة',
         'schoolDescription' => 'Nurturing Young Minds with Islamic Values',
+        'schoolDescriptionAr' => 'نرتقي بالعلم والإيمان',
         'schoolWebsite' => 'www.madrassatalfath.edu',
         'schoolLogo' => null,
         'language' => 'en',

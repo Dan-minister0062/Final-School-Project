@@ -10,25 +10,26 @@ class SubjectSeeder extends Seeder
     public function run(): void
     {
         $subjects = [
-            ['M', 'Mathématiques', 'الرياضيات', 'secondary'],
-            ['P', 'Physique et Chimie', 'الفيزياء والكيمياء', 'secondary'],
-            ['SVT', 'Sciences de la Vie et de la Terre', 'علوم الحياة والأرض', 'secondary'],
-            ['Ar', 'Langue Arabe', 'اللغة العربية', 'secondary'],
-            ['Fr', 'Langue Française', 'اللغة الفرنسية', 'secondary'],
-            ['AN', 'Langue Anglaise', 'اللغة الإنجليزية', 'secondary'],
-            ['His-Geo', 'Histoire-Géographie', 'التاريخ والجغرافيا', 'secondary'],
-            ['EP', 'Éducation Physique et Sportive', 'التربية البدنية والرياضية', 'secondary'],
-            ['IS', 'Informatique', 'الإعلاميات', 'secondary'],
-            ['EdIs', 'Éducation Islamique', 'التربية الإسلامية', 'secondary'],
-            ['AF', 'Activités et Exercices / Aides', 'أنشطة وتمارين', 'secondary'],
+            ['M', 'Mathématiques', 'Mathematics', 'الرياضيات', 'secondary'],
+            ['P', 'Physique et Chimie', 'Physics and Chemistry', 'الفيزياء والكيمياء', 'secondary'],
+            ['SVT', 'Sciences de la Vie et de la Terre', 'Life and Earth Sciences', 'علوم الحياة والأرض', 'secondary'],
+            ['Ar', 'Langue Arabe', 'Arabic Language', 'اللغة العربية', 'secondary'],
+            ['Fr', 'Langue Française', 'French Language', 'اللغة الفرنسية', 'secondary'],
+            ['AN', 'Langue Anglaise', 'English Language', 'اللغة الإنجليزية', 'secondary'],
+            ['His-Geo', 'Histoire-Géographie', 'History-Geography', 'التاريخ والجغرافيا', 'secondary'],
+            ['EP', 'Éducation Physique et Sportive', 'Physical Education and Sports', 'التربية البدنية والرياضية', 'secondary'],
+            ['IS', 'Informatique', 'Computer Science', 'الإعلاميات', 'secondary'],
+            ['EdIs', 'Éducation Islamique', 'Islamic Education', 'التربية الإسلامية', 'secondary'],
+            ['AF', 'Activités et Exercices / Aides', 'Activities and Exercises', 'أنشطة وتمارين', 'secondary'],
         ];
 
-        foreach ($subjects as [$code, $name, $nameAr, $category]) {
+        foreach ($subjects as [$code, $name, $nameEn, $nameAr, $category]) {
             Subject::updateOrCreate(
                 ['code' => $code],
                 [
                     'code' => $code,
                     'name' => $name,
+                    'name_en' => $nameEn,
                     'name_ar' => $nameAr,
                     'category' => $category,
                     'coefficient' => $this->coefficient($code),

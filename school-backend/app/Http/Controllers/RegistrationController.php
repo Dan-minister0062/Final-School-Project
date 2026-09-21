@@ -80,13 +80,30 @@ class RegistrationController extends Controller
     public function status(Request $request, int $id): JsonResponse
     {
         $request->validate([
-            'status' => 'required|in:pending,approved,rejected',
+            'status' => 'sometimes|in:pending,approved,rejected',
+            'paymentStatus' => 'sometimes|in:requested,paid,unpaid',
+            'payment_status' => 'sometimes|in:requested,paid,unpaid',
         ]);
 
         $registration = Registration::findOrFail($id);
-        $registration->update([
-            'status' => $request->input('status'),
-        ]);
+
+        $data = [];
+        if ($request->has('status')) {
+            $data['status'] = $request->input('status');
+        }
+
+        if ($request->has('paymentStatus') || $request->has('payment_status')) {
+            $paymentStatus = $request->input('paymentStatus', $request->input('payment_status'));
+            $data['payment_status'] = $paymentStatus;
+            if ($paymentStatus === 'paid') {
+                $data['payment_paid_at'] = $request->input(
+                    'paymentPaidAt',
+                    $request->input('payment_paid_at', now())
+                );
+            }
+        }
+
+        $registration->update($data);
 
         return response()->json([
             'success' => true,
@@ -163,6 +180,10 @@ class RegistrationController extends Controller
             'status' => $r->status,
             'admin_notes' => $r->admin_notes,
             'adminNotes' => $r->admin_notes,
+            'payment_status' => $r->payment_status,
+            'paymentStatus' => $r->payment_status,
+            'payment_paid_at' => $r->payment_paid_at?->toIso8601String(),
+            'paymentPaidAt' => $r->payment_paid_at?->toIso8601String(),
             'createdAt' => $r->created_at?->toIso8601String(),
             'created_at' => $r->created_at?->toIso8601String(),
             'updatedAt' => $r->updated_at?->toIso8601String(),

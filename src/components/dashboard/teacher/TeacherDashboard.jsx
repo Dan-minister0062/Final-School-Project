@@ -189,7 +189,7 @@ const TeacherDashboard = () => {
           id: `act_${a.id}`,
           type: "assessment",
           description: isArabic
-            ? `إنشاء تقييم: ${a.title}`
+            ? `إنشاء تقييم: ${a.titleAr || a.title}`
             : `Created assessment: ${a.title}`,
           timestamp: a.createdAt || new Date().toISOString(),
           icon: "📝",
@@ -600,7 +600,9 @@ const TeacherDashboard = () => {
                       </div>
                       <div className="flex-grow-1">
                         <p className="mb-0 small" style={{ ...arabicFontStyle, fontSize: isMobile ? '0.75rem' : '0.85rem', color: darkMode ? '#e9ecef' : '#212529' }}>
-                          {notification.message || notification.title}
+                          {isArabic
+                            ? notification.messageAr || notification.message
+                            : notification.message || notification.title}
                         </p>
                         <small className="text-muted" style={{ ...arabicFontStyle, fontSize: isMobile ? '0.55rem' : '0.65rem' }}>
                           {notification.time || new Date(notification.createdAt).toLocaleDateString()}
@@ -654,7 +656,9 @@ const TeacherDashboard = () => {
                   <div key={assessment.id} className="upcoming-item px-2 px-sm-3 py-2 border-bottom d-flex justify-content-between align-items-center" style={{ borderColor: darkMode ? '#2d2d44' : '#e9ecef' }}>
                     <div>
                       <p className="mb-0 small fw-semibold" style={{ ...arabicFontStyle, fontSize: isMobile ? '0.75rem' : '0.85rem', color: darkMode ? '#e9ecef' : '#212529' }}>
-                        {assessment.title}
+                        {isArabic
+                          ? assessment.titleAr || assessment.title
+                          : assessment.title}
                       </p>
                       <small className="text-muted" style={{ ...arabicFontStyle, fontSize: isMobile ? '0.55rem' : '0.65rem' }}>
                         <FaClock size={isMobile ? 8 : 10} className="me-1" />

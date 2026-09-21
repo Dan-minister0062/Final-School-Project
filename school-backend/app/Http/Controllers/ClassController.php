@@ -19,6 +19,8 @@ class ClassController extends Controller
             'id' => $row['code'],
             'code' => $row['code'],
             'name' => $row['name'],
+            'nameEn' => $row['nameEn'] ?? $row['name'],
+            'nameAr' => $row['nameAr'] ?? $row['name'],
             'level' => $row['level'],
             'level_key' => $row['level_key'],
             'status' => $row['status'],
@@ -71,6 +73,8 @@ class ClassController extends Controller
     {
         $rules = [
             'name' => $creating ? 'required|string|max:120' : 'sometimes|string|max:120',
+            'name_en' => 'nullable|string|max:120',
+            'name_ar' => 'nullable|string|max:120',
             'level_key' => 'nullable|string|max:60',
             'capacity' => 'nullable|integer|min:0',
             'academic_year' => 'nullable|string|max:20',
@@ -97,6 +101,15 @@ class ClassController extends Controller
             ?? $request->input('level')
             ?? $request->input('educationLevel')
             ?? 'primary';
+        $data['name_en'] = $data['name_en']
+            ?? $request->input('nameEn')
+            ?? $request->input('name')
+            ?? $data['name']
+            ?? null;
+        $data['name_ar'] = $data['name_ar']
+            ?? $request->input('nameAr')
+            ?? $data['name_en']
+            ?? null;
         $data['status'] = $request->has('isActive')
             ? ($request->input('isActive') ? 'active' : 'inactive')
             : ($data['status'] ?? 'active');
@@ -118,6 +131,8 @@ class ClassController extends Controller
             'id' => $class->code,
             'code' => $class->code,
             'name' => $class->name,
+            'nameEn' => $class->name_en ?? $class->name,
+            'nameAr' => $class->name_ar ?? $class->name,
             'level_key' => $class->level_key,
             'level' => $class->level_key,
             'capacity' => $class->capacity,

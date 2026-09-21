@@ -12,8 +12,8 @@ class SchoolClass extends Model
     protected $table = 'classes';
 
     protected $fillable = [
-        'code', 'name', 'level_key', 'capacity', 'academic_year',
-        'room', 'teacher_name', 'status',
+        'code', 'name', 'name_en', 'name_ar', 'level_key', 'capacity',
+        'academic_year', 'room', 'teacher_name', 'status',
     ];
 
     protected $casts = [

@@ -30,7 +30,11 @@ class NotificationController extends Controller
 
         $n = new Notification([
             'title' => $request->input('title'),
+            'title_en' => $request->input('titleEn') ?? $request->input('title'),
+            'title_ar' => $request->input('titleAr'),
             'message' => $request->input('message'),
+            'message_en' => $request->input('messageEn') ?? $request->input('message'),
+            'message_ar' => $request->input('messageAr'),
             'type' => $request->input('type', 'info'),
             'link' => $request->input('link'),
             'priority' => $request->input('priority', 'low'),
@@ -103,7 +107,11 @@ class NotificationController extends Controller
         return [
             'id' => $n->id,
             'title' => $n->title,
+            'titleEn' => $n->title_en ?? $n->title,
+            'titleAr' => $n->title_ar ?? $n->title,
             'message' => $n->message,
+            'messageEn' => $n->message_en ?? $n->message,
+            'messageAr' => $n->message_ar ?? $n->message,
             'type' => $n->type ?? 'info',
             'link' => $n->link,
             'priority' => $n->priority ?? 'low',

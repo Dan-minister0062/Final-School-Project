@@ -775,7 +775,7 @@ const TeacherAttendance = () => {
                 <option value="">{isArabic ? 'اختر فصل' : 'Select a class'}</option>
                 {classes.map(cls => (
                   <option key={cls.id} value={cls.id}>
-                    {cls.name} 
+                    {isArabic ? cls.nameAr || cls.name : cls.name} 
                   </option>
                 ))}
               </Form.Select>

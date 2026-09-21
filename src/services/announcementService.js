@@ -4,7 +4,11 @@ import api, { getAuthIdentity } from './api';
 function toServerAnnouncement(a) {
   return {
     title: a.title,
+    titleEn: a.titleEn || a.title,
+    titleAr: a.titleAr,
     content: a.content || '',
+    contentEn: a.contentEn || a.content || '',
+    contentAr: a.contentAr,
     type: a.type || 'announcement',
     priority: a.priority || 'medium',
     status: a.status || 'published',
@@ -23,7 +27,11 @@ function fromServerAnnouncement(sa) {
     id: sa.id,
     _serverId: sa.id,
     title: sa.title,
+    titleEn: sa.titleEn || sa.title,
+    titleAr: sa.titleAr || sa.title,
     content: sa.content || '',
+    contentEn: sa.contentEn || sa.content || '',
+    contentAr: sa.contentAr || sa.content || '',
     type: sa.type || 'announcement',
     priority: sa.priority || 'medium',
     status: sa.status || 'draft',

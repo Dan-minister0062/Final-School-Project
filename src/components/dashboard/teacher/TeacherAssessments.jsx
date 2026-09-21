@@ -797,13 +797,14 @@ const TeacherAssessments = () => {
   const handleSendToAdmin = async (assessment) => {
     try {
       const serverId = assessment._serverId || assessment.id;
+      const displayTitle = isArabic ? (assessment.titleAr || assessment.title) : assessment.title;
       await syncSend('patch', `/assessments/${serverId}/status`, { status: 'pending_approval' });
 
       notificationService.addNotification({
         title: isArabic ? '📤 تقييم جديد بانتظار المراجعة' : '📤 New Assessment Pending Review',
         message: isArabic
-          ? `أرسل المعلم ${teacher?.name || 'معلم'} تقييم "${assessment.title}" للموافقة عليه`
-          : `Teacher ${teacher?.name || 'Teacher'} submitted assessment "${assessment.title}" for approval`,
+          ? `أرسل المعلم ${teacher?.name || 'معلم'} تقييم "${displayTitle}" للموافقة عليه`
+          : `Teacher ${teacher?.name || 'Teacher'} submitted assessment "${displayTitle}" for approval`,
         type: 'assignment',
         link: '/dashboard/admin/assessments',
         metadata: { assessment_id: serverId, teacher_name: teacher?.name },
@@ -839,6 +840,7 @@ const TeacherAssessments = () => {
       }
 
       const teacherName = teacher?.name || assessment.teacherName || 'Teacher';
+      const displayTitle = isArabic ? (assessment.titleAr || assessment.title) : assessment.title;
 
       const serverId = assessment._serverId || assessment.id;
       await syncSend('patch', `/assessments/${serverId}/status`, { status: 'sent_to_students' });
@@ -848,11 +850,11 @@ const TeacherAssessments = () => {
         notificationService.addNotification({
           title: isArabic ? '📚 تقييم جديد' : '📚 New Assessment',
           message: isArabic
-            ? `قام المعلم ${teacherName} بتعيين تقييم جديد: "${assessment.title}"`
-            : `Teacher ${teacherName} assigned a new assessment: "${assessment.title}"`,
+            ? `قام المعلم ${teacherName} بتعيين تقييم جديد: "${displayTitle}"`
+            : `Teacher ${teacherName} assigned a new assessment: "${displayTitle}"`,
           type: 'assignment',
           link: '/dashboard/student/assessments',
-          metadata: { assessment_id: serverId, teacher_name: teacherName, title: assessment.title },
+          metadata: { assessment_id: serverId, teacher_name: teacherName, title: displayTitle },
           audience: 'students',
           recipientId: studentKey,
         });
@@ -861,8 +863,8 @@ const TeacherAssessments = () => {
       notificationService.addNotification({
         title: isArabic ? '📤 تم إرسال تقييم للطلاب' : '📤 Assessment sent to students',
         message: isArabic
-          ? `تم إرسال التقييم "${assessment.title}" إلى ${classStudents.length} طالب بواسطة ${teacherName}`
-          : `Assessment "${assessment.title}" was sent to ${classStudents.length} students by ${teacherName}`,
+          ? `تم إرسال التقييم "${displayTitle}" إلى ${classStudents.length} طالب بواسطة ${teacherName}`
+          : `Assessment "${displayTitle}" was sent to ${classStudents.length} students by ${teacherName}`,
         type: 'submission',
         link: '/dashboard/admin/assessments',
         metadata: { assessment_id: serverId, teacher_name: teacherName, student_count: classStudents.length },
@@ -1093,10 +1095,12 @@ const TeacherAssessments = () => {
       setEditingAssessment(assessment);
       setFormData({
         title: assessment.title || '',
+        titleAr: assessment.titleAr || assessment.title || '',
         type: assessment.type || 'homework',
         classId: assessment.classId || '',
         subject: assessment.subject || '',
         description: assessment.description || '',
+        descriptionAr: assessment.descriptionAr || assessment.description || '',
         totalMarks: assessment.totalMarks || 20,
         dueDate: assessment.dueDate ? new Date(assessment.dueDate).toISOString().split('T')[0] : '',
         status: assessment.status || 'draft',
@@ -1125,10 +1129,12 @@ const TeacherAssessments = () => {
       
       setFormData({
         title: '',
+        titleAr: '',
         type: 'homework',
         classId: defaultClassId,
         subject: '',
         description: '',
+        descriptionAr: '',
         totalMarks: 20,
         dueDate: '',
         status: 'draft',
@@ -1309,12 +1315,16 @@ const TeacherAssessments = () => {
     try {
       const payload = {
         title: formData.title,
+        titleEn: formData.title,
+        titleAr: formData.titleAr || formData.title,
         type: formData.type,
         class_code: formData.classId,
         class_name: classes.find(c => String(c.id) === String(formData.classId))?.name || formData.classId,
         subject_code: formData.subject,
         subject: formData.subject,
         description: formData.description,
+        descriptionEn: formData.description || '',
+        descriptionAr: formData.descriptionAr || formData.description || '',
         max_score: parseFloat(formData.totalMarks),
         totalMarks: parseFloat(formData.totalMarks),
         due_date: formData.dueDate,
@@ -1747,7 +1757,7 @@ const TeacherAssessments = () => {
                     <option value="all">{isArabic ? 'جميع الفصول' : 'All Classes'}</option>
                     {classes.map(cls => (
                       <option key={cls.id} value={cls.id}>
-                        {cls.name} {cls.level ? `(${getLevelLabel(cls.level)})` : ''}
+                        {isArabic ? (cls.nameAr || cls.name) : cls.name} {cls.level ? `(${getLevelLabel(cls.level)})` : ''}
                       </option>
                     ))}
                   </Form.Select>
@@ -1852,7 +1862,9 @@ const TeacherAssessments = () => {
                         </td>
                         <td>
                           <div className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                            {assessment.title}
+                            {isArabic
+                              ? assessment.titleAr || assessment.title
+                              : assessment.title}
                           </div>
                           <small className="text-muted d-sm-none" style={arabicFontStyle}>
                             {getTypeLabel(assessment.type)} • {assessment.subject}
@@ -2259,6 +2271,26 @@ const TeacherAssessments = () => {
               </Col>
               <Col md={6}>
                 <Form.Group className="mb-3">
+                  <Form.Label style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', direction: 'rtl' }}>
+                    {isArabic ? 'عنوان التقييم (بالعربية)' : 'Assessment Title (Arabic)'}
+                  </Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="titleAr"
+                    value={formData.titleAr || ''}
+                    onChange={handleFormChange}
+                    dir="rtl"
+                    style={{
+                      ...arabicFontStyle,
+                      background: darkMode ? '#2d2d44' : 'white',
+                      color: darkMode ? '#e9ecef' : '#212529',
+                      borderRadius: '12px',
+                    }}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
                   <Form.Label style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
                     {isArabic ? 'نوع التقييم *' : 'Assessment Type *'}
                   </Form.Label>
@@ -2309,7 +2341,7 @@ const TeacherAssessments = () => {
                     <option value="">{isArabic ? 'اختر فصل' : 'Select Class'}</option>
                     {classes.map(cls => (
                       <option key={cls.id} value={cls.id}>
-                        {cls.name} {cls.level ? `(${getLevelLabel(cls.level)})` : ''}
+                        {isArabic ? (cls.nameAr || cls.name) : cls.name} {cls.level ? `(${getLevelLabel(cls.level)})` : ''}
                       </option>
                     ))}
                   </Form.Select>
@@ -2395,6 +2427,26 @@ const TeacherAssessments = () => {
                 name="description"
                 value={formData.description}
                 onChange={handleFormChange}
+                style={{
+                  ...arabicFontStyle,
+                  background: darkMode ? '#2d2d44' : 'white',
+                  color: darkMode ? '#e9ecef' : '#212529',
+                  borderRadius: '12px',
+                }}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', direction: 'rtl' }}>
+                {isArabic ? 'الوصف (بالعربية)' : 'Description (Arabic)'}
+              </Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                name="descriptionAr"
+                value={formData.descriptionAr || ''}
+                onChange={handleFormChange}
+                dir="rtl"
                 style={{
                   ...arabicFontStyle,
                   background: darkMode ? '#2d2d44' : 'white',

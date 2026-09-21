@@ -1032,7 +1032,7 @@ const StudentsManagement = () => {
                 <option value="all">{isArabic ? "جميع الفصول" : "All Classes"}</option>
                 {classes.map((cls) => (
                   <option key={cls.id} value={cls.id}>
-                    {cls.name}
+                    {isArabic ? cls.nameAr || cls.name : cls.name}
                   </option>
                 ))}
               </Form.Select>
@@ -1467,7 +1467,7 @@ const StudentsManagement = () => {
                       const classList = classes.length > 0 ? classes : [];
                       return classList.map((cls) => (
                         <option key={cls.id || cls.code} value={cls.id || cls.code}>
-                          {cls.name} {cls.level ? `(${getLevelDisplay(cls.level)})` : ""}
+                          {isArabic ? (cls.nameAr || cls.name) : cls.name} {cls.level ? `(${getLevelDisplay(cls.level)})` : ""}
                         </option>
                       ));
                     })()}
@@ -2090,7 +2090,7 @@ const StudentsManagement = () => {
                     <option value="">{isArabic ? "اختر الفصل" : "Select Class"}</option>
                     {classes.map((cls) => (
                         <option key={cls.id || cls.code} value={cls.id || cls.code}>
-                          {cls.name}
+                          {isArabic ? cls.nameAr || cls.name : cls.name}
                         </option>
                     ))}
                   </Form.Select>

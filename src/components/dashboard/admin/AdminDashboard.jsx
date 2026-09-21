@@ -604,12 +604,13 @@ const AdminDashboard = () => {
         .map((a, i) => ({
           id: a.id || i + 1,
           title: a.title || (isArabic ? "إعلان" : "Announcement"),
+          titleAr: a.titleAr || a.title || (isArabic ? "إعلان" : "Announcement"),
           date: a.date || new Date(Date.now() + (i + 1) * 7 * 24 * 60 * 60 * 1000).toISOString(),
           time: a.time || "10:00 AM",
           location: a.location || (isArabic ? "المدرسة" : "School"),
           type: a.type === "event" ? (isArabic ? "فعالية" : "Event") : (isArabic ? "إعلان" : "Announcement"),
           color: ["#e67e22", "#3498db", "#e74c3c", "#f39c12", "#2ecc71", "#9b59b6"][i % 6],
-          description: a.content || a.message || "",
+          description: isArabic ? (a.contentAr || a.content || a.message) : (a.content || a.message || ""),
         }));
 
       setUpcomingEvents(events);
@@ -1580,7 +1581,7 @@ const AdminDashboard = () => {
                             <span className="text-muted ms-2" style={{
                               fontSize: isArabic ? "clamp(0.6rem, 0.7vw, 0.75rem)" : "clamp(0.55rem, 0.65vw, 0.7rem)",
                             }}>
-                              #{reg.id?.slice(0, 8)}
+                              #{String(reg.registration_number || reg.id || '').slice(0, 8)}
                             </span>
                           </div>
                           <small className="text-muted" style={{
@@ -1704,7 +1705,7 @@ const AdminDashboard = () => {
                         color: darkMode ? "#e9ecef" : "#212529",
                         fontSize: isArabic ? "clamp(0.8rem, 0.95vw, 0.9rem)" : "clamp(0.75rem, 0.85vw, 0.85rem)",
                       }}>
-                        {event.title}
+                        {isArabic ? (event.titleAr || event.title) : event.title}
                       </div>
                       <small className="text-muted" style={{
                         ...arabicFontStyle,

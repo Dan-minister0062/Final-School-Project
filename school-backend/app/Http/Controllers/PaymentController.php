@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Notification;
 use App\Models\Payment;
+use App\Models\Registration;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -107,6 +108,10 @@ class PaymentController extends Controller
 
         $payment = Payment::create($data);
 
+        if (in_array($data['status'], ['approved', 'paid'], true)) {
+            $this->syncRegistrationPayment($payment, $data['status']);
+        }
+
         if ($user->role === 'parent') {
             $this->createAdminSubmissionNotification($payment);
         }
@@ -199,6 +204,13 @@ class PaymentController extends Controller
         }
 
         $payment->update($patch);
+
+        // Keep the linked registration in sync: when an admin approves a
+        // payment for an approved admission, flag the registration itself
+        // as paid so it shows correctly on the Registrations page.
+        if (in_array($status, ['approved', 'paid'], true)) {
+            $this->syncRegistrationPayment($payment, $status);
+        }
 
         // Notify BOTH the parent and the student personally when an admin
         // approves or rejects a payment, so each receives the message in
@@ -329,6 +341,28 @@ class PaymentController extends Controller
     {
         return $payment->parent_id === $user->id
             || ($payment->parent_email && $payment->parent_email === $user->email);
+    }
+
+    /**
+     * When a payment that is linked to an approved registration (via
+     * admission_id) is marked as paid/approved, mirror that state back onto
+     * the registration so the admin Registrations page shows it as paid.
+     */
+    protected function syncRegistrationPayment(Payment $payment, string $status): void
+    {
+        if (! in_array($status, ['approved', 'paid'], true) || ! $payment->admission_id) {
+            return;
+        }
+
+        $registration = Registration::find($payment->admission_id);
+        if (! $registration || $registration->status !== 'approved') {
+            return;
+        }
+
+        $registration->update([
+            'payment_status' => 'paid',
+            'payment_paid_at' => $payment->paid_at ?: now(),
+        ]);
     }
 
     public function destroy(Request $request, int $id): JsonResponse

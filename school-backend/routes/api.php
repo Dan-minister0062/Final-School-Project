@@ -106,6 +106,9 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
 
     Route::delete('/payments/{id}', [PaymentController::class, 'destroy']);
 
+    Route::get('/admin/contacts', [ContactController::class, 'index']);
+    Route::post('/admin/contacts/{id}/reply', [ContactController::class, 'reply']);
+
     Route::post('/assessments/{id}/approve', [AssessmentController::class, 'approve']);
     Route::post('/assessments/{id}/reject', [AssessmentController::class, 'reject']);
 

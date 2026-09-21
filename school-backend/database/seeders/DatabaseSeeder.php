@@ -92,11 +92,15 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        // Sample announcements
+        // Sample announcements (bilingual: English + Arabic)
         if (\App\Models\Announcement::count() === 0) {
             \App\Models\Announcement::create([
                 'title' => 'Welcome to the new academic year',
+                'title_en' => 'Welcome to the new academic year',
+                'title_ar' => 'مرحباً بكم في السنة الدراسية الجديدة',
                 'content' => 'Registration for the new school year is now open for all levels.',
+                'content_en' => 'Registration for the new school year is now open for all levels.',
+                'content_ar' => 'التسجيل للعام الدراسي الجديد مفتوح الآن لجميع المستويات.',
                 'category' => 'general',
                 'audience' => 'all',
                 'published_by' => 1,
@@ -104,11 +108,15 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
-        // Sample notifications
+        // Sample notifications (bilingual: English + Arabic)
         if (\App\Models\Notification::count() === 0) {
             \App\Models\Notification::create([
                 'title' => 'New admission submitted',
+                'title_en' => 'New admission submitted',
+                'title_ar' => 'تم تقديم طلب تسجيل جديد',
                 'message' => 'A new admission application is awaiting review.',
+                'message_en' => 'A new admission application is awaiting review.',
+                'message_ar' => 'طلب تسجيل جديد بانتظار المراجعة.',
                 'type' => 'info',
                 'audience' => 'admin',
                 'is_read' => false,

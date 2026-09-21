@@ -6,7 +6,11 @@ function fromServerNotification(sn) {
     id: sn.id,
     _serverId: sn.id,
     title: sn.title,
+    titleEn: sn.titleEn || sn.title,
+    titleAr: sn.titleAr || sn.title,
     message: sn.message || '',
+    messageEn: sn.messageEn || sn.message || '',
+    messageAr: sn.messageAr || sn.message || '',
     type: sn.type || 'info',
     link: sn.link || null,
     priority: sn.priority || 'low',
@@ -226,6 +230,7 @@ class NotificationService {
   getDefaultLink(type) {
     const links = {
       registration: '/dashboard/admin/registrations',
+      contact: '/dashboard/admin/contacts',
       announcement: '/dashboard/admin/announcements',
       assignment: '/dashboard/teacher/assessments',
       submission: '/dashboard/teacher/assessments',
@@ -241,6 +246,7 @@ class NotificationService {
   getPriority(type) {
     const priorities = {
       registration: 'high',
+      contact: 'high',
       announcement: 'medium',
       assignment: 'medium',
       submission: 'medium',
@@ -259,7 +265,7 @@ class NotificationService {
 
   getNotificationsByRole(role) {
     const roleMap = {
-      admin: ['registration', 'system', 'announcement', 'reminder'],
+      admin: ['registration', 'contact', 'system', 'announcement', 'reminder'],
       teacher: ['assignment', 'submission', 'schedule', 'announcement'],
       parent: ['grade', 'attendance', 'announcement', 'payment'],
       student: ['grade', 'announcement', 'assignment', 'payment']
@@ -293,7 +299,7 @@ class NotificationService {
   markAllAsRead(role = null) {
     const allowedTypes = role
       ? {
-          admin: ['registration', 'system', 'announcement', 'reminder'],
+          admin: ['registration', 'contact', 'system', 'announcement', 'reminder'],
           teacher: ['assignment', 'submission', 'schedule', 'announcement'],
           parent: ['grade', 'attendance', 'announcement', 'payment'],
           student: ['grade', 'announcement', 'assignment', 'payment']

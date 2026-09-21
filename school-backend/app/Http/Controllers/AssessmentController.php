@@ -127,6 +127,10 @@ class AssessmentController extends Controller
         ]);
         $data['type'] = $request->input('type', 'assignment');
         $data['status'] = $request->input('status', 'active');
+        $data['title_en'] = $request->input('titleEn') ?? $request->input('title');
+        $data['title_ar'] = $request->input('titleAr');
+        $data['description_en'] = $request->input('descriptionEn') ?? $request->input('description');
+        $data['description_ar'] = $request->input('descriptionAr');
         $data['due_date'] = $request->input('due_date') ?? $request->input('dueDate') ?? null;
         $data['class_code'] = $request->input('class_code') ?? $request->input('classId') ?? null;
         $data['class_name'] = $request->input('class_name') ?? $request->input('className') ?? null;
@@ -173,6 +177,18 @@ class AssessmentController extends Controller
         }
         if ($request->has('totalMarks')) {
             $data['max_score'] = $request->input('totalMarks');
+        }
+        if ($request->has('titleEn') || $request->has('title')) {
+            $data['title_en'] = $request->input('titleEn') ?? $request->input('title');
+        }
+        if ($request->has('titleAr')) {
+            $data['title_ar'] = $request->input('titleAr');
+        }
+        if ($request->has('descriptionEn') || $request->has('description')) {
+            $data['description_en'] = $request->input('descriptionEn') ?? $request->input('description');
+        }
+        if ($request->has('descriptionAr')) {
+            $data['description_ar'] = $request->input('descriptionAr');
         }
 
         $assessment->update($data);
@@ -509,6 +525,8 @@ class AssessmentController extends Controller
         return [
             'id' => $a->id,
             'title' => $a->title,
+            'titleEn' => $a->title_en ?? $a->title,
+            'titleAr' => $a->title_ar ?? $a->title,
             'class_code' => $a->class_code,
             'classCode' => $a->class_code,
             'class_id' => $a->class_code,
@@ -520,6 +538,8 @@ class AssessmentController extends Controller
             'subject' => $a->subject,
             'type' => $a->type ?? 'assignment',
             'description' => $a->description,
+            'descriptionEn' => $a->description_en ?? $a->description,
+            'descriptionAr' => $a->description_ar ?? $a->description,
             'attachment' => $a->attachment_data,
             'attachmentData' => $a->attachment_data,
             'attachment_data' => $a->attachment_data,

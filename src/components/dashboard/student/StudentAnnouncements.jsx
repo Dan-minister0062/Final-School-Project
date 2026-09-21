@@ -965,7 +965,9 @@ const getStudentId = () => {
                     </td>
                     <td>
                       <div style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                        {assessment.title || 'Untitled'}
+                        {isArabic
+                          ? assessment.titleAr || assessment.title || 'Untitled'
+                          : assessment.title || 'Untitled'}
                       </div>
                       {assessment.attachmentName && (
                         <Badge bg="info" style={{ fontSize: '0.6rem' }}>

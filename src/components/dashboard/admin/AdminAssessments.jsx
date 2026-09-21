@@ -941,7 +941,9 @@ const AdminAssessments = () => {
                         </td>
                         <td>
                           <div style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                            {assessment.title}
+                            {isArabic
+                              ? assessment.titleAr || assessment.title
+                              : assessment.title}
                           </div>
                           {assessment.attachmentName && (
                             <Badge bg="info" style={{ fontSize: '0.6rem' }}>
@@ -1055,7 +1057,9 @@ const AdminAssessments = () => {
                         </td>
                         <td>
                           <div style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                            {assessment.title}
+                            {isArabic
+                              ? assessment.titleAr || assessment.title
+                              : assessment.title}
                           </div>
                           {assessment.attachmentName && (
                             <Badge bg="info" style={{ fontSize: '0.6rem' }}>

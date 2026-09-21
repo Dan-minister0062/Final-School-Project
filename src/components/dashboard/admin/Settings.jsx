@@ -12,10 +12,13 @@ const Settings = () => {
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState({
     schoolName: 'Madrassat Al Fath',
+    schoolNameAr: 'مدرسة الفتح الخاصة',
     schoolEmail: 'info@madrassatalfath.edu',
     schoolPhone: '+123 456 7890',
     schoolAddress: '123 Education Street, City',
+    schoolAddressAr: '123 شارع التعليم، المدينة',
     schoolDescription: 'Nurturing Young Minds with Islamic Values',
+    schoolDescriptionAr: 'نربي العقول الشابة على القيم الإسلامية',
     schoolWebsite: 'www.madrassatalfath.edu',
     schoolLogo: null,
     language: 'en',
@@ -82,10 +85,13 @@ const Settings = () => {
     if (window.confirm(isArabic ? 'هل أنت متأكد من إعادة تعيين الإعدادات؟' : 'Are you sure you want to reset settings?')) {
       const defaults = {
         schoolName: 'Madrassat Al Fath',
+        schoolNameAr: 'مدرسة الفتح الخاصة',
         schoolEmail: 'info@madrassatalfath.edu',
         schoolPhone: '+123 456 7890',
         schoolAddress: '123 Education Street, City',
+        schoolAddressAr: '123 شارع التعليم، المدينة',
         schoolDescription: 'Nurturing Young Minds with Islamic Values',
+        schoolDescriptionAr: 'نربي العقول الشابة على القيم الإسلامية',
         schoolWebsite: 'www.madrassatalfath.edu',
         schoolLogo: null,
         language: 'en',
@@ -164,6 +170,18 @@ const Settings = () => {
                 </Form.Group>
 
                 <Form.Group className="mb-3">
+                  <Form.Label style={{ ...arabicFontStyle, direction: 'rtl' }}>{isArabic ? 'اسم المدرسة (بالعربية)' : 'School Name (Arabic)'}</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="schoolNameAr"
+                    dir="rtl"
+                    value={settings.schoolNameAr}
+                    onChange={handleChange}
+                    style={arabicFontStyle}
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
                   <Form.Label style={arabicFontStyle}>{isArabic ? 'البريد الإلكتروني' : 'School Email'}</Form.Label>
                   <Form.Control
                     type="email"
@@ -197,6 +215,18 @@ const Settings = () => {
                 </Form.Group>
 
                 <Form.Group className="mb-3">
+                  <Form.Label style={{ ...arabicFontStyle, direction: 'rtl' }}>{isArabic ? 'العنوان (بالعربية)' : 'School Address (Arabic)'}</Form.Label>
+                  <Form.Control
+                    type="text"
+                    name="schoolAddressAr"
+                    dir="rtl"
+                    value={settings.schoolAddressAr}
+                    onChange={handleChange}
+                    style={arabicFontStyle}
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
                   <Form.Label style={arabicFontStyle}>{isArabic ? 'الموقع الإلكتروني' : 'Website'}</Form.Label>
                   <Form.Control
                     type="text"
@@ -214,6 +244,19 @@ const Settings = () => {
                     rows={3}
                     name="schoolDescription"
                     value={settings.schoolDescription}
+                    onChange={handleChange}
+                    style={arabicFontStyle}
+                  />
+                </Form.Group>
+
+                <Form.Group className="mb-3">
+                  <Form.Label style={{ ...arabicFontStyle, direction: 'rtl' }}>{isArabic ? 'وصف المدرسة (بالعربية)' : 'School Description (Arabic)'}</Form.Label>
+                  <Form.Control
+                    as="textarea"
+                    rows={3}
+                    name="schoolDescriptionAr"
+                    dir="rtl"
+                    value={settings.schoolDescriptionAr}
                     onChange={handleChange}
                     style={arabicFontStyle}
                   />

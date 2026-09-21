@@ -1265,17 +1265,12 @@ const ClassesManagement = () => {
                                   flexShrink: 0
                                 }}
                               >
-                                {cls.name.charAt(0).toUpperCase()}
+                                {(isArabic ? (cls.nameAr || cls.name) : cls.name).charAt(0).toUpperCase()}
                               </div>
                               <div>
                                 <div className="fw-semibold" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? '0.8rem' : 'inherit' }}>
-                                  {cls.name}
+                                  {isArabic ? (cls.nameAr || cls.name) : cls.name}
                                 </div>
-                                {!isMobile && cls.nameAr && cls.nameAr !== cls.name && (
-                                  <small className="text-muted" style={{ ...arabicFontStyle, fontSize: '0.65rem' }}>
-                                    {isArabic ? cls.name : cls.nameAr}
-                                  </small>
-                                )}
                               </div>
                             </div>
                           </td>

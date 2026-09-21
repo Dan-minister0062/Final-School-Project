@@ -6,7 +6,7 @@ import {
   FaBell, FaCheckCircle, FaInfoCircle, FaExclamationTriangle, 
   FaBullhorn, FaUserPlus, FaTimesCircle, FaClock, FaTrash,
   FaChevronDown, FaChevronUp, FaSync, FaTasks, FaFileAlt,
-  FaUserGraduate, FaCalendarCheck, FaBook
+  FaUserGraduate, FaCalendarCheck, FaBook, FaEnvelope
 } from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
@@ -60,7 +60,7 @@ const NotificationBell = () => {
   // Get role-specific notification types
   const getNotificationTypes = () => {
     const types = {
-      admin: ['registration', 'payment', 'system', 'announcement', 'reminder'],
+      admin: ['registration', 'contact', 'payment', 'system', 'announcement', 'reminder'],
       teacher: ['assignment', 'submission', 'schedule', 'announcement'],
       parent: ['grade', 'attendance', 'announcement', 'payment'],
       student: ['grade', 'announcement', 'payment']
@@ -106,6 +106,7 @@ const NotificationBell = () => {
   const getIcon = (type) => {
     const icons = {
       registration: <FaUserPlus />,
+      contact: <FaEnvelope />,
       announcement: <FaBullhorn />,
       assignment: <FaTasks />,
       submission: <FaFileAlt />,
@@ -123,6 +124,7 @@ const NotificationBell = () => {
   const getColor = (type) => {
     const colors = {
       registration: '#f39c12',
+      contact: '#1a5f7a',
       announcement: '#e67e22',
       assignment: '#3498db',
       submission: '#2ecc71',
@@ -239,7 +241,9 @@ const NotificationBell = () => {
                     <div className="notification-content">
                       <div className="notification-title-row">
                         <span className="notification-title">
-                          {notification.title}
+                          {isArabic
+                            ? notification.titleAr || notification.title
+                            : notification.title}
                           {!notification.read && (
                             <span className="unread-dot">●</span>
                           )}
@@ -250,7 +254,11 @@ const NotificationBell = () => {
                           </Badge>
                         )}
                       </div>
-                      <div className="notification-message">{notification.message}</div>
+                      <div className="notification-message">
+                        {isArabic
+                          ? notification.messageAr || notification.message
+                          : notification.message}
+                      </div>
                       <div className="notification-footer-row">
                         <span className="notification-time">
                           <FaClock size={10} className="me-1" />

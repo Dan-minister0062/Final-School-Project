@@ -10,7 +10,8 @@ class Assessment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'title', 'class_code', 'subject_code', 'type', 'description',
+        'title', 'title_en', 'title_ar', 'class_code', 'subject_code', 'type',
+        'description', 'description_en', 'description_ar',
         'due_date', 'deadline', 'max_score', 'status', 'created_by',
         'teacher_name', 'class_name', 'subject', 'teacher_id',
         'approved_by', 'approved_at', 'rejected_by', 'rejected_at',

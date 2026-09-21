@@ -81,6 +81,7 @@ import AdmissionManagement from "./components/dashboard/admin/AdmissionManagemen
 import PaymentsManagement from "./components/dashboard/admin/PaymentsManagement";
 import AdminAssessments from './components/dashboard/admin/AdminAssessments';
 import Settings from './components/dashboard/admin/Settings';
+import ContactMessages from './components/dashboard/admin/ContactMessages';
 // ===== TEACHER PAGES =====
 import TeacherDashboard from "./components/dashboard/teacher/TeacherDashboard";
 import TeacherStudents from "./components/dashboard/teacher/TeacherStudents";
@@ -690,6 +691,7 @@ function AppRoutes() {
             <Route path="profile" element={<Profile />} />
             <Route path="subjects" element={<SubjectsManagement />} />
             <Route path="notifications" element={<Notifications />} />
+            <Route path="contacts" element={<ContactMessages />} />
             <Route path="admissions" element={<AdmissionManagement />} />
             <Route path="/dashboard/admin/assessments" element={<AdminAssessments />} />
             <Route path="payments" element={<PaymentsManagement />} />

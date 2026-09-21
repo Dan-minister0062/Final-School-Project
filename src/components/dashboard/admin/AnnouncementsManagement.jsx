@@ -78,7 +78,9 @@ const AnnouncementsManagement = () => {
   // ===== FORM DATA =====
   const [formData, setFormData] = useState({
     title: '',
+    titleAr: '',
     content: '',
+    contentAr: '',
     type: 'announcement',
     priority: 'medium',
     status: 'published',
@@ -341,10 +343,13 @@ const AnnouncementsManagement = () => {
     
     if (key) {
       const translation = getAnnouncementTranslation(key, language);
+      const arTranslation = getAnnouncementTranslation(key, 'ar');
       setTarget(prev => ({
         ...prev,
         title: translation.title,
+        titleAr: arTranslation.title,
         content: translation.content,
+        contentAr: arTranslation.content,
         translationKey: key
       }));
     } else {
@@ -483,8 +488,8 @@ const AnnouncementsManagement = () => {
     setProcessingAction(true);
 
     try {
-      let titleAr = formData.title.trim();
-      let contentAr = formData.content.trim();
+      let titleAr = formData.titleAr || formData.title.trim();
+      let contentAr = formData.contentAr || formData.content.trim();
 
       // If there's a translation key, use the translations
       if (formData.translationKey) {
@@ -545,7 +550,11 @@ const AnnouncementsManagement = () => {
 
       const saved = await syncSend('post', '/announcements', {
         title: newAnnouncement.title,
+        titleEn: newAnnouncement.title,
+        titleAr: newAnnouncement.titleAr || newAnnouncement.title,
         content: newAnnouncement.content,
+        contentEn: newAnnouncement.content,
+        contentAr: newAnnouncement.contentAr || newAnnouncement.content,
         type: newAnnouncement.type,
         priority: newAnnouncement.priority,
         status: newAnnouncement.status,
@@ -593,7 +602,9 @@ const AnnouncementsManagement = () => {
   const resetFormData = () => {
     setFormData({
       title: '',
+      titleAr: '',
       content: '',
+      contentAr: '',
       type: 'announcement',
       priority: 'medium',
       status: 'published',
@@ -697,7 +708,11 @@ const AnnouncementsManagement = () => {
 
       const saved = await syncSend('put', `/announcements/${selectedAnnouncement.id}`, {
         title: editFormData.title.trim(),
+        titleEn: editFormData.title.trim(),
+        titleAr: titleAr,
         content: editFormData.content.trim(),
+        contentEn: editFormData.content.trim(),
+        contentAr: contentAr,
         type: editFormData.type || 'announcement',
         priority: editFormData.priority || 'medium',
         status: editFormData.status || 'published',
@@ -1619,6 +1634,35 @@ const AnnouncementsManagement = () => {
             </Form.Group>
 
             <Form.Group className="mb-3">
+              <Form.Label style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? '0.85rem' : 'inherit', direction: 'rtl' }}>
+                {isArabic ? 'العنوان (بالعربية)' : 'Title (Arabic)'}
+              </Form.Label>
+              <Form.Control
+                type="text"
+                dir="rtl"
+                value={formData.titleAr || ''}
+                onChange={(e) => setFormData({ ...formData, titleAr: e.target.value })}
+                placeholder={isArabic ? 'اكتب عنوان الإعلان بالعربية' : 'Enter announcement title in Arabic'}
+                style={{ ...arabicFontStyle, background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529', borderRadius: '12px', fontSize: isMobile ? '0.85rem' : 'inherit' }}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? '0.85rem' : 'inherit', direction: 'rtl' }}>
+                {isArabic ? 'المحتوى (بالعربية)' : 'Content (Arabic)'}
+              </Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={4}
+                dir="rtl"
+                value={formData.contentAr || ''}
+                onChange={(e) => setFormData({ ...formData, contentAr: e.target.value })}
+                placeholder={isArabic ? 'اكتب محتوى الإعلان بالعربية' : 'Enter announcement content in Arabic'}
+                style={{ ...arabicFontStyle, background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529', borderRadius: '12px', fontSize: isMobile ? '0.85rem' : 'inherit' }}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
               <Form.Label style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? '0.85rem' : 'inherit' }}>
                 {isArabic ? 'رفع وسائط' : 'Upload Media'}
               </Form.Label>
@@ -1875,6 +1919,33 @@ const AnnouncementsManagement = () => {
                 rows={4}
                 value={editFormData.content}
                 onChange={(e) => setEditFormData({ ...editFormData, content: e.target.value })}
+                style={{ ...arabicFontStyle, background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529', borderRadius: '12px', fontSize: isMobile ? '0.85rem' : 'inherit' }}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? '0.85rem' : 'inherit', direction: 'rtl' }}>
+                {isArabic ? 'العنوان (بالعربية)' : 'Title (Arabic)'}
+              </Form.Label>
+              <Form.Control
+                type="text"
+                dir="rtl"
+                value={editFormData.titleAr || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, titleAr: e.target.value })}
+                style={{ ...arabicFontStyle, background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529', borderRadius: '12px', fontSize: isMobile ? '0.85rem' : 'inherit' }}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? '0.85rem' : 'inherit', direction: 'rtl' }}>
+                {isArabic ? 'المحتوى (بالعربية)' : 'Content (Arabic)'}
+              </Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={4}
+                dir="rtl"
+                value={editFormData.contentAr || ''}
+                onChange={(e) => setEditFormData({ ...editFormData, contentAr: e.target.value })}
                 style={{ ...arabicFontStyle, background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529', borderRadius: '12px', fontSize: isMobile ? '0.85rem' : 'inherit' }}
               />
             </Form.Group>

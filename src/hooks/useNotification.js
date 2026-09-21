@@ -129,6 +129,7 @@ export const useNotification = () => {
   const getNotificationIcon = (type) => {
     const icons = {
       registration: '📝',
+      contact: '📩',
       announcement: '📢',
       assignment: '📋',
       submission: '📤',
@@ -146,6 +147,7 @@ export const useNotification = () => {
   const getNotificationColor = (type) => {
     const colors = {
       registration: '#f39c12',
+      contact: '#1a5f7a',
       announcement: '#e67e22',
       assignment: '#3498db',
       submission: '#2ecc71',

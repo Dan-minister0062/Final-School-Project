@@ -65,9 +65,16 @@ class AnnouncementController extends Controller
 
     protected function mapStore(Request $request): array
     {
+        $title = $request->input('title');
+        $content = $request->input('content');
+
         $fill = [
-            'title' => $request->input('title'),
-            'content' => $request->input('content') ?? '',
+            'title' => $title,
+            'title_en' => $request->input('titleEn') ?? $title,
+            'title_ar' => $request->input('titleAr'),
+            'content' => $content ?? '',
+            'content_en' => $request->input('contentEn') ?? $content ?? '',
+            'content_ar' => $request->input('contentAr'),
             'type' => $request->input('type', 'announcement'),
             'priority' => $request->input('priority', 'medium'),
             'status' => $request->input('status', 'published'),
@@ -95,15 +102,43 @@ class AnnouncementController extends Controller
      */
     protected function mapUpdate(Request $request): array
     {
-        return array_filter($this->mapStore($request), function ($value, $key) use ($request) {
+        // Multi-key aliases for the bilingual columns: a row is updated when
+        // ANY of its aliases is present in the request.
+        $aliases = [
+            'title_en' => ['title', 'titleEn'],
+            'title_ar' => ['titleAr'],
+            'content_en' => ['content', 'contentEn'],
+            'content_ar' => ['contentAr'],
+        ];
+
+        $filtered = [];
+        foreach ($this->mapStore($request) as $key => $value) {
+            if (isset($aliases[$key])) {
+                $present = false;
+                foreach ($aliases[$key] as $alt) {
+                    if ($request->has($alt)) {
+                        $present = true;
+                        break;
+                    }
+                }
+                if ($present) {
+                    $filtered[$key] = $value;
+                }
+                continue;
+            }
+
             $requestKey = match ($key) {
                 'media_type' => 'mediaType',
                 'target_audience' => 'targetAudience',
                 default => $key,
             };
 
-            return $request->has($requestKey);
-        }, ARRAY_FILTER_USE_BOTH);
+            if ($request->has($requestKey)) {
+                $filtered[$key] = $value;
+            }
+        }
+
+        return $filtered;
     }
 
     protected function mapVue(Announcement $a): array
@@ -118,7 +153,11 @@ class AnnouncementController extends Controller
         return [
             'id' => $a->id,
             'title' => $a->title,
+            'titleEn' => $a->title_en ?? $a->title,
+            'titleAr' => $a->title_ar ?? $a->title,
             'content' => $a->content,
+            'contentEn' => $a->content_en ?? $a->content,
+            'contentAr' => $a->content_ar ?? $a->content,
             'type' => $a->type ?? 'announcement',
             'priority' => $a->priority ?? 'medium',
             'status' => $a->status,

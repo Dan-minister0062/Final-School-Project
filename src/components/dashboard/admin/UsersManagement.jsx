@@ -1,8 +1,8 @@
+/* eslint-disable no-unused-vars, react-hooks/exhaustive-deps */
 // src/components/dashboard/admin/UsersManagement.jsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { syncGet, syncSend } from '../../../services/apiSync';
 import {
-  Container,
   Row,
   Col,
   Card,
@@ -14,10 +14,6 @@ import {
   Alert,
   InputGroup,
   Pagination,
-  Dropdown,
-  Nav,
-  Tab,
-  ProgressBar,
   Image,
 } from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
@@ -60,9 +56,7 @@ import {
   FaTh,
   FaSave,
   FaTimes,
-  FaPlus,
   FaRocket,
-  FaStar,
   FaPaperPlane,
   FaBook,
   FaUsers as FaUsersIcon,
@@ -75,6 +69,8 @@ import {
   FaChild,
   FaUniversity,
   FaCity,
+  FaCamera,
+  FaHandshake,
 } from "react-icons/fa";
 import { useLanguage } from "../../../context/LanguageContext";
 import { useAuth } from "../../../hooks/useAuth";
@@ -850,9 +846,16 @@ const UsersManagement = () => {
         assignedClasses: userData.assignedClasses || userData.classes || [],
         assigned_classes: userData.assignedClasses || userData.classes || [],
         childrenNames: userData.childrenNames || [],
+        childrenIds: Array.isArray(userData.childrenIds) ? userData.childrenIds : [],
         relationship: userData.relationship || '',
         occupation: userData.occupation || '',
         employer: userData.employer || '',
+        parentId: userData.parentId || '',
+        parentName: userData.parentName || '',
+        parentEmail: userData.parentEmail || '',
+        parentPhone: userData.parentPhone || '',
+        className: userData.className || userData.class || '',
+        classCode: userData.classCode || userData.class_code || userData.classId || '',
       };
 
       let result;
@@ -1120,9 +1123,25 @@ const UsersManagement = () => {
         userData = {
           ...userData,
           childrenNames: formData.childrenNames || "",
+          childrenIds: Array.isArray(formData.childrenIds)
+            ? formData.childrenIds
+            : [],
           relationship: formData.relationship || "",
           occupation: formData.occupation || "",
           employer: formData.employer || "",
+        };
+      }
+
+      if (formData.role === "student") {
+        userData = {
+          ...userData,
+          className: formData.className || "",
+          classCode: formData.classCode || formData.class_code || "",
+          level: formData.level || "",
+          parentId: formData.parentId || "",
+          parentName: formData.parentName || "",
+          parentEmail: formData.parentEmail || "",
+          parentPhone: formData.parentPhone || "",
         };
       }
 
@@ -1991,7 +2010,220 @@ const UsersManagement = () => {
           </div>
         );
 
-      case "parent":
+      case "student": {
+        const parentOptions = users.filter(
+          (u) => u.role === "parent" && u.parent_id,
+        );
+        return (
+          <div className="role-fields-container fade-in">
+            <div className="section-divider">
+              <span className="section-divider-label">
+                <FaGraduationCap className="me-2" />{" "}
+                {isArabic ? "تفاصيل الطالب" : "Student Details"}
+              </span>
+            </div>
+
+            <Form.Group className="mb-3">
+              <Form.Label
+                className="fw-semibold"
+                style={{
+                  ...arabicFontStyle,
+                  color: darkMode ? "#e9ecef" : "#212529",
+                }}
+              >
+                <FaGraduationCap className="me-2" />{" "}
+                {isArabic ? "القسم" : "Class"}
+              </Form.Label>
+              <Form.Select
+                value={formData.classCode || ""}
+                onChange={(e) => {
+                  const cls = classes.find(
+                    (c) => String(c.id) === String(e.target.value),
+                  );
+                  setFormData({
+                    ...formData,
+                    classCode: e.target.value,
+                    className: cls
+                      ? isArabic && cls.nameAr
+                        ? cls.nameAr
+                        : cls.name
+                      : "",
+                    level: cls ? cls.level : "",
+                  });
+                }}
+                className="form-select-lg"
+                style={{
+                  ...arabicFontStyle,
+                  background: darkMode ? "#2d2d44" : "white",
+                  color: darkMode ? "#e9ecef" : "#212529",
+                  borderRadius: "12px",
+                  fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                }}
+              >
+                <option value="">
+                  {isArabic ? "اختر القسم" : "Select Class"}
+                </option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {isArabic && c.nameAr ? c.nameAr : c.name}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label
+                className="fw-semibold"
+                style={{
+                  ...arabicFontStyle,
+                  color: darkMode ? "#e9ecef" : "#212529",
+                }}
+              >
+                <FaUserCircle className="me-2" />{" "}
+                {isArabic ? "ولي الأمر" : "Parent"}
+              </Form.Label>
+              <Form.Select
+                value={formData.parentId || ""}
+                onChange={(e) => {
+                  const pid = e.target.value;
+                  const par = parentOptions.find(
+                    (p) =>
+                      String(p.parent_id ?? p.parentId ?? "") === String(pid),
+                  );
+                  setFormData({
+                    ...formData,
+                    parentId: pid,
+                    parentName: par ? par.name : "",
+                    parentEmail: par ? par.email : "",
+                    parentPhone: par ? par.phone : "",
+                  });
+                }}
+                className="form-select-lg"
+                style={{
+                  ...arabicFontStyle,
+                  background: darkMode ? "#2d2d44" : "white",
+                  color: darkMode ? "#e9ecef" : "#212529",
+                  borderRadius: "12px",
+                  fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                }}
+              >
+                <option value="">
+                  {isArabic ? "بدون ولي أمر" : "No parent"}
+                </option>
+                {parentOptions.map((p) => (
+                  <option
+                    key={p._serverId ?? p.id}
+                    value={p.parent_id ?? p.parentId ?? p.id}
+                  >
+                    {p.name}
+                    {p.email ? ` (${p.email})` : ""}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label
+                className="fw-semibold"
+                style={{
+                  ...arabicFontStyle,
+                  color: darkMode ? "#e9ecef" : "#212529",
+                }}
+              >
+                <FaUserCircle className="me-2" />{" "}
+                {isArabic ? "اسم ولي الأمر (بديل)" : "Parent name (fallback)"}
+              </Form.Label>
+              <Form.Control
+                type="text"
+                value={formData.parentName || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, parentName: e.target.value })
+                }
+                placeholder={
+                  isArabic
+                    ? "اسم ولي الأمر — يُستخدم عند غياب الحساب"
+                    : "Parent name — used when no parent account exists yet"
+                }
+                className="form-control-lg"
+                style={{
+                  ...arabicFontStyle,
+                  background: darkMode ? "#2d2d44" : "white",
+                  color: darkMode ? "#e9ecef" : "#212529",
+                  borderRadius: "12px",
+                  fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                }}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label
+                className="fw-semibold"
+                style={{
+                  ...arabicFontStyle,
+                  color: darkMode ? "#e9ecef" : "#212529",
+                }}
+              >
+                <FaMailBulk className="me-2" />{" "}
+                {isArabic ? "بريد ولي الأمر (بديل)" : "Parent email (fallback)"}
+              </Form.Label>
+              <Form.Control
+                type="email"
+                value={formData.parentEmail || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, parentEmail: e.target.value })
+                }
+                placeholder={
+                  isArabic
+                    ? "بريد ولي الأمر — يُستخدم عند غياب الحساب"
+                    : "Parent email — used when no parent account exists yet"
+                }
+                className="form-control-lg"
+                style={{
+                  ...arabicFontStyle,
+                  background: darkMode ? "#2d2d44" : "white",
+                  color: darkMode ? "#e9ecef" : "#212529",
+                  borderRadius: "12px",
+                  fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                }}
+              />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label
+                className="fw-semibold"
+                style={{
+                  ...arabicFontStyle,
+                  color: darkMode ? "#e9ecef" : "#212529",
+                }}
+              >
+                <FaPhoneAlt className="me-2" />{" "}
+                {isArabic ? "هاتف ولي الأمر (بديل)" : "Parent phone (fallback)"}
+              </Form.Label>
+              <Form.Control
+                type="text"
+                value={formData.parentPhone || ""}
+                onChange={(e) =>
+                  setFormData({ ...formData, parentPhone: e.target.value })
+                }
+                placeholder={isArabic ? "هاتف ولي الأمر" : "Parent phone"}
+                className="form-control-lg"
+                style={{
+                  ...arabicFontStyle,
+                  background: darkMode ? "#2d2d44" : "white",
+                  color: darkMode ? "#e9ecef" : "#212529",
+                  borderRadius: "12px",
+                  fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                }}
+              />
+            </Form.Group>
+          </div>
+        );
+      }
+
+      case "parent": {
+        const studentOptions = users.filter(
+          (u) => u.role === "student" && !u.parent_id && !u.parentId,
+        );
         return (
           <div className="role-fields-container fade-in">
             <div className="section-divider">
@@ -2032,6 +2264,89 @@ const UsersManagement = () => {
                   fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
                 }}
               />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label
+                className="fw-semibold"
+                style={{
+                  ...arabicFontStyle,
+                  color: darkMode ? "#e9ecef" : "#212529",
+                }}
+              >
+                <FaGraduationCap className="me-2" />{" "}
+                {isArabic
+                  ? "اختيار الأبناء من قائمة الطلاب"
+                  : "Pick children from the students list"}
+              </Form.Label>
+              <div
+                className="classes-grid p-3 rounded-3"
+                style={{
+                  background: darkMode ? "#1a1a2e" : "#f8f9fa",
+                  border: `1px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
+                  borderRadius: "12px",
+                  maxHeight: "200px",
+                  overflowY: "auto",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
+                  gap: "6px",
+                }}
+              >
+                {studentOptions.length === 0 ? (
+                  <Form.Text className="text-muted" style={arabicFontStyle}>
+                    {isArabic
+                      ? "لا يوجد طلاب غير مرتبطين — أضف طالباً جديداً أولاً"
+                      : "No unlinked students available — add a new student first"}
+                  </Form.Text>
+                ) : (
+                  studentOptions.map((s) => {
+                    const sid = String(s._serverId ?? s.id);
+                    return (
+                      <Form.Check
+                        key={sid}
+                        type="checkbox"
+                        id={`parent-child-${sid}`}
+                        label={s.name}
+                        checked={formData.childrenIds?.includes(sid)}
+                        onChange={(e) => {
+                          const current = Array.isArray(formData.childrenIds)
+                            ? formData.childrenIds
+                            : [];
+                          const next = e.target.checked
+                            ? [...new Set([...current, sid])]
+                            : current.filter((x) => x !== sid);
+                          const names = next
+                            .map((id) => {
+                              const su = users.find(
+                                (u) =>
+                                  String(u._serverId ?? u.id) === String(id),
+                              );
+                              return su ? su.name : "";
+                            })
+                            .filter(Boolean)
+                            .join(", ");
+                          setFormData({
+                            ...formData,
+                            childrenIds: next,
+                            childrenNames: names ? names : formData.childrenNames,
+                          });
+                        }}
+                        className="class-check"
+                        style={{
+                          ...arabicFontStyle,
+                          color: darkMode ? "#e9ecef" : "#212529",
+                          fontSize: "clamp(0.7rem, 0.85vw, 0.9rem)",
+                        }}
+                      />
+                    );
+                  })
+                )}
+              </div>
+              <Form.Text className="text-muted" style={arabicFontStyle}>
+                {isArabic
+                  ? "حدد كل ابن لربطه، أو اكتب الأسماء أعلاه."
+                  : "Mark each child to link them, or type the names above."}
+              </Form.Text>
             </Form.Group>
 
             <Form.Group className="mb-3">
@@ -2129,6 +2444,7 @@ const UsersManagement = () => {
             </Form.Group>
           </div>
         );
+      }
 
       default:
         return null;

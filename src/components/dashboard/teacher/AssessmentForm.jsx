@@ -73,10 +73,12 @@ const AssessmentForm = ({
   const { isArabic } = useLanguage();
   const [formData, setFormData] = useState({
     title: "",
+    titleAr: "",
     type: "homework",
     classId: "",
     subject: "",
     description: "",
+    descriptionAr: "",
     totalMarks: 100,
     dueDate: "",
     status: "published",
@@ -204,10 +206,12 @@ const AssessmentForm = ({
     if (initialData) {
       setFormData({
         title: initialData.title || "",
+        titleAr: initialData.titleAr || "",
         type: initialData.type || "homework",
         classId: initialData.classId || "",
         subject: initialData.subject || "",
         description: initialData.description || "",
+        descriptionAr: initialData.descriptionAr || initialData.description || "",
         totalMarks: initialData.totalMarks || 100,
         dueDate: initialData.dueDate
           ? new Date(initialData.dueDate).toISOString().split("T")[0]
@@ -372,6 +376,33 @@ const AssessmentForm = ({
               style={{
                 ...arabicFontStyle,
                 color: darkMode ? "#e9ecef" : "#212529",
+                direction: "rtl",
+              }}
+            >
+              {isArabic ? "عنوان التقييم (بالعربية) *" : "Assessment Title (Arabic) *"}
+            </Form.Label>
+            <Form.Control
+              type="text"
+              name="titleAr"
+              value={formData.titleAr}
+              onChange={handleChange}
+              dir="rtl"
+              placeholder={isArabic ? "اكتب العنوان بالعربية" : "Write the title in Arabic"}
+              style={{
+                ...arabicFontStyle,
+                background: darkMode ? "#2d2d44" : "white",
+                color: darkMode ? "#e9ecef" : "#212529",
+                borderRadius: "12px",
+              }}
+            />
+          </Form.Group>
+        </Col>
+        <Col md={6}>
+          <Form.Group className="mb-3">
+            <Form.Label
+              style={{
+                ...arabicFontStyle,
+                color: darkMode ? "#e9ecef" : "#212529",
               }}
             >
               {isArabic ? "نوع التقييم *" : "Assessment Type *"}
@@ -430,7 +461,7 @@ const AssessmentForm = ({
               <option value="">{isArabic ? "اختر فصل" : "Select Class"}</option>
               {classes?.map((cls) => (
                 <option key={cls.id} value={cls.id}>
-                  {cls.name}{" "}
+                  {isArabic ? cls.nameAr || cls.name : cls.name}{" "}
                   {cls.level
                     ? `(${getLevelLabel(cls.level)})`
                     : ""}
@@ -530,6 +561,32 @@ const AssessmentForm = ({
           name="description"
           value={formData.description}
           onChange={handleChange}
+          style={{
+            ...arabicFontStyle,
+            background: darkMode ? "#2d2d44" : "white",
+            color: darkMode ? "#e9ecef" : "#212529",
+            borderRadius: "12px",
+          }}
+        />
+      </Form.Group>
+
+      <Form.Group className="mb-3">
+        <Form.Label
+          style={{
+            ...arabicFontStyle,
+            color: darkMode ? "#e9ecef" : "#212529",
+            direction: "rtl",
+          }}
+        >
+          {isArabic ? "الوصف (بالعربية)" : "Description (Arabic)"}
+        </Form.Label>
+        <Form.Control
+          as="textarea"
+          rows={3}
+          name="descriptionAr"
+          value={formData.descriptionAr}
+          onChange={handleChange}
+          dir="rtl"
           style={{
             ...arabicFontStyle,
             background: darkMode ? "#2d2d44" : "white",

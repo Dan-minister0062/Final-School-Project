@@ -501,7 +501,7 @@ const TeacherMarkAssessments = () => {
                 <option value="">{isArabic ? 'اختر فصل' : 'Select a class'}</option>
                 {classes.map(cls => (
                   <option key={cls.id} value={cls.id}>
-                    {cls.name} {cls.educationLevel ? `(${cls.educationLevel})` : ''}
+                    {isArabic ? (cls.nameAr || cls.name) : cls.name} {cls.educationLevel ? `(${cls.educationLevel})` : ''}
                   </option>
                 ))}
               </Form.Select>
@@ -524,7 +524,9 @@ const TeacherMarkAssessments = () => {
                 <option value="">{isArabic ? 'اختر تقييم' : 'Select an assessment'}</option>
                 {getAvailableAssessments().map(a => (
                   <option key={a.id} value={a.id}>
-                    {a.title} - {getTypeLabel(a.type)} ({a.status})
+                    {isArabic
+                      ? a.titleAr || a.title
+                      : a.title} - {getTypeLabel(a.type)} ({a.status})
                   </option>
                 ))}
               </Form.Select>
@@ -559,7 +561,9 @@ const TeacherMarkAssessments = () => {
             <Col md={4}>
               <div className="fw-bold" style={arabicFontStyle}>
                 <FaFileAlt className="me-2 text-primary" />
-                {selectedAssessmentData.title}
+                {isArabic
+                  ? selectedAssessmentData.titleAr || selectedAssessmentData.title
+                  : selectedAssessmentData.title}
                 <span
                   className="ms-2"
                   style={{

@@ -94,6 +94,7 @@ class SubjectController extends Controller
 
         return [
             'name' => $request->input('name'),
+            'name_en' => $request->input('nameEn') ?? $request->input('name'),
             'name_ar' => $request->input('nameAr'),
             'category' => $request->input('category'),
             'level_key' => $level,
@@ -124,6 +125,7 @@ class SubjectController extends Controller
             'id' => $s->id,
             'code' => $s->code,
             'name' => $s->name,
+            'nameEn' => $s->name_en ?? $s->name,
             'nameAr' => $s->name_ar ?? '',
             'category' => $s->category ?? $s->level_key ?? 'primary',
             'level' => $s->level_key ?? $s->category ?? 'primary',
