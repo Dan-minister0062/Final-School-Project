@@ -892,12 +892,12 @@ const Admissions = () => {
                         <Col md={6}>
                           <Form.Group className="mb-3">
                             <Form.Label style={arabicFontStyle}>
-                              {isArabic ? "الاسم الأول" : "First Name"} *
+                              {isArabic ? "الاسم الشخصي" : "First Name"} *
                             </Form.Label>
                             <Form.Control
                               {...register("firstName")}
                               isInvalid={!!errors.firstName}
-                              placeholder={isArabic ? "أدخل الاسم الأول" : "Enter first name"}
+                              placeholder={isArabic ? "أدخل الاسم الشخصي" : "Enter first name"}
                               className="py-2"
                               style={arabicFontStyle}
                             />
@@ -909,12 +909,12 @@ const Admissions = () => {
                         <Col md={6}>
                           <Form.Group className="mb-3">
                             <Form.Label style={arabicFontStyle}>
-                              {isArabic ? "الاسم الأخير" : "Last Name"} *
+                              {isArabic ? "الاسم العائلي" : "Last Name"} *
                             </Form.Label>
                             <Form.Control
                               {...register("lastName")}
                               isInvalid={!!errors.lastName}
-                              placeholder={isArabic ? "أدخل الاسم الأخير" : "Enter last name"}
+                              placeholder={isArabic ? "أدخل الاسم العائلي" : "Enter last name"}
                               className="py-2"
                               style={arabicFontStyle}
                             />
@@ -1096,7 +1096,7 @@ const Admissions = () => {
                         <Col md={6}>
                           <Form.Group className="mb-3">
                             <Form.Label style={arabicFontStyle}>
-                              {isArabic ? "المستوى التعليمي" : "Education Level"} *
+                              {isArabic ? "السلك التعليمي" : "Education Level"} *
                             </Form.Label>
                             <Form.Select
                               {...register("level")}
