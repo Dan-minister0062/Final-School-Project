@@ -1,241 +1,192 @@
 # Hosting Guide — Madrassat Al Fath School Management System
 
-This guide explains exactly how to host the project (Laravel 12 backend + React/Vite frontend), what must be done **before** hosting, where to host it easily, and the exact steps to go live.
+Target setup: **cPanel shared hosting · PHP 8.2+ · MySQL · React (Vite) SPA + Laravel 12 API**
+Domain: **madrassatalfath.com** (registered at Namecheap)
+
+Recommended architecture — two hosts under the SAME root domain so the login cookie is shared:
+
+| URL                          | What runs there          |
+|------------------------------|--------------------------|
+| `https://madrassatalfath.com`        | React SPA (the website) |
+| `https://api.madrassatalfath.com`    | Laravel 12 API          |
+
+> Why two subdomains? The frontend and the API use a session **cookie** (Sanctum SPA auth). Cookies can only be shared when both apps live under one root domain — exactly what `madrassatalfath.com` + `api.madrassatalfath.com` give you.
 
 ---
 
-## 1. Is the project ready to host?
+## 1. What the project needs (verified)
 
-**Yes, with a short checklist.** The code is structured and configured for production:
+| Component  | Requirement                                                                        |
+|------------|-------------------------------------------------------------------------------------|
+| PHP        | **8.2 or 8.3** (Laravel 12 requires `^8.2`)                                        |
+| MySQL      | One database + one user                                                             |
+| Node.js    | **20.19+ or 22.12+** (Vite 7 requirement) — only needed to *build* the frontend      |
+| Composer   | Only needed to *install* Laravel dependencies                                       |
+| Extensions | `pdo_mysql`, `mbstring`, `xml`, `ctype`, `json`, `tokenizer`, `openssl`, `curl`, `fileinfo`, `intl`, `zip` (zip = composer) |
+| SSL        | Free AutoSSL / Let's Encrypt on BOTH subdomains (required for login cookies)        |
+| Email      | Any SMTP account (Gmail App Password, or the host's mail)                           |
 
-| Part       | Status / requirement                                            |
-|------------|-----------------------------------------------------------------|
-| Frontend   | React 18 + Vite. `npm run build` works and produces `dist/`.     |
-| Backend    | Laravel 12, PHP `^8.2`, MySQL, Sanctum SPA (cookie) auth.        |
-| Sessions   | `SESSION_DRIVER=database` — session table migration is present.  |
-| Cache/Queue| database driver — cache + jobs table migrations are present.     |
-| Email      | SMTP configurable via `.env` (used for registration approval, contact replies, password reset). |
-| Files      | No upload storage is required (avatars are stored in the DB as base64). `storage:link` optional. |
-| Cron       | No scheduled tasks are required.                                 |
-| Queue worker | Not required (emails are sent synchronously).                   |
-
-### ⚠️ Things that MUST be done before going live (do them first)
-1. **Generate a real `APP_KEY`** for the backend (never use the local one).
-2. **Put real secrets in `.env`** — database password, SMTP credentials, app URLs.
-3. **Create the production database** and run migrations.
-4. **Give the admin account a strong password** (the seeder uses `password123` — do NOT seed demo accounts on a live server).
-5. **Use HTTPS everywhere** — cookie auth requires `SESSION_SECURE_COOKIE=true`, which only works over HTTPS.
-6. **Frontend must point to the real API** via `VITE_API_URL` + `VITE_CSRF_URL` before building.
+No cron jobs and no queue worker are required — **all emails are sent synchronously** (admission receipt, approval/rejection, contact replies, password reset).
 
 ---
 
-## 2. What you need before hosting
+## 2. Step 0 — DNS: make Namecheap point at your host
 
-### Domain name
-- One domain, e.g. `myschool.com`
-- Use two subdomains:
-  - `app.myschool.com` → the website (React SPA)
-  - `api.myschool.com`  → the Laravel API
-  - (Both must be under the SAME root domain so the session cookie works across them.)
+1. Buy hosting that includes **cPanel** (the domain is already at Namecheap).
+2. In cPanel, copy your **IP address** (e.g. `162.0.200.77`).
+3. In **Namecheap → Domain List → madrassatalfath.com → Advanced DNS**:
+   - `A Record  @   →  <your cPanel IP>`
+   - `A Record  api →  <your cPanel IP>`  (or `CNAME api → @`)
+4. DNS propagates in a few minutes to a few hours. Verify with https://dnschecker.org.
 
-### Hosting account with these minimums
-- **PHP 8.2 or 8.3** (Laravel 12 requires ^8.2)
-- **MySQL** (or MariaDB) — one database + one user
-- **Node.js 20+** on the machine (only needed to build the frontend)
-- **Composer** (to install backend dependencies)
-- **SSL certificate** (free Let's Encrypt is fine)
-- SMTP mailbox/credentials for sending emails (any provider: Gmail app password, Zoho, Mailgun, SendGrid, host's own mail)
-
-### Project files
-- Everything inside this folder. Deploy:
-  - Backend: the `school-backend/` folder → the PHP host
-  - Frontend: the built `dist/` folder (from `npm run build`) → the web host
+> If your cPanel host uses **different nameservers** (not Namecheap), instead change the domain's nameservers on Namecheap to the host's nameservers (e.g. `ns1.host.com`, `ns2.host.com`).
 
 ---
 
-## 3. Where to host it easily (recommendations)
+## 3. Step 1 — Build the frontend (on your computer)
 
-Pick ONE path below. All are beginner-friendly.
-
-| Option | Best for | Cost | Notes |
-|--------|----------|------|-------|
-| **A. Shared hosting (cPanel)** — Hostinger, Namecheap, A2 Hosting, HostGator | Easy setup, everything in one place (PHP + MySQL + SSL + email) | ~$2–6/mo | Recommended for this project |
-| **B. Frontend free (Vercel/Netlify/Cloudflare) + backend on Render/Railway** | Free tiers, modern workflow | ~$0–5/mo | Requires a bit more config; use if you want free hosting |
-| **C. Cloud VPS** — DigitalOcean, Vultr, Hetzner | Full control, larger scale | ~$6–20/mo | Needs Linux admin skills |
-
-> **Recommendation for this project:** **Option A (Hostinger shared hosting)** because it gives you PHP + MySQL + free SSL + email in one control panel, which matches this stack perfectly. Use Hostinger, Namecheap, or A2.
-
----
-
-## 4. Option A — Step-by-step (Shared hosting / cPanel) — Recommended
-
-### Before you start
-Do this and you have: domain, hosting bought, DNS pointing, SSL active.
-
-### Step 1: Build the frontend (on your computer)
 ```bash
-cd /path/to/project
+cd C:\xampp\htdocs\Final-School-Project\Final-School-Project
 npm install
-# create file: .env.production  (see section 6 for contents)
-npm run build
-```
-This creates a `dist/` folder. Keep it — you will upload it.
-
-### Step 2: Prepare the backend `.env`
-1. Copy `school-backend/.env.production.example` → `school-backend/.env`.
-2. Fill in real values (see section 6).
-3. Then run on your computer (if PHP+Composer installed):
-```bash
-cd school-backend
-composer install --no-dev --optimize-autoloader
-php artisan key:generate
-```
-Copy down the generated `APP_KEY` value (or upload `.env` as-is; keep APP_KEY generated).
-
-Skip Step 3 below if your host's installer generates a key; otherwise keep the key you made.
-
-### Step 3: Upload to the host
-Via cPanel → **File Manager** (or FTP/SSH):
-
-1. Create these folders under your domain root (e.g. `public_html`):
-   - `public_html/app`  → frontend
-   - `public_html/api`  → backend
-2. Upload and extract:
-   - **Frontend** (`dist/` contents — the files INSIDE dist, not the folder) → into `public_html/app/`
-   - **Backend** (the whole `school-backend/` contents) → into `public_html/api/`
-
-Your structure should look like:
-```
-public_html/
-├── app/                     # React build
-│   ├── index.html
-│   └── assets/...
-└── api/                     # Laravel
-    ├── app/...
-    ├── public/              # <-- this is the web root for the API
-    ├── artisan
-    ├── ...
 ```
 
-### Step 4: Create the MySQL database
-In cPanel → **MySQL Databases**:
-1. Create a database (e.g. `school_db`).
-2. Create a user (e.g. `school_user`) + strong password.
-3. Add the user to the database with **ALL PRIVILEGES**.
-4. Put these exact names/password into `api/.env` (`DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`).
+Create `.env.production` in the project root (same folder as `package.json`):
 
-### Step 5: Point the API web root to Laravel's `public/`
-**Important:** Laravel must be served from `api/public/`, never from `api/`.
-- If using a subdomain `api.myschool.com` → set its document root to `public_html/api/public`.
-- If cPanel shows you as a subdomain user whose root already is `public_html`, you may need to create `public_html/api` as a **subdomain or alias** pointing to `api/public`. If that's not possible, instead rename `api/public` → `api/public_html` and serve the subdomain from there. The goal is files like `api/index.php` being the entry.
-
-### Step 6: Point the app domain at the React build
-- Subdomain `app.myschool.com` → document root `public_html/app`.
-- Upload an `.htaccess` in `public_html/app/` so all routes return `index.html` (SPA fallback). Create the file with this content:
-```apache
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
-  RewriteRule ^index\.html$ - [L]
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /index.html [L]
-</IfModule>
 ```
-
-### Step 7: Run migrations
-In cPanel → **Terminal** (or SSH):
-```bash
-cd public_html/api
-php artisan migrate --force
-php artisan config:cache route:cache view:cache
-php artisan optimize
-```
-If no Terminal is available, many shared hosts run migrations via a small one-time script URL or ask support to run it. Some hosts (Hostinger) offer an "Artisan GUI" / SSH Terminal.
-
-### Step 8: Enable SSL (free)
-- cPanel → **SSL/TLS Status** → secure both `app.myschool.com` and `api.myschool.com` (usually AutoSSL/Let's Encrypt).
-- Keep `APP_URL`, `FRONTEND_URL` and both `VITE_*` values prefixed with `https://`.
-
-### Step 9: Test
-Follow the checklist in section 8.
-
----
-
-## 5. Option B — Step-by-step (Vercel frontend + Render backend)
-
-Use for the free tier / modern setup.
-
-### Backend on Render.com
-1. Create account → **New + → Web Service**.
-2. Connect your Git repo, or drag the `school-backend/` folder.
-3. Settings:
-   - Runtime: **PHP**
-   - Build command: `composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader && cp .env.production.example .env`
-   - Start command: `php artisan serve --host=0.0.0.0 --port=$PORT`
-4. Add a **MySQL**: **New + → Database → MySQL** (Render creates DB automatically).
-5. Environment variables (in Render dashboard):
-   ```
-   APP_ENV=production
-   APP_DEBUG=false
-   APP_KEY=<paste generated key>
-   APP_URL=https://api.yourrenderhost.onrender.com
-   FRONTEND_URL=https://app.vercel.app
-   DB_CONNECTION=mysql
-   DB_DATABASE=<from Render>
-   DB_USERNAME=<from Render>
-   DB_PASSWORD=<from Render>
-   DB_HOST=<from Render>
-   DB_PORT=3306
-   SESSION_DRIVER=database
-   SESSION_SECURE_COOKIE=true
-   SESSION_DOMAIN=vercel.app
-   SANCTUM_STATEFUL_DOMAINS=app.vercel.app
-   CORS_ALLOWED_ORIGINS=https://app.vercel.app
-   CACHE_STORE=database
-   QUEUE_CONNECTION=sync
-   MAIL_MAILER=smtp
-   MAIL_HOST=...
-   MAIL_PORT=587
-   MAIL_USERNAME=...
-   MAIL_PASSWORD=...
-   MAIL_ENCRYPTION=tls
-   MAIL_FROM_ADDRESS=no-reply@myschool.com
-   MAIL_FROM_NAME="Madrassat Al Fath"
-   ```
-6. In **Shell** tab run: `php artisan key:generate`, `php artisan migrate --force`, `php artisan config:cache`.
-7. Make sure the service responds on `/up`.
-
-### Frontend on Vercel
-1. Push the frontend to a Git repo.
-2. Import to Vercel → framework **Vite**.
-3. Environment variables: `VITE_API_URL=https://api.yourrenderhost.onrender.com/api`, `VITE_CSRF_URL=https://api.yourrenderhost.onrender.com/sanctum/csrf-cookie`.
-4. Vercel auto-buils `dist/` and handles SPA fallback automatically.
-5. Deploy.
-
-> ⚠️ Cookie auth across two different providers only works reliably because both share `SESSION_DOMAIN` (=`.vercel.app`) and the API is configured as stateful for that origin. Ideally keep API + app under the same domain for zero-friction cookies.
-
----
-
-## 6. The exact environment files to create
-
-### 6a. Frontend → create `.env.production` (in project root)
-```
-VITE_API_URL=https://api.myschool.com/api
-VITE_CSRF_URL=https://api.myschool.com/sanctum/csrf-cookie
+VITE_API_URL=https://api.madrassatalfath.com/api
+VITE_CSRF_URL=https://api.madrassatalfath.com/sanctum/csrf-cookie
 VITE_APP_NAME=Madrasatul Fathi School
 VITE_APP_VERSION=1.0.0
 ```
-Then run `npm run build` so these values are baked into `dist/`.
 
-### 6b. Backend → `school-backend/.env` (production values)
+Then build:
+
+```bash
+npm run build
+```
+
+This creates the **`dist/`** folder. Upload **the contents of `dist/`** (the `index.html` + `assets/` inside it), not the `dist/` folder itself.
+
+---
+
+## 4. Step 2 — Prepare the backend
+
+Copy `school-backend/.env.production.example` to `school-backend/.env` and fill it with the real values (section 6 has the exact final file). The `.env` is **never** uploaded if you can avoid it — it must contain your secrets, and Composer/Artisan on the server will read it from `school-backend/.env`.
+
+Recommended: upload the project **without** `.env`, then create `.env` on the server in cPanel → File Manager → `public_html/api/`, and generate the key with the Terminal:
+
+```bash
+cd ~/public_html/api
+cp .env.production.example .env
+php artisan key:generate
+```
+
+---
+
+## 5. Step 3 — Create the MySQL database (cPanel)
+
+1. cPanel → **MySQL® Databases**.
+2. Create a database, e.g. `madrassa_school`. cPanel prefixes it with your account username — the real name becomes `youruser_madrassa_school`.
+3. Create a user, e.g. `madrassa_user` → real name `youruser_madrassa_user`, with a strong password copied into `.env`.
+4. **Add user to database** → grant **ALL PRIVILEGES**.
+5. Put the *real* prefixed names into `.env`:
+
+```
+DB_DATABASE=youruser_madrassa_school
+DB_USERNAME=youruser_madrassa_user
+DB_PASSWORD=<strong password>
+DB_HOST=localhost
+DB_PORT=3306
+```
+
+---
+
+## 6. Step 4 — Upload the files
+
+In cPanel → **File Manager**:
+
+1. **Frontend** → upload the contents of `dist/` into **`public_html/`** (the main domain root). Result:
+   ```
+   public_html/
+   ├── index.html          <- React app
+   ├── .htaccess           <- SPA fallback (create, see below)
+   └── assets/...
+   ```
+
+   Create **`public_html/.htaccess`** with this exact content so React's client-side routes work on refresh:
+   ```apache
+   <IfModule mod_rewrite.c>
+     RewriteEngine On
+     RewriteBase /
+     RewriteRule ^index\.html$ - [L]
+     RewriteCond %{REQUEST_FILENAME} !-f
+     RewriteCond %{REQUEST_FILENAME} !-d
+     RewriteRule . /index.html [L]
+   </IfModule>
+   ```
+
+2. **Backend** → upload the **contents of `school-backend/`** into **`public_html/api/`**:
+   ```
+   public_html/
+   ├── index.html              # React SPA
+   ├── .htaccess
+   ├── assets/...
+   └── api/                    # Laravel
+       ├── app/  bootstrap/  config/  database/  public/  resources/  routes/  storage/  vendor/  artisan  composer.json  .env
+   ```
+
+3. **Create the API subdomain** → cPanel → **Domains → Create A New Domain**:
+   - Subdomain: `api.madrassatalfath.com`
+   - Document root: `public_html/api/public`   ← **must point to Laravel's `public/`, never `api/` itself**
+
+   This is the single most common mistake. The API must be served from `.../api/public` so `.env` and source code stay out of the web root.
+
+4. **Set permissions** (cPanel → File Manager → select → Permissions, or Terminal):
+   ```
+   chmod -R 755 storage bootstrap/cache
+   chmod -R 775 storage/framework storage/logs bootstrap/cache
+   ```
+
+---
+
+## 7. Step 5 — Install backend dependencies & migrate (server Terminal)
+
+cPanel → **Terminal** (or SSH). Most Composer packages are pure PHP, but run Composer **on the server** for correctness:
+
+```bash
+cd ~/public_html/api
+composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+php artisan migrate --force
+php artisan db:seed --force          # creates classes + subjects (LOAD)
+php artisan storage:link
+php artisan optimize                 # config:cache + route:cache + view:cache
+```
+
+> **`db:seed` creates demo accounts with password `password123`** (`admin@madrasatulfathi.com`, `teacher@...`, `parent@...`, `student@...`). Log in and change every password BEFORE telling anyone the URL, or delete `demo@example.com`.
+
+> No Terminal? Two options: (a) ask the host to enable Terminal/SSH (shared hosts usually offer it), or (b) upload the project with a locally-built `vendor` (Linux-agnostic for this stack) and run migrations via a single-use temporary route — then delete it.
+
+---
+
+## 8. Step 6 — The exact production `.env`
+
+### 8a. Frontend — `…/.env.production` (in project root, used at build time)
+```
+VITE_API_URL=https://api.madrassatalfath.com/api
+VITE_CSRF_URL=https://api.madrassatalfath.com/sanctum/csrf-cookie
+VITE_APP_NAME=Madrasatul Fathi School
+VITE_APP_VERSION=1.0.0
+```
+
+### 8b. Backend — `school-backend/.env` (on the server)
 ```
 APP_NAME="Madrasatul Fathi School"
 APP_ENV=production
-APP_KEY=<RUN: php artisan key:generate>
+APP_KEY=<generated by: php artisan key:generate>
 APP_DEBUG=false
-APP_URL=https://api.myschool.com
-FRONTEND_URL=https://app.myschool.com
+APP_URL=https://api.madrassatalfath.com
+FRONTEND_URL=https://madrassatalfath.com
 
 LOG_CHANNEL=stack
 LOG_LEVEL=warning
@@ -243,90 +194,88 @@ LOG_LEVEL=warning
 DB_CONNECTION=mysql
 DB_HOST=localhost
 DB_PORT=3306
-DB_DATABASE=school_db
-DB_USERNAME=school_user
-DB_PASSWORD=REPLACE_WITH_STRONG_PASSWORD
+DB_DATABASE=youruser_madrassa_school
+DB_USERNAME=youruser_madrassa_user
+DB_PASSWORD=<your strong DB password>
 
 SESSION_DRIVER=database
 SESSION_LIFETIME=120
-SESSION_ENCRYPT=true
+SESSION_ENCRYPT=false
 SESSION_PATH=/
-SESSION_DOMAIN=.myschool.com
+SESSION_DOMAIN=.madrassatalfath.com
 SESSION_SECURE_COOKIE=true
 SESSION_SAME_SITE=lax
 
-SANCTUM_STATEFUL_DOMAINS=app.myschool.com
+SANCTUM_STATEFUL_DOMAINS=madrassatalfath.com
 SANCTUM_EXPIRATION=60
-CORS_ALLOWED_ORIGINS=https://app.myschool.com
+CORS_ALLOWED_ORIGINS=https://madrassatalfath.com
 
 CACHE_STORE=database
-QUEUE_CONNECTION=database
+QUEUE_CONNECTION=sync
 
 MAIL_MAILER=smtp
-MAIL_HOST=smtp.myschool.com
+MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
-MAIL_USERNAME=REPLACE_WITH_SMTP_USERNAME
-MAIL_PASSWORD=REPLACE_WITH_SMTP_PASSWORD
+MAIL_USERNAME=alfathweb2020@gmail.com
+MAIL_PASSWORD=<Gmail App Password>
 MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS=no-reply@myschool.com
-MAIL_FROM_NAME="${APP_NAME}"
+MAIL_FROM_ADDRESS=alfathweb2020@gmail.com
+MAIL_FROM_NAME="Madrasatul Fathi School"
 ```
 
-**Critical lines to double-check before going live:**
-- `SESSION_DOMAIN` starts with a dot and is the **root domain** (`.myschool.com`) so the cookie is shared between `app.` and `api.`.
-- `SANCTUM_STATEFUL_DOMAINS` = the frontend host (no scheme, no trailing slash): `app.myschool.com`.
-- `CORS_ALLOWED_ORIGINS` = the full frontend URL: `https://app.myschool.com`.
-- `APP_DEBUG=false` — never ship with `true`.
-- `SESSION_SECURE_COOKIE=true` — this requires HTTPS on both subdomains.
+**The four lines that make login work across the two domains — get them exactly right:**
+- `SESSION_DOMAIN=.madrassatalfath.com` — leading dot, root domain (cookie shared by `madrassatalfath.com` and `api.madrassatalfath.com`).
+- `SANCTUM_STATEFUL_DOMAINS=madrassatalfath.com` — hostname only, no `https://`, no trailslash.
+- `CORS_ALLOWED_ORIGINS=https://madrassatalfath.com` — full origin, matches the browser exactly.
+- `SESSION_SECURE_COOKIE=true` — only after HTTPS is active on both.
+
+**Security notes:**
+- `APP_DEBUG=false` — never ship `true`.
+- The backend `.env` is outside the web root (`public_html/api/public`) so it cannot be downloaded — do not move it into `public/`.
+- Never commit `school-backend/.env` to git (the `.gitignore` already excludes it).
 
 ---
 
-## 7. Before-hosting checklist (summary)
+## 9. Step 7 — Enable HTTPS
 
-- [ ] Domain purchased, DNS points to host
-- [ ] Phone/email verified on host
-- [ ] PHP 8.2+ enabled
-- [ ] MySQL database + user created (strong password)
-- [ ] SMTP credentials usable (you can send a test email)
-- [ ] Backend `.env` filled (APP_KEY generated, debug off, real DB + SMTP)
-- [ ] Frontend `.env.production` created and `npm run build` run
-- [ ] Admin password not `password123` (change it in Settings, or create a fresh admin after migrate)
-- [ ] SSL certificates active on both subdomains
-- [ ] `php artisan migrate --force` completed
-- [ ] Laravel served from `public/` (never expose `app/` or `.env`)
+- cPanel → **SSL/TLS Status** (or AutoSSL / Let's Encrypt via `Install` on the domain/subdomain).
+- Secure **both** `madrassatalfath.com` and `api.madrassatalfath.com`, then:
+- Optional: force HTTPS for the API by adding to `public_html/api/public/.htaccess`, above the Laravel rules:
+  ```apache
+  RewriteCond %{HTTPS} off
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+  ```
+- Verify: https://madrassatalfath.com loads and https://api.madrassatalfath.com/up returns `{"status":"OK"}`.
 
 ---
 
-## 8. After-hosting test checklist
+## 10. Step 8 — Post-launch checklist
 
-Run these in a normal browser (not localhost):
-
-1. **Open** `https://app.myschool.com` → homepage loads, images/styles OK.
-2. **Register** a new account → form validates.
-3. **Login** as admin → dashboard loads (not blank).
-4. **Admin pages** → Users, Classes, Subjects, Registrations, Payments, Announcements all open without 500 errors.
-5. **Approve a registration** → the student account is created; the approval email arrives in the inbox.
-6. **Submit a payment** (parent) → it appears under Pending Payments; approving it marks the student paid in Registrations.
-7. **Mark a paid+approved student** → shows green **Paid** badge with full student/parent details.
-8. **Contact form** reply → email sent.
-9. **Forgot password** → reset email arrives.
-10. **Logout** works and session clears.
-11. Check `https://api.myschool.com/api/classes` without a token → 401 (auth protected), not a Laravel error page.
+1. `https://madrassatalfath.com` → homepage renders with styles/images.
+2. `https://api.madrassatalfath.com/up` → `OK`, not a Laravel error page.
+3. **Login as admin** → dashboard loads, no blank screen (tests cookies + CORS + session).
+4. Approve a registration → parent receives the email (check inbox + spam).
+5. Contact form reply → sender receives the reply email.
+6. Forgot password → reset link arrives and points at `https://madrassatalfath.com/accept-invite/…`.
+7. Refresh any admin sub-page → still loads (SPA fallback works).
+8. Logout → session clears.
 
 ---
 
-## 9. Post-launch maintenance
+## 11. Routine maintenance
 
-- **Backups** — enable daily automated DB backups in your host (cPanel → Backup, or Render → Database → Backups). Download a backup frequently.
-- **SSL expiry** — AutoSSL renews automatically; verify monthly.
-- **Updates** — keep Laravel and dependencies updated:
+- **Backups** — cPanel → Backup: full home directory + MySQL database, daily if possible.
+- **Laravel updates**
   ```bash
+  cd ~/public_html/api
   composer update
   php artisan migrate --force
+  php artisan optimize:clear && php artisan optimize
   ```
-- **Logs** — check `school-backend/storage/logs/laravel.log` if a page fails.
-- **Security** — never commit `.env`; keep `APP_DEBUG=false`; use HTTPS only; change admin password regularly.
+- **Frontend rebuild** — change code → `npm run build` → re-upload `dist/` contents to `public_html/`.
+- **Logs** — `public_html/api/storage/logs/laravel.log` when something 500s.
+- **Renewal** — AutoSSL renews itself; verify monthly.
 
 ---
 
-*End of guide. If you hit any step, the two most common causes are (1) `SESSION_DOMAIN`/`SANCTUM_STATEFUL_DOMAINS` values not matching your exact domain, and (2) the API web root pointing at `api/` instead of `api/public/`.*
+*End of guide. The most frequent issues are (1) `SESSION_DOMAIN`/`SANCTUM_STATEFUL_DOMAINS` not matching the exact domain, and (2) the API document root pointing at `api/` instead of `api/public`.*
