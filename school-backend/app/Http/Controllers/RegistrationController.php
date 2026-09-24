@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\AdmissionStatusUpdate;
 use App\Models\Registration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 class RegistrationController extends Controller
 {
@@ -71,6 +73,10 @@ class RegistrationController extends Controller
 
         $registration->update($data);
 
+        if ($registration->wasChanged('status') && in_array($registration->status, ['approved', 'rejected'], true)) {
+            $this->notifyStatusChange($registration);
+        }
+
         return response()->json([
             'success' => true,
             'data' => $this->map($registration),
@@ -90,6 +96,9 @@ class RegistrationController extends Controller
         $data = [];
         if ($request->has('status')) {
             $data['status'] = $request->input('status');
+            if ($request->has('admin_notes')) {
+                $data['admin_notes'] = $request->input('admin_notes');
+            }
         }
 
         if ($request->has('paymentStatus') || $request->has('payment_status')) {
@@ -105,6 +114,10 @@ class RegistrationController extends Controller
 
         $registration->update($data);
 
+        if ($registration->wasChanged('status') && in_array($registration->status, ['approved', 'rejected'], true)) {
+            $this->notifyStatusChange($registration);
+        }
+
         return response()->json([
             'success' => true,
             'data' => $this->map($registration),
@@ -116,6 +129,15 @@ class RegistrationController extends Controller
         Registration::findOrFail($id)->delete();
 
         return response()->json(['success' => true]);
+    }
+
+    protected function notifyStatusChange(Registration $registration): void
+    {
+        if (empty($registration->parent_email)) {
+            return;
+        }
+
+        Mail::to($registration->parent_email)->send(new AdmissionStatusUpdate($registration, $registration->status));
     }
 
     protected function map(Registration $r): array
