@@ -2,7 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Section;
 use App\Models\User;
+use App\Services\AuditLogger;
+use App\Services\SectionScope;
+use App\Support\Rbac;
 use App\Support\UserPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -10,12 +14,49 @@ use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
+    public function __construct(
+        private AuditLogger $audit,
+        private SectionScope $scope,
+    ) {}
+    /**
+     * Bound the rows a list endpoint returns. Without a cap the users query
+     * loaded every account at once and exceeded the client's 30s timeout.
+     */
+    protected function rowLimit(Request $request, int $default = 500, int $max = 1000): int
+    {
+        $limit = (int) $request->input('limit', $default);
+
+        return max(1, min($limit, $max));
+    }
+
     public function index(Request $request): JsonResponse
     {
-        $query = User::with(['teacher', 'student', 'parent']);
+        $caller = $request->user();
+        $query = User::with(['teacher', 'student', 'parent', 'section:id,key,name']);
+
+        abort_unless($caller && $caller->isAnyAdmin(), 403);
 
         if ($request->filled('role') && $request->role !== 'all') {
             $query->where('role', $request->role);
+        }
+
+        // A Sub-Admin may only ever see the accounts inside its own section,
+        // and must never be handed the full cross-section roster.
+        if ($caller->isSubAdmin()) {
+            abort_unless($caller->hasPermission('users.view'), 403, 'You cannot view users.');
+
+            if ($caller->section_id === null) {
+                return response()->json(['data' => []]);
+            }
+
+            $query->where('section_id', $caller->section_id);
+        }
+
+        if ($request->filled('section_id')) {
+            if ($caller->isSubAdmin() && (int) $request->section_id !== (int) $caller->section_id) {
+                abort(403, 'That section is outside your scope.');
+            }
+            $query->where('section_id', $request->integer('section_id'));
         }
 
         if ($request->filled('search')) {
@@ -27,7 +68,9 @@ class UserController extends Controller
             });
         }
 
-        $users = $query->orderBy('id')->get();
+        $users = $query->orderBy('id')
+            ->limit($this->rowLimit($request))
+            ->get();
 
         return response()->json([
             'data' => $users->map(fn (User $u) => UserPresenter::present($u)),
@@ -36,17 +79,56 @@ class UserController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $caller = $request->user();
+
         $request->validate([
             'name' => 'sometimes|string|max:120',
             'email' => 'required|email|unique:users,email',
             'role' => 'required|in:admin,teacher,parent,student',
             'password' => 'sometimes|string|min:6',
+            'section_id' => 'nullable|integer|exists:sections,id',
         ]);
+
+        $role = $request->role;
+
+        // ---- privilege escalation guards ---------------------------------
+        // Only a Super Admin may mint another admin account.
+        if ($role === 'admin' && ! $caller->isSuperAdmin()) {
+            $this->audit->denied('user.admin_creation_blocked', $caller, [
+                'attempted_role' => 'admin',
+            ]);
+
+            abort(403, 'Only the Super Admin can create admin accounts.');
+        }
+
+        if ($caller->isSubAdmin()) {
+            abort_unless($caller->hasPermission('users.create'), 403, 'You cannot create users.');
+
+            // A Sub-Admin can only create accounts inside its own section.
+            if ($request->filled('section_id') && (int) $request->section_id !== (int) $caller->section_id) {
+                abort(403, 'You can only create users inside your own section.');
+            }
+
+            if ($caller->section_id === null) {
+                abort(403, 'Your account is not assigned to a section yet.');
+            }
+        }
 
         $data = $this->normalizeStoreData($request);
 
         if (empty($data['name'])) {
             $data['name'] = str($data['email'])->before('@')->toString();
+        }
+
+        // Pin a Sub-Admin's new account into its own section, regardless of payload.
+        if ($caller->isSubAdmin()) {
+            $section = Section::find($caller->section_id);
+            $data['section_id'] = $caller->section_id;
+            $data['section_scope'] = $section?->key;
+        } elseif ($request->filled('section_id')) {
+            $section = Section::find($request->integer('section_id'));
+            $data['section_id'] = $section?->id;
+            $data['section_scope'] = $section?->key;
         }
 
         $user = User::create($data);
@@ -59,20 +141,78 @@ class UserController extends Controller
 
         $this->syncClassTeacher($user->fresh());
 
+        $this->audit->log('user.created', $caller, User::class, $user->id, $user->section_id, [
+            'role' => $user->role,
+            'email' => $user->email,
+        ], "Created {$user->role} account {$user->email}");
+
         return response()->json([
             'success' => true,
-            'data' => UserPresenter::present($user->fresh(['teacher', 'student', 'parent'])),
+            'data' => UserPresenter::present($user->fresh(['teacher', 'student', 'parent', 'section'])),
         ], 201);
     }
 
     public function update(Request $request, int $id): JsonResponse
     {
+        $caller = $request->user();
         $user = User::with(['teacher', 'student', 'parent'])->findOrFail($id);
+
+        // ---- Super Admin protection (hard block) -------------------------
+        if ($user->isSuperAdmin() && ! $caller->isSuperAdmin()) {
+            $this->audit->denied('super_admin.protected', $caller, [
+                'target_user_id' => $user->id,
+            ]);
+
+            abort(403, 'The Super Admin account cannot be modified by another account.');
+        }
+
+        if ($caller->isSubAdmin()) {
+            $this->scope->assertUserInScope($request, $user);
+            abort_unless($caller->hasPermission('users.update'), 403, 'You cannot update users.');
+        }
 
         $request->validate([
             'name' => 'sometimes|string|max:120',
             'email' => 'sometimes|email|unique:users,email,'.$user->id,
+            'section_id' => 'nullable|integer|exists:sections,id',
+            'permissions' => 'nullable|array',
+            'permissions.*' => 'string',
         ]);
+
+        // ---- privilege escalation guards ---------------------------------
+        if ($request->has('role')) {
+            if (! $caller->isSuperAdmin()) {
+                $this->audit->denied('user.role_change_blocked', $caller, [
+                    'target_user_id' => $user->id,
+                    'attempted_role' => $request->input('role'),
+                ]);
+
+                abort(403, 'Only the Super Admin can change a role.');
+            }
+        }
+
+        if ($request->has('permissions')) {
+            abort_unless($caller->isSuperAdmin(), 403, 'Only the Super Admin can change permissions.');
+        }
+
+        if ($request->has('section_id') && $caller->isSubAdmin()) {
+            abort(403, 'Only the Super Admin can move an account between sections.');
+        }
+
+        // A Super Admin's own tier flags may only be changed by another
+        // Super Admin, and never self-demoted.
+        if ($user->isSuperAdmin() && $caller->isSuperAdmin() && (int) $caller->id === (int) $user->id) {
+            foreach (['is_super_admin', 'is_sub_admin'] as $tierField) {
+                if ($request->has($tierField) && ! $request->boolean($tierField)) {
+                    abort(403, 'You cannot demote your own Super Admin account.');
+                }
+            }
+        }
+
+        $originalRole = $user->role;
+        $originalStatus = $user->status;
+        $originalSection = $user->section_id;
+        $originalPermissions = $user->permissionList();
 
         $map = [
             'name' => 'name',
@@ -130,6 +270,23 @@ class UserController extends Controller
             $fill['password'] = Hash::make($fill['password']);
         }
 
+        // Section + permission writes are RBAC-controlled, never mass-assignable.
+        if ($request->has('section_id')) {
+            $section = Section::find($request->integer('section_id'));
+            $fill['section_id'] = $section?->id;
+            $fill['section_scope'] = $section?->key;
+        }
+
+        if ($request->has('permissions')) {
+            $fill['permissions'] = Rbac::sanitizeGrantable((array) $request->input('permissions'));
+        }
+
+        if ($caller->isSubAdmin() && ! empty($caller->section_id)) {
+            // hard pin: a Sub-Admin can never move an account out of its section
+            $fill['section_id'] = $caller->section_id;
+            $fill['section_scope'] = Section::find($caller->section_id)?->key;
+        }
+
         if (! empty($fill)) {
             $user->fill($fill);
         }
@@ -164,22 +321,63 @@ class UserController extends Controller
         \App\Support\ChildLinker::link($user->fresh(['student', 'parent']));
         \App\Support\ChildLinker::linkAll();
 
+        $changed = array_keys(array_filter([
+            'role' => $originalRole !== $user->role ? $user->role : null,
+            'status' => $originalStatus !== $user->status ? $user->status : null,
+            'section_id' => (int) $originalSection !== (int) $user->section_id ? $user->section_id : null,
+            'permissions' => $originalPermissions !== $user->permissionList() ? $user->permissionList() : null,
+        ], static fn ($value) => $value !== null));
+
+        if ($changed !== []) {
+            // A tier change revokes every live session so a stale token cannot
+            // keep acting with the permissions it was issued under.
+            if (in_array('role', $changed, true) || in_array('permissions', $changed, true)
+                || in_array('section_id', $changed, true) || in_array('status', $changed, true)) {
+                $user->tokens()->delete();
+            }
+
+            $this->audit->log('user.updated', $caller, User::class, $user->id, $user->section_id, [
+                'changed' => $changed,
+            ], "Updated {$user->role} account {$user->email}");
+        }
+
         return response()->json([
             'success' => true,
-            'data' => UserPresenter::present($user->fresh(['teacher', 'student', 'parent'])),
+            'data' => UserPresenter::present($user->fresh(['teacher', 'student', 'parent', 'section'])),
         ]);
     }
 
     public function destroy(Request $request, int $id): JsonResponse
     {
+        $caller = $request->user();
         $user = User::findOrFail($id);
 
-        if ($request->user()?->id === $user->id) {
+        // A Super Admin may only be demoted by another Super Admin, never
+        // deleted through the generic user endpoint. Checked before the
+        // self-delete rule so the response is always 403 for this tier.
+        if ($user->isSuperAdmin()) {
+            $this->audit->denied('super_admin.delete_blocked', $caller, [
+                'target_user_id' => $user->id,
+            ]);
+
+            abort(403, 'A Super Admin cannot be deleted. Demote the account instead.');
+        }
+
+        if ($caller?->id === $user->id) {
             return response()->json([
                 'success' => false,
                 'message' => 'You cannot delete your own account.',
             ], 422);
         }
+
+        if ($caller?->isSubAdmin()) {
+            $this->scope->assertUserInScope($request, $user);
+            abort_unless($caller->hasPermission('users.delete'), 403, 'You cannot delete users.');
+        }
+
+        $email = $user->email;
+        $role = $user->role;
+        $sectionId = $user->section_id;
 
         $user->tokens()->delete();
 
@@ -201,15 +399,43 @@ class UserController extends Controller
         \Illuminate\Support\Facades\DB::statement('ALTER TABLE users AUTO_INCREMENT = 1');
         \Illuminate\Support\Facades\DB::statement('ALTER TABLE students AUTO_INCREMENT = 1');
 
+        $this->audit->log('user.deleted', $caller, User::class, $user->id, $sectionId, [
+            'email' => $email,
+            'role' => $role,
+        ], "Deleted {$role} account {$email}");
+
         return response()->json(['success' => true]);
     }
 
     public function resetPassword(Request $request, int $id): JsonResponse
     {
+        $caller = $request->user();
         $user = User::findOrFail($id);
+
+        // Resetting a Super Admin password would be an account takeover, so it
+        // is limited to other Super Admins.
+        if ($user->isSuperAdmin() && ! $caller?->isSuperAdmin()) {
+            $this->audit->denied('super_admin.password_reset_blocked', $caller, [
+                'target_user_id' => $user->id,
+            ]);
+
+            abort(403, 'The Super Admin password can only be reset by another Super Admin.');
+        }
+
+        if ($caller?->isSubAdmin()) {
+            $this->scope->assertUserInScope($request, $user);
+        }
+
         $tempPassword = \Illuminate\Support\Str::random(10);
 
         $user->forceFill(['password' => Hash::make($tempPassword)])->save();
+
+        // Every existing session must die with the old password.
+        $user->tokens()->delete();
+
+        $this->audit->log('user.password_reset', $caller, User::class, $user->id, $user->section_id, [
+            'role' => $user->role,
+        ], "Reset the password for {$user->email}");
 
         return response()->json([
             'success' => true,
@@ -229,9 +455,11 @@ class UserController extends Controller
             $data['status'] = 'active';
         }
 
-        if ($request->has('password')) {
-            $data['password'] = Hash::make($request->password);
-        }
+        // users.password is NOT NULL, so an account created without an explicit
+        // password gets a random unusable one instead of a 500.
+        $data['password'] = Hash::make(
+            $request->filled('password') ? $request->password : \Illuminate\Support\Str::random(24)
+        );
 
         if ($request->has('dateOfBirth')) {
             $data['dob'] = $request->input('dateOfBirth');
@@ -366,6 +594,7 @@ class UserController extends Controller
             'dob' => $user->dob,
             'address' => $user->address,
             'class_codes' => $this->toArray($user->assigned_classes),
+            'status' => $user->status ?? 'active',
         ];
 
         if (! empty($subjects)) {

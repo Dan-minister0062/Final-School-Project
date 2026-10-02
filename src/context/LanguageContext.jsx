@@ -16,8 +16,7 @@ export const LanguageProvider = ({ children }) => {
   // Default to 'ar' (Arabic). No browser persistence; the
   // language is a memory-only UI preference.
   const [language, setLanguage] = useState('ar');
-  const [isChanging, setIsChanging] = useState(false);
-
+  
   // ===== TOGGLE LANGUAGE =====
 const toggleLanguage = () => {
   const newLang = language === 'en' ? 'ar' : 'en';

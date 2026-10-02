@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Navbar, Nav, Container, NavDropdown, Button } from 'react-bootstrap';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { FaUser, FaSchool, FaBars, FaBell, FaSignOutAlt, FaGlobe, FaLanguage } from 'react-icons/fa';
+import {FaSchool, FaBars, FaBell, FaSignOutAlt} from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { useLanguage } from '../../context/LanguageContext';
 import { getInitials } from '../../utils/helpers';
@@ -13,7 +13,7 @@ const NavbarComponent = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated, user, logout } = useAuth();
-  const { language, toggleLanguage, isArabic } = useLanguage();
+  const {  toggleLanguage, isArabic } = useLanguage();
 
   const handleLogout = async () => {
     await logout();
@@ -191,7 +191,7 @@ const NavbarComponent = () => {
               fontSize: '1.2rem',
               ...arabicFontStyle
             }}>
-              {isArabic ? 'مدرسة الفتح' : 'Madrassat Al Fath'}
+              {isArabic ? 'المدرسة الخاصة مدرسة الفتح' : 'Madrassat Al Fath Private'}
             </span>
             <span
               className="d-block"
@@ -207,18 +207,18 @@ const NavbarComponent = () => {
             >
               {isArabic ? 'الخاصة' : 'Private'}
             </span>
-            <small
-              className="d-block"
-              style={{
-                fontSize: '1.1rem',
-                color: '#ffffff',
-                opacity: 0.85,
-                lineHeight: '1.2',
-                fontWeight: '500',
-                letterSpacing: '0.3px',
-                ...arabicFontStyle
-              }}
-            >
+            <small>
+            {/*   className="d-block"
+            //   style={{
+            //     fontSize: '1.1rem',
+            //     color: '#ffffff',
+            //     opacity: 0.85,
+            //     lineHeight: '1.2',
+            //     fontWeight: '500',
+            //     letterSpacing: '0.3px',
+            //     ...arabicFontStyle
+            //   }}
+            // >*/}
               {isArabic ? 'أولي • ابتدائي • إعدادي • ثانوي' : 'Kindergarten • Primary • Secondary • High School'}
             </small>
           </div>

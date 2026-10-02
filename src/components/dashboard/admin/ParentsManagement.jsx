@@ -1,68 +1,8 @@
 // src/components/dashboard/admin/ParentsManagement.jsx
 import React, { useState, useEffect } from "react";
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Badge,
-  Button,
-  Table,
-  Modal,
-  Form,
-  Alert,
-  InputGroup,
-  Pagination,
-} from "react-bootstrap";
-import { useNavigate } from "react-router-dom";
-import {
-  FaUsers,
-  FaSearch,
-  FaFilter,
-  FaEye,
-  FaEnvelope,
-  FaPhone,
-  FaMapMarkerAlt,
-  FaChild,
-  FaClock,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaSync,
-  FaDownload,
-  FaPrint,
-  FaExclamationTriangle,
-  FaSpinner,
-  FaUserTie,
-  FaCalendarAlt,
-  FaIdCard,
-  FaUserCircle,
-  FaBirthdayCake,
-  FaVenusMars,
-  FaGlobe,
-  FaIdBadge,
-  FaCity,
-  FaBriefcase,
-  FaBuilding,
-  FaPhoneAlt,
-  FaHandshake,
-  FaStar,
-  FaAward,
-  FaRocket,
-  FaTimes as FaTimesIcon,
-  FaUserPlus,
-  FaUserGraduate,
-  FaSchool,
-  FaGraduationCap,
-  FaEdit,
-  FaTrash,
-  FaPlus,
-  FaSave,
-  FaUser,
-  FaLock,
-  FaUnlock,
-} from "react-icons/fa";
+import {Row, Col, Card, Badge, Button, Table, Modal, Form, Alert, InputGroup, Pagination} from "react-bootstrap";
+import {FaUsers, FaSearch, FaEye, FaEnvelope, FaPhone, FaMapMarkerAlt, FaChild, FaClock, FaCheckCircle, FaTimesCircle, FaSync, FaDownload, FaSpinner, FaUserTie, FaCalendarAlt, FaIdCard, FaUserCircle, FaBirthdayCake, FaVenusMars, FaGlobe, FaIdBadge, FaCity, FaBriefcase, FaBuilding, FaPhoneAlt, FaHandshake, FaTimes as FaTimesIcon} from "react-icons/fa";
 import { useLanguage } from "../../../context/LanguageContext";
-import { useAuth } from "../../../hooks/useAuth";
 import { useNotification } from "../../../hooks/useNotification";
 import { syncGet } from '../../../services/apiSync';
 import { format, formatDistanceToNow, isValid } from "date-fns";
@@ -88,9 +28,7 @@ const formatNumber = (num) => {
 
 const ParentsManagement = () => {
   const { isArabic } = useLanguage();
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const { notify } = useNotification();
+      const { notify } = useNotification();
 
   // State
   const [parents, setParents] = useState([]);
@@ -115,30 +53,9 @@ const ParentsManagement = () => {
   ];
 
   // ===== LEVEL CATEGORIES =====
-  const levelCategories = [
-    { value: "kindergarten", label: isArabic ? "أولي" : "Kindergarten", color: "#f39c12" },
-    { value: "primary", label: isArabic ? "ابتدائي" : "Primary", color: "#3498db" },
-    { value: "secondary", label: isArabic ? "إعدادي" : "Secondary", color: "#2ecc71" },
-    { value: "high_school", label: isArabic ? "ثانوي" : "High School", color: "#9b59b6" }
-  ];
-
+  
   // ===== EMERGENCY CONTACT RELATIONSHIP OPTIONS =====
-  const relationshipOptions = [
-    { value: "father", label: isArabic ? "أب" : "Father" },
-    { value: "mother", label: isArabic ? "أم" : "Mother" },
-    { value: "brother", label: isArabic ? "أخ" : "Brother" },
-    { value: "sister", label: isArabic ? "أخت" : "Sister" },
-    { value: "guardian", label: isArabic ? "ولي أمر" : "Guardian" },
-    { value: "uncle", label: isArabic ? "عم/خال" : "Uncle" },
-    { value: "aunt", label: isArabic ? "عمة/خالة" : "Aunt" },
-    { value: "grandfather", label: isArabic ? "جد" : "Grandfather" },
-    { value: "grandmother", label: isArabic ? "جدة" : "Grandmother" },
-    { value: "cousin", label: isArabic ? "ابن عم/خال" : "Cousin" },
-    { value: "friend", label: isArabic ? "صديق" : "Friend" },
-    { value: "neighbor", label: isArabic ? "جار" : "Neighbor" },
-    { value: "other", label: isArabic ? "أخرى" : "Other" },
-  ];
-
+  
   // ===== Check dark mode =====
   useEffect(() => {
     const checkDarkMode = () => {
@@ -415,8 +332,7 @@ const ParentsManagement = () => {
   // ===== STATS =====
   const totalParentsCount = parents.length;
   const activeParents = parents.filter((p) => p.status === "active").length;
-  const pendingParents = parents.filter((p) => p.status === "pending").length;
-  const inactiveParents = parents.filter(
+    const inactiveParents = parents.filter(
     (p) => p.status === "inactive" || p.status === "suspended"
   ).length;
   const totalChildren = parents.reduce(

@@ -1,106 +1,9 @@
 // src/components/dashboard/parent/ParentDashboard.jsx
 import React, { useState, useEffect } from "react";
-import { syncGet, syncSend } from "../../../services/apiSync";
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Badge,
-  Button,
-  ProgressBar,
-  Table,
-  Nav,
-  Form,
-  Modal,
-  Spinner,
-} from "react-bootstrap";
-import { Link, useNavigate } from "react-router-dom";
-import {
-  FaUser,
-  FaEnvelope,
-  FaPhone,
-  FaCalendarAlt,
-  FaClock,
-  FaStar,
-  FaStarHalf,
-  FaRegStar,
-  FaAward,
-  FaTrophy,
-  FaBook,
-  FaGraduationCap,
-  FaChartLine,
-  FaCheckCircle,
-  FaArrowRight,
-  FaBell,
-  FaCog,
-  FaUserCircle,
-  FaClipboardCheck,
-  FaBullhorn,
-  FaCalendarCheck,
-  FaPaperPlane,
-  FaUsers,
-  FaChild,
-  FaUserGraduate,
-  FaBuilding,
-  FaUniversity,
-  FaInfoCircle,
-  FaFileAlt,
-  FaDownload,
-  FaPrint,
-  FaExclamationTriangle,
-  FaTimes,
-  FaCheck,
-  FaEye,
-  FaEdit,
-  FaTrash,
-  FaPlus,
-  FaSearch,
-  FaFilter,
-  FaChevronDown,
-  FaChevronUp,
-  FaBars,
-  FaHeart,
-  FaSchool,
-  FaBookOpen,
-  FaChalkboardTeacher,
-  FaUserPlus,
-  FaRocket,
-  FaGift,
-  FaFire,
-  FaGem,
-  FaCrown,
-  FaStar as FaStarSolid,
-  FaComments,
-  FaQuoteLeft,
-  FaQuoteRight,
-  FaUserTie,
-  FaCalendarWeek,
-  FaClock as FaClockIcon,
-  FaMapMarkerAlt,
-  FaTag,
-  FaSync,
-  FaChild as FaChildIcon,
-  FaQuoteLeft as FaQuoteLeftIcon,
-  FaTasks,
-  FaClipboardList,
-  FaHourglassHalf,
-  FaPaperPlane as FaPaperPlaneIcon,
-  FaLanguage,
-  FaCalculator,
-  FaFlask,
-  FaDna,
-  FaAtom,
-  FaMicroscope,
-  FaLaptop,
-  FaRunning,
-  FaPalette,
-  FaGlobe,
-  FaBrain,
-  FaMusic,
-} from "react-icons/fa";
+import {syncGet} from "../../../services/apiSync";
+import {Container, Row, Col, Card, Badge, Button, ProgressBar, Table, Nav, Modal, Spinner} from "react-bootstrap";
+import {FaUser, FaCalendarAlt, FaClock, FaBook, FaChartLine, FaCheckCircle, FaBullhorn, FaCalendarCheck, FaChild, FaUserGraduate, FaBuilding, FaUniversity, FaTimes, FaCheck, FaEye, FaSchool, FaBookOpen, FaChalkboardTeacher, FaQuoteLeft, FaQuoteRight, FaUserTie, FaTag, FaSync, FaChild as FaChildIcon, FaClipboardList, FaHourglassHalf, FaPaperPlane as FaPaperPlaneIcon, FaLanguage, FaCalculator, FaFlask, FaDna, FaAtom, FaMicroscope, FaLaptop, FaRunning, FaPalette, FaGlobe, FaBrain, FaMusic} from "react-icons/fa";
 import { useLanguage } from "../../../context/LanguageContext";
-import { getTranslation } from "../../../utils/translations";
 import { useAuth } from "../../../hooks/useAuth";
 import { useNotification } from "../../../hooks/useNotification";
 
@@ -145,12 +48,10 @@ const getSubjectIcon = (subjectName) => {
 };
 
 const ParentDashboard = () => {
-  const { language, isArabic } = useLanguage();
-  const t = (key) => getTranslation(key, language);
-  const { user } = useAuth();
+  const {  isArabic } = useLanguage();
+    const { user } = useAuth();
   const { notify } = useNotification();
-  const navigate = useNavigate();
-
+  
   const [selectedChild, setSelectedChild] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);

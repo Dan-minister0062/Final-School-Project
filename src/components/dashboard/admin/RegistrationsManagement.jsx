@@ -1,18 +1,8 @@
 // src/components/dashboard/admin/RegistrationsManagement.jsx
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Table, Badge, Button, Form, Modal, Alert, Pagination, InputGroup } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
-import {
-  FaUserGraduate, FaUserPlus, FaCheckCircle, FaTimesCircle, FaEye,
-  FaSearch, FaClock, FaEnvelope, FaPhone, FaCalendarAlt,
-  FaMapMarkerAlt, FaUser, FaChild, FaSchool, FaBuilding,
-  FaInfoCircle, FaExclamationTriangle, FaSync, FaFilter,
-  FaChevronDown, FaChevronUp, FaUserCheck, FaUserTimes,
-  FaSave, FaPrint, FaFileExcel, FaArrowRight, FaUsers, FaMoneyBillWave,
-  FaSort, FaSortUp, FaSortDown, FaSpinner
-} from 'react-icons/fa';
+import {Row, Col, Card, Table, Badge, Button, Form, Modal, Alert, Pagination, InputGroup} from 'react-bootstrap';
+import {FaUserPlus, FaCheckCircle, FaTimesCircle, FaEye, FaSearch, FaClock, FaEnvelope, FaPhone, FaInfoCircle, FaSync, FaChevronDown, FaChevronUp, FaFileExcel, FaUsers, FaSort, FaSortUp, FaSortDown, FaSpinner} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
-import { getTranslation } from '../../../utils/translations';
 import { useNotification } from '../../../hooks/useNotification';
 import api from '../../../services/api';
 import { syncGet, syncSend } from '../../../services/apiSync';
@@ -24,11 +14,9 @@ const formatNumber = (num) => {
 };
 
 const RegistrationsManagement = () => {
-  const { language, isArabic } = useLanguage();
-  const t = (key) => getTranslation(key, language);
-  const { notify } = useNotification();
-  const navigate = useNavigate();
-
+  const {  isArabic } = useLanguage();
+    const { notify } = useNotification();
+  
   // ===== ARABIC FONT STYLE =====
   const arabicFontStyle = {
     fontFamily: isArabic ? '"Hacen Tunisia", "Hacen Tunisia Bd", "Noto Sans Arabic", "Vazirmatn", "Traditional Arabic", "Arabic Typesetting", serif' : 'inherit',
@@ -113,24 +101,6 @@ const RegistrationsManagement = () => {
       const serverRes = await syncGet('/registrations');
       if (Array.isArray(serverRes?.data)) {
         serverRows = serverRes.data.map(normalizeServerRegistration);
-      }
-
-      const payRes = await syncGet('/payments');
-      if (Array.isArray(payRes?.data)) {
-        const paidByAdmission = {};
-        payRes.data.forEach((p) => {
-          if (!['approved', 'paid'].includes(p.status)) return;
-          const paidAt = p.paidAt || p.paid_at || p.updatedAt || null;
-          const aid = p.admissionId ?? p.admission_id ?? null;
-          if (aid != null && aid !== '') paidByAdmission[String(aid)] = paidAt;
-        });
-        serverRows = serverRows.map((r) => {
-          const paidAt = paidByAdmission[String(r._serverId ?? r.id)];
-          if (paidAt && r.paymentStatus !== 'paid') {
-            return { ...r, paymentStatus: 'paid', paymentPaidAt: paidAt };
-          }
-          return r;
-        });
       }
 
       serverRows.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -341,15 +311,6 @@ const handleApprove = async () => {
       'success'
     );
     
-    window.dispatchEvent(new CustomEvent('newNotification', {
-      detail: {
-        title: isArabic ? `💰 طلب دفع جديد: ${selectedRegistration.studentName}` : `💰 New Payment Request: ${selectedRegistration.studentName}`,
-        message: isArabic ? `تم إضافة ${selectedRegistration.studentName} إلى قائمة الدفع` : `${selectedRegistration.studentName} added to payment queue`,
-        type: 'payment',
-        link: '/dashboard/admin/payments'
-      }
-    }));
-    
     loadRegistrations();
   } catch (e) {
     console.error('Approve failed:', e);
@@ -359,30 +320,6 @@ const handleApprove = async () => {
     );
   }
 };
-
-  // ===== HANDLE MARK PAID =====
-  const handleMarkPaid = async (reg) => {
-    try {
-      const regId = reg._serverId || reg.id;
-      await syncSend('patch', `/registrations/${regId}/status`, {
-        paymentStatus: 'paid',
-        paymentPaidAt: new Date().toISOString(),
-      });
-
-      notify(
-        isArabic ? `تم تسجيل دفع الرسوم لـ ${reg.studentName}` : `Payment recorded for ${reg.studentName}`,
-        'success'
-      );
-      
-      loadRegistrations();
-    } catch (e) {
-      console.error('Payment recording failed:', e);
-      notify(
-        e.message || (isArabic ? 'فشل تسجيل الدفع' : 'Failed to record payment'),
-        'error'
-      );
-    }
-  };
 
   // ===== HANDLE REJECT =====
 const handleReject = async () => {
@@ -543,18 +480,6 @@ const handleReject = async () => {
                 <Badge bg={statusInfo.bg} className="px-2 py-1" style={{ ...arabicFontStyle, fontSize: 'clamp(0.45rem, 0.55vw, 0.6rem)' }}>
                   {statusInfo.icon} {statusInfo.label}
                 </Badge>
-                {registration.status === 'approved' && (
-                  <Badge
-                    bg={registration.paymentStatus === 'paid' ? 'success' : 'warning'}
-                    className="px-2 py-1"
-                    style={{ ...arabicFontStyle, fontSize: 'clamp(0.45rem, 0.55vw, 0.6rem)' }}
-                  >
-                    <FaMoneyBillWave size={10} className="me-1" />
-                    {registration.paymentStatus === 'paid'
-                      ? (isArabic ? 'مدفوع' : 'Paid')
-                      : (isArabic ? 'طلب دفع' : 'Payment Requested')}
-                  </Badge>
-                )}
                 <Badge style={{ background: levelColor, color: 'white', ...arabicFontStyle, fontSize: 'clamp(0.45rem, 0.55vw, 0.6rem)' }}>
                   {getLevelLabel(registration.level)}
                 </Badge>
@@ -948,18 +873,6 @@ const handleReject = async () => {
                         <Badge bg={statusInfo.bg} className="px-2 py-1" style={{ ...arabicFontStyle, fontSize: 'clamp(0.45rem, 0.55vw, 0.6rem)' }}>
                           {statusInfo.icon} {statusInfo.label}
                         </Badge>
-                        {reg.status === 'approved' && (
-                          <Badge
-                            bg={reg.paymentStatus === 'paid' ? 'success' : 'warning'}
-                            className="ms-1 px-2 py-1"
-                            style={{ ...arabicFontStyle, fontSize: 'clamp(0.4rem, 0.5vw, 0.55rem)' }}
-                          >
-                            <FaMoneyBillWave size={8} className="me-1" />
-                            {reg.paymentStatus === 'paid'
-                              ? (isArabic ? 'مدفوع' : 'Paid')
-                              : (isArabic ? 'طلب دفع' : 'Payment Requested')}
-                          </Badge>
-                        )}
                       </td>
                       <td className="d-none d-md-table-cell" style={{ ...arabicFontStyle, fontSize: 'clamp(0.65rem, 0.8vw, 0.8rem)', color: darkMode ? '#e9ecef' : '#212529' }}>
                         {new Date(reg.createdAt).toLocaleDateString()}
@@ -996,17 +909,6 @@ const handleReject = async () => {
                                 <FaTimesCircle size={12} />
                               </Button>
                             </>
-                          )}
-                          {reg.status === 'approved' && reg.paymentStatus !== 'paid' && (
-                            <Button 
-                              variant="outline-info" 
-                              size="sm" 
-                              className="action-btn" 
-                              onClick={() => handleMarkPaid(reg)}
-                              title={isArabic ? 'تسجيل الدفع' : 'Mark as Paid'}
-                            >
-                              <FaMoneyBillWave size={12} />
-                            </Button>
                           )}
                         </div>
                       </td>

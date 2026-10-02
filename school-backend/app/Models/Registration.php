@@ -20,7 +20,6 @@ class Registration extends Model
         'cin_id', 'parent_password', 'emergency_contact',
         'emergency_relationship', 'emergency_phone', 'additional_notes',
         'terms_agreed', 'status', 'admin_notes',
-        'payment_status', 'payment_paid_at',
     ];
 
     protected $casts = [
@@ -28,7 +27,6 @@ class Registration extends Model
         'has_attended_before' => 'boolean',
         'special_assistance' => 'boolean',
         'terms_agreed' => 'boolean',
-        'payment_paid_at' => 'datetime',
     ];
 
     public function getFullNameAttribute(): string

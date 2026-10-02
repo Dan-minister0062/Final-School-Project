@@ -246,7 +246,7 @@ class AttendanceService {
       const student = record.students.find(s => s.studentId === studentId);
       if (student) {
         const status = student.status.toLowerCase();
-        if (summary.hasOwnProperty(status)) {
+        if (Object.prototype.hasOwnProperty.call(summary, status)) {
           summary[status] = (summary[status] || 0) + 1;
         }
       }

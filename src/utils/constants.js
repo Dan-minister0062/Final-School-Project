@@ -19,7 +19,6 @@ export const STORAGE_KEYS = {
   DASHBOARD_NOTIFICATIONS: 'dashboard_notifications',
   REGISTRATIONS: 'school_registrations',
   ANNOUNCEMENTS: 'school_announcements',
-  PAYMENTS: 'school_payments',
   PARENTS: 'school_parents',
   ADMISSIONS: 'school_admissions'
 };
@@ -102,7 +101,6 @@ export const API_ENDPOINTS = {
   DASHBOARD: '/dashboard',
   NOTIFICATIONS: '/notifications',
   SUBJECTS: '/subjects',
-  PAYMENTS: '/payments',
   ADMISSIONS: '/admissions'
 };
 

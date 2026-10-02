@@ -1,22 +1,8 @@
 // src/components/dashboard/student/StudentResults.jsx
 import React, { useState, useEffect } from 'react';
 import { syncGet } from '../../../services/apiSync';
-import { Card, Row, Col, Button, Badge, Table, Modal, ProgressBar } from 'react-bootstrap';
-import {
-  FaGraduationCap,
-  FaFileAlt,
-  FaCheckCircle,
-  FaClock,
-  FaSync,
-  FaExclamationTriangle,
-  FaChartBar,
-  FaBook,
-  FaUsers,
-  FaCalendarAlt,
-  FaDownload,
-  FaPrint,
-  FaEye,
-} from 'react-icons/fa';
+import {Card, Row, Col, Button, Badge, Modal, ProgressBar} from 'react-bootstrap';
+import {FaGraduationCap, FaFileAlt, FaCheckCircle, FaClock, FaSync, FaExclamationTriangle, FaBook, FaUsers, FaCalendarAlt, FaPrint, FaEye} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
 import { useAuth } from '../../../hooks/useAuth';

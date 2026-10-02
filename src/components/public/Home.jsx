@@ -2,29 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Button, Card, Carousel, Badge } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
-import {
-  FaGraduationCap,
-  FaUserGraduate,
-  FaChalkboardTeacher,
-  FaCalendarAlt,
-  FaBookOpen,
-  FaUsers,
-  FaAward,
-  FaClock,
-  FaStar,
-  FaQuoteLeft,
-  FaArrowRight,
-  FaSchool,
-  FaPhoneSquareAlt ,
-  FaRocket,
-  FaTrophy,
-  FaBook,
-  FaChild,
-  FaUserPlus,
-  FaCalendarCheck,
-  FaQuran,
-  FaMosque
-} from 'react-icons/fa';
+import {FaGraduationCap, FaUserGraduate, FaChalkboardTeacher, FaCalendarAlt, FaBookOpen, FaAward, FaQuoteLeft, FaArrowRight, FaPhoneSquareAlt, FaBook, FaChild, FaUserPlus, FaCalendarCheck} from 'react-icons/fa';
 import { useLanguage } from '../../context/LanguageContext';
 import { getTranslation } from '../../utils/translations';
 import SocialButtons from '../../components/common/SocialButtons';

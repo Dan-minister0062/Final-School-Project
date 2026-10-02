@@ -2,40 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Badge } from 'react-bootstrap';
 import { useLocation } from 'react-router-dom';
-import {
-  FaSchool,
-  FaBookOpen,
-  FaChalkboardTeacher,
-  FaClock,
-  FaAward,
-  FaQuran,
-  FaAtom,
-  FaLanguage,
-  FaCalculator,
-  FaFlask,
-  FaGlobe,
-  FaPaintBrush,
-  FaBasketballBall,
-  FaBook,
-  FaChild,
-  FaGraduationCap,
-  FaUsers,
-  FaStar,
-  FaCheckCircle,
-  FaRocket,
-  FaLightbulb,
-  FaKaaba,
-  FaBrain,
-  FaMicroscope,
-  FaLaptop,
-  FaPalette,
-  FaDumbbell,
-  FaGlobeAsia,
-  FaQuoteLeft,
-  FaArrowRight,
-  FaBullseye,
-  FaSchool as FaSchoolIcon
-} from 'react-icons/fa';
+import {FaBookOpen, FaClock, FaAward, FaQuran, FaLanguage, FaCalculator, FaFlask, FaBook, FaChild, FaGraduationCap, FaCheckCircle, FaRocket, FaLightbulb, FaKaaba, FaBrain, FaMicroscope, FaLaptop, FaPalette, FaDumbbell, FaGlobeAsia, FaBullseye} from 'react-icons/fa';
 import { useLanguage } from '../../context/LanguageContext';
 import { getTranslation } from '../../utils/translations';
 

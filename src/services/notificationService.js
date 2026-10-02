@@ -267,8 +267,8 @@ class NotificationService {
     const roleMap = {
       admin: ['registration', 'contact', 'system', 'announcement', 'reminder'],
       teacher: ['assignment', 'submission', 'schedule', 'announcement'],
-      parent: ['grade', 'attendance', 'announcement', 'payment'],
-      student: ['grade', 'announcement', 'assignment', 'payment']
+      parent: ['grade', 'attendance', 'announcement'],
+      student: ['grade', 'announcement', 'assignment']
     };
     const allowedTypes = roleMap[role] || ['announcement'];
     return this.notifications.filter((n) => allowedTypes.includes(n.type));
@@ -301,8 +301,8 @@ class NotificationService {
       ? {
           admin: ['registration', 'contact', 'system', 'announcement', 'reminder'],
           teacher: ['assignment', 'submission', 'schedule', 'announcement'],
-          parent: ['grade', 'attendance', 'announcement', 'payment'],
-          student: ['grade', 'announcement', 'assignment', 'payment']
+          parent: ['grade', 'attendance', 'announcement'],
+          student: ['grade', 'announcement', 'assignment']
         }[role] || ['announcement']
       : null;
 

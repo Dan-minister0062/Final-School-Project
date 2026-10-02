@@ -19,14 +19,12 @@ import {
   FaUserFriends,
   FaArrowRight,
   FaShieldAlt,
-  FaClock,
-  FaInfoCircle
+  FaClock
 } from 'react-icons/fa';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { useLanguage } from '../../context/LanguageContext';
-import { getTranslation } from '../../utils/translations';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotification } from '../../hooks/useNotification';
 import logo from "../../assets/images/school logo.jpeg";
@@ -90,13 +88,12 @@ const registerSchema = yup.object().shape({
   childrenCount: yup.string(), // ✅ No longer required, hidden
 
   // Account credentials
-  password: yup.string().min(6, 'Password must be at least 6 characters').required('Password is required'),
+  password: yup.string().min(8, 'Password must be at least 8 characters').required('Password is required'),
   confirmPassword: yup.string().oneOf([yup.ref('password')], 'Passwords must match').required('Confirm password is required'),
 });
 
 const Register = () => {
-  const { language, isArabic } = useLanguage();
-  const t = (key) => getTranslation(key, language);
+  const { isArabic } = useLanguage();
   const navigate = useNavigate();
   const { register: registerUser, loading } = useAuth();
   const { notify } = useNotification();

@@ -5,6 +5,10 @@
 
     RewriteEngine On
 
+    # Only ever answer for the API host
+    RewriteCond %{HTTP_HOST} !^api\.madrassatalfath\.com(:[0-9]+)?$ [NC]
+    RewriteRule ^ - [F,L]
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
@@ -23,3 +27,7 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>

@@ -20,6 +20,18 @@ class AssessmentController extends Controller
     ];
     protected const SUBMISSION_STATUSES = ['submitted', 'graded', 'late', 'approved', 'rejected'];
 
+    /**
+     * Bound the number of rows a list endpoint may return. Loading every
+     * assessment (and its base64 attachment) at once exhausted memory and
+     * pushed the response past the client's 30s timeout.
+     */
+    protected function rowLimit(Request $request, int $default = 200, int $max = 500): int
+    {
+        $limit = (int) $request->input('limit', $default);
+
+        return max(1, min($limit, $max));
+    }
+
     // ===== ASSESSMENTS =====
 
     public function index(Request $request): JsonResponse
@@ -105,7 +117,9 @@ class AssessmentController extends Controller
         }
 
         return response()->json([
-            'data' => $query->get()->map(fn (Assessment $a) => $this->mapAssessment($a)),
+            'data' => $query->limit($this->rowLimit($request))
+                ->get()
+                ->map(fn (Assessment $a) => $this->mapAssessment($a)),
         ]);
     }
 
@@ -291,7 +305,9 @@ class AssessmentController extends Controller
         }
 
         return response()->json([
-            'data' => $query->get()->map(fn (Submission $s) => $this->mapSubmission($s)),
+            'data' => $query->limit($this->rowLimit($request))
+                ->get()
+                ->map(fn (Submission $s) => $this->mapSubmission($s)),
         ]);
     }
 
@@ -540,9 +556,11 @@ class AssessmentController extends Controller
             'description' => $a->description,
             'descriptionEn' => $a->description_en ?? $a->description,
             'descriptionAr' => $a->description_ar ?? $a->description,
+            // The attachment payload is base64 file data. It used to be emitted
+            // under three keys at once, tripling the response size and pushing
+            // large lists past the client's 30s timeout. The frontend reads
+            // `attachment`, so only that key carries the blob now.
             'attachment' => $a->attachment_data,
-            'attachmentData' => $a->attachment_data,
-            'attachment_data' => $a->attachment_data,
             'attachmentName' => $a->attachment_name,
             'attachment_name' => $a->attachment_name,
             'attachmentType' => $a->attachment_type,
@@ -596,7 +614,7 @@ class AssessmentController extends Controller
             'content' => $s->content,
             'file_url' => $s->file_url,
             'fileUrl' => $s->file_url,
-            'file_data' => $s->file_data,
+            // Same as attachments: emit the base64 blob once, not twice.
             'fileData' => $s->file_data,
             'file_name' => $s->file_name,
             'fileName' => $s->file_name,

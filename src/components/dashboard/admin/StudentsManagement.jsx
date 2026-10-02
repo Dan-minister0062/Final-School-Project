@@ -1,91 +1,13 @@
 // src/components/dashboard/admin/StudentsManagement.jsx
-import React, { useState, useEffect, useRef } from "react";
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Badge,
-  Button,
-  Table,
-  Modal,
-  Form,
-  Alert,
-  InputGroup,
-  Pagination,
-  ProgressBar,
-  Image,
-} from "react-bootstrap";
-import { useNavigate } from "react-router-dom";
-import {
-  FaUsers,
-  FaUserPlus,
-  FaSearch,
-  FaFilter,
-  FaEye,
-  FaEdit,
-  FaTrash,
-  FaEnvelope,
-  FaPhone,
-  FaMapMarkerAlt,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaTimes,
-  FaSync,
-  FaDownload,
-  FaPrint,
-  FaChevronDown,
-  FaChevronUp,
-  FaExclamationTriangle,
-  FaSpinner,
-  FaUserGraduate,
-  FaCalendarAlt,
-  FaCamera,
-  FaIdCard,
-  FaUser,
-  FaSchool,
-  FaGraduationCap,
-  FaUserCircle,
-  FaBirthdayCake,
-  FaVenusMars,
-  FaGlobe,
-  FaCity,
-  FaBuilding,
-  FaChalkboardTeacher,
-  FaSave,
-  FaRocket,
-  FaChild,
-  FaAddressBook,
-  FaPhoneAlt,
-  FaEnvelopeOpen,
-  FaUserCheck,
-  FaUserTimes,
-  FaClock,
-  FaPlus,
-  FaUniversity,
-  FaLock,
-  FaUnlock,
-} from "react-icons/fa";
+import React, {useState, useEffect} from "react";
+import {Row, Col, Card, Badge, Button, Table, Modal, Form, InputGroup, Pagination} from "react-bootstrap";
+import {FaUsers, FaUserPlus, FaSearch, FaEye, FaEdit, FaTrash, FaEnvelope, FaPhone, FaMapMarkerAlt, FaCheckCircle, FaTimesCircle, FaTimes, FaSync, FaExclamationTriangle, FaSpinner, FaUserGraduate, FaCamera, FaUser, FaSchool, FaGraduationCap, FaUserCircle, FaBirthdayCake, FaVenusMars, FaGlobe, FaCity, FaSave, FaChild, FaAddressBook, FaPhoneAlt, FaUserCheck, FaClock, FaUniversity, FaLock, FaUnlock} from "react-icons/fa";
 import { useLanguage } from "../../../context/LanguageContext";
-import { useAuth } from "../../../hooks/useAuth";
 import { useNotification } from "../../../hooks/useNotification";
-import api from '../../../services/api';
 import { syncGet, syncSend } from '../../../services/apiSync';
 import notificationService from '../../../services/notificationService';
-import { format, formatDistanceToNow, isValid } from "date-fns";
-import { ar, enUS } from "date-fns/locale";
 
 // ===== SAFE DATE FORMAT =====
-const safeFormatDate = (date, formatStr = "PPP", options = {}) => {
-  if (!date) return "N/A";
-  try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    if (!isValid(dateObj)) return "N/A";
-    return format(dateObj, formatStr, options);
-  } catch {
-    return "N/A";
-  }
-};
 
 // ===== ALWAYS use English numbers =====
 const formatNumber = (num) => {
@@ -95,9 +17,7 @@ const formatNumber = (num) => {
 
 const StudentsManagement = () => {
   const { isArabic } = useLanguage();
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const { notify } = useNotification();
+      const { notify } = useNotification();
 
   // ===== STATE =====
   const [students, setStudents] = useState([]);
@@ -111,9 +31,7 @@ const StudentsManagement = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [totalStudents, setTotalStudents] = useState(0);
   const [selectedStudent, setSelectedStudent] = useState(null);
-  const [selectedStudents, setSelectedStudents] = useState([]);
-  const [selectAll, setSelectAll] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
+      const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -168,8 +86,7 @@ const StudentsManagement = () => {
     profilePhoto: "",
   });
 
-  const locale = isArabic ? ar : enUS;
-
+  
   // ===== ARABIC FONT STYLE =====
   const arabicFontStyle = {
     fontFamily: isArabic
@@ -289,7 +206,7 @@ const StudentsManagement = () => {
       const res = await syncGet('/users', { role: 'teacher' });
       const rows = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.data) ? res.data.data : []);
       return rows.find(u => (u.assignedClasses || []).includes(classId)) || null;
-    } catch (error) {
+    } catch {
       return null;
     }
   };
@@ -334,7 +251,7 @@ const StudentsManagement = () => {
         return true;
       }
       return false;
-    } catch (err) {
+    } catch {
       return false;
     }
   };
@@ -349,32 +266,12 @@ const StudentsManagement = () => {
       const classesRes = await syncGet('/classes');
       const classesData = Array.isArray(classesRes?.data) ? classesRes.data : (Array.isArray(classesRes?.data?.data) ? classesRes.data.data : []);
       
-      let paidSet = new Set();
-      try {
-        const payRes = await syncGet('/payments');
-        const payRows = Array.isArray(payRes?.data) ? payRes.data : [];
-        payRows
-          .filter((p) => p.status === 'approved' || p.status === 'paid')
-          .forEach((p) => {
-            if (p.student_id != null) paidSet.add(`userId:${p.student_id}`);
-            if (p.student_code) paidSet.add(`code:${String(p.student_code).toLowerCase()}`);
-            if (p.student_name) paidSet.add(`name:${String(p.student_name).toLowerCase()}`);
-          });
-      } catch (e) {
-        console.error('Error loading paid payments:', e);
-      }
-      
       const enrichedStudents = studentsData.map(student => {
         const classInfo = classesData.find(c => c.id === student.classId || c.code === student.classId || c.id === student.class || c.code === student.class || c.name === student.className);
-        const isPaid =
-          (student.userId != null && paidSet.has(`userId:${student.userId}`)) ||
-          (student.code && paidSet.has(`code:${String(student.code).toLowerCase()}`)) ||
-          (student.name && paidSet.has(`name:${String(student.name).toLowerCase()}`));
         return {
           ...student,
           className: classInfo?.name || student.className || student.class || 'N/A',
           classLevel: classInfo?.level || classInfo?.level_key || student.educationLevel || student.level || 'N/A',
-          isPaid,
         };
       });
       
@@ -1181,13 +1078,6 @@ const StudentsManagement = () => {
                             <Badge bg={getStatusBadge(student.status)} style={{ borderRadius: "8px" }}>
                               {getStatusLabel(student.status)}
                             </Badge>
-                            {student.isPaid && (
-                              <Badge bg="success" style={{ borderRadius: "8px" }}
-                                title={isArabic ? "قام بسداد الدفعة" : "Has paid"}>
-                                <FaCheckCircle size={10} className="me-1" />
-                                {isArabic ? "مدفوع" : "Paid"}
-                              </Badge>
-                            )}
                           </div>
                         </td>
                         <td>

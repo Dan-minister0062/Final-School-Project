@@ -1,27 +1,10 @@
 // src/components/dashboard/admin/SubjectsManagement.jsx
 import React, { useState, useEffect } from 'react';
-import {
-  Container, Row, Col, Card, Badge, Button, Table,
-  Modal, Form, Alert, InputGroup, Pagination
-} from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
-import {
-  FaBook, FaBookOpen, FaPlus, FaEdit, FaTrash, FaSearch,
-  FaSync, FaGraduationCap, FaSchool, FaBuilding,
-  FaChevronDown, FaChevronUp, FaExclamationTriangle,
-  FaSpinner, FaSave, FaTimes, FaFilter,
-  FaEye, FaCheckCircle, FaTimesCircle,
-  FaUsers as FaUsersIcon, FaChild, FaUniversity,
-  FaQuran, FaLanguage, FaCalculator, FaFlask,
-  FaLaptop, FaRunning, FaPalette, FaGlobe,
-  FaAtom, FaDna, FaBookOpen as FaBookOpenIcon,
-  FaBrain, FaMicroscope, FaMusic, FaRocket
-} from 'react-icons/fa';
+import {Row, Col, Card, Badge, Button, Table, Modal, Form, Alert, InputGroup, Pagination} from 'react-bootstrap';
+import {FaBook, FaPlus, FaEdit, FaTrash, FaSearch, FaSync, FaSchool, FaBuilding, FaExclamationTriangle, FaSpinner, FaSave, FaCheckCircle, FaTimesCircle, FaChild, FaUniversity} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
-import { useAuth } from '../../../hooks/useAuth';
 import { useNotification } from '../../../hooks/useNotification';
 import api from '../../../services/api';
-import { syncGet, syncSend } from '../../../services/apiSync';
 
 // ===== ALWAYS use English numbers =====
 const formatNumber = (num) => {
@@ -31,9 +14,7 @@ const formatNumber = (num) => {
 
 const SubjectsManagement = () => {
   const { isArabic } = useLanguage();
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const { notify } = useNotification();
+      const { notify } = useNotification();
 
   // ===== STATE =====
   const [subjects, setSubjects] = useState([]);
@@ -109,29 +90,7 @@ const SubjectsManagement = () => {
   };
 
   // ===== GET ALL SUBJECTS WITH CATEGORIES =====
-  const getAllSubjectsWithCategories = () => {
-    const allSubjects = [];
-    const categories = selectedCategory === 'all' 
-      ? levelCategories 
-      : levelCategories.filter(c => c.value === selectedCategory);
-    
-    categories.forEach(category => {
-      // MySQL is the single source of truth for subjects. Never fabricate
-      // records when the database has none - only rows persisted on the
-      // server are shown.
-      const subjectsList = allSubjectsData.filter(s => s.category === category.value);
-      if (subjectsList.length > 0) {
-        allSubjects.push({
-          category: category.value,
-          categoryLabel: category.label,
-          categoryColor: category.color,
-          subjects: subjectsList
-        });
-      }
-    });
-    return allSubjects;
-  };
-
+  
   // ===== GET COUNTS FOR EACH LEVEL =====
   const getLevelCounts = () => {
     const counts = {};

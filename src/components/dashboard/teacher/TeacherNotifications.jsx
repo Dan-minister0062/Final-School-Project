@@ -1,13 +1,11 @@
 // src/components/dashboard/teacher/TeacherNotifications.jsx
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Badge, Form, Row, Col } from 'react-bootstrap';
-import { FaBell, FaCheckDouble, FaTrash, FaSearch, FaSync, FaExclamationTriangle, FaSpinner } from 'react-icons/fa';
+import {FaBell, FaCheckDouble, FaTrash, FaSearch, FaSync, FaExclamationTriangle} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
 import notificationService from '../../../services/notificationService';
 import { teacherService } from '../../../services/teacherService';
-import LoadingSpinner from '../../common/LoadingSpinner';
-import EmptyState from '../../common/EmptyState';
 
 // ===== ALWAYS use English numbers =====
 const formatNumber = (num) => {

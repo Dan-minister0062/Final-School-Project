@@ -4,27 +4,12 @@ import {
   Row, Col, Card, Badge, Button, Table, 
   Modal, Form, Alert, InputGroup, Pagination, ProgressBar 
 } from 'react-bootstrap';
-import { Link, useNavigate } from 'react-router-dom';
-import {
-  FaBuilding, FaChalkboardTeacher, FaUserGraduate, FaClock,
-  FaChevronDown, FaChevronUp, FaSchool,
-  FaStar, FaUsers, FaCalendarAlt, FaMapMarkerAlt,
-  FaCheckCircle, FaTimesCircle, FaInfoCircle, FaExclamationTriangle,
-  FaDownload, FaPrint, FaSync,
-  FaBookOpen, FaChalkboard,
-  FaChild, FaBook, FaGraduationCap, FaAward,
-  FaUserTie, FaChartLine, FaClipboardList,
-  FaPlus, FaEdit, FaTrash, FaEye, FaSearch,
-  FaSpinner, FaSave, FaTimes, FaFilter, FaRocket,
-  FaUserCircle
-} from 'react-icons/fa';
+import {FaBuilding, FaChalkboardTeacher, FaUserGraduate, FaClock, FaSchool, FaCalendarAlt, FaCheckCircle, FaTimesCircle, FaExclamationTriangle, FaDownload, FaPrint, FaSync, FaChild, FaBook, FaGraduationCap, FaAward, FaPlus, FaEdit, FaTrash, FaEye, FaSearch, FaSpinner, FaSave, FaTimes, FaUserCircle} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
-import { useAuth } from '../../../hooks/useAuth';
 import { useNotification } from '../../../hooks/useNotification';
-import api from '../../../services/api';
 import { syncGet, syncSend } from '../../../services/apiSync';
 import { getAuthIdentity } from '../../../services/api';
-import { format, formatDistanceToNow, isValid } from 'date-fns';
+import {format, isValid} from 'date-fns';
 import { ar, enUS } from 'date-fns/locale';
 
 // ===== SAFE DATE FORMAT =====
@@ -47,8 +32,6 @@ const formatNumber = (num) => {
 
 const ClassesManagement = () => {
   const { isArabic } = useLanguage();
-  const navigate = useNavigate();
-  const { user } = useAuth();
   const { notify } = useNotification();
   const tableRef = useRef(null);
 
@@ -271,7 +254,7 @@ const ClassesManagement = () => {
     setError(null);
 
     try {
-      const [teachers, students] = await Promise.all([
+      await Promise.all([
         fetchTeachersData(),
         fetchStudentsData(),
         fetchAllUsers(),
@@ -909,7 +892,7 @@ const ClassesManagement = () => {
             </div>
             <script>
               window.onload = function() { window.print(); }
-            <\/script>
+            </script>
           </body>
         </html>
       `;
@@ -933,8 +916,7 @@ const ClassesManagement = () => {
   const totalStudents = allClassesData.reduce((sum, c) => sum + (c.students || 0), 0);
   const totalTeachers = [...new Set(allClassesData.map(c => c.teacher).filter(t => t && !t.includes(isArabic ? 'غير معين' : 'Not Assigned')))].length;
   const activeClasses = allClassesData.filter(c => c.isActive !== false).length;
-  const inactiveClasses = allClassesData.filter(c => c.isActive === false).length;
-
+  
   // ===== RENDER =====
   return (
     <div className="classes-management" dir={isArabic ? 'rtl' : 'ltr'}>

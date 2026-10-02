@@ -1,21 +1,9 @@
 // src/components/dashboard/teacher/TeacherSidebar.jsx
 import React from "react";
-import { NavLink, Link } from "react-router-dom";
+import {NavLink} from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useLanguage } from "../../context/LanguageContext";
-import { 
-  FaChartPie, 
-  FaChalkboardTeacher, 
-  FaUserGraduate, 
-  FaTasks, 
-  FaEdit, 
-  FaCalendarCheck, 
-  FaBell, 
-  FaUserCircle, 
-  FaSignOutAlt,
-  FaGraduationCap,
-  FaUser
-} from "react-icons/fa";
+import {FaChartPie, FaChalkboardTeacher, FaUserGraduate, FaTasks, FaCalendarCheck, FaBell, FaUserCircle, FaSignOutAlt, FaUser} from "react-icons/fa";
 
 const TeacherSidebar = () => {
   const { user, logout } = useAuth();

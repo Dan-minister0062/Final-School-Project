@@ -1,28 +1,8 @@
 // src/components/dashboard/admin/TeachersManagement.jsx
 import React, { useState, useEffect } from 'react';
-import {
-  Container, Row, Col, Card, Badge, Button, Table,
-  Modal, Form, Alert, InputGroup, Pagination
-} from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
-import {
-  FaUsers, FaUserPlus, FaSearch, FaFilter, FaEye,
-  FaEdit, FaTrash, FaEnvelope, FaPhone, FaMapMarkerAlt,
-  FaCheckCircle, FaTimesCircle, FaSync, FaDownload, FaPrint,
-  FaChevronDown, FaChevronUp, FaExclamationTriangle,
-  FaSpinner, FaUserTie, FaCalendarAlt, FaIdCard,
-  FaUserGraduate, FaChalkboardTeacher, FaUserCircle,
-  FaBook, FaClock, FaSchool, FaGraduationCap,
-  FaBuilding, FaBriefcase, FaBirthdayCake, FaVenusMars,
-  FaGlobe, FaIdBadge, FaPhoneAlt, FaHandshake,
-  FaChild, FaCity, FaMapPin, FaUserMd, FaSearchPlus,
-  FaGripLines, FaChartLine, FaAward, FaCertificate,
-  FaRocket, FaStar, FaMedal, FaTrophy,
-  FaUniversity, FaSort, FaSortUp, FaSortDown,
-  FaTimes as FaTimesIcon
-} from 'react-icons/fa';
+import {Row, Col, Card, Badge, Button, Table, Modal, Form, Alert, InputGroup, Pagination} from 'react-bootstrap';
+import {FaSearch, FaEye, FaEnvelope, FaPhone, FaMapMarkerAlt, FaCheckCircle, FaSync, FaDownload, FaSpinner, FaUserTie, FaCalendarAlt, FaIdCard, FaChalkboardTeacher, FaUserCircle, FaBook, FaClock, FaSchool, FaGraduationCap, FaBuilding, FaBriefcase, FaBirthdayCake, FaVenusMars, FaGlobe, FaIdBadge, FaPhoneAlt, FaHandshake, FaChild, FaCity, FaStar, FaUniversity, FaSort, FaSortUp, FaSortDown, FaTimes as FaTimesIcon} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
-import { useAuth } from '../../../hooks/useAuth';
 import { useNotification } from '../../../hooks/useNotification';
 import { syncGet } from '../../../services/apiSync';
 import { fetchServerClasses, toCatalogClasses } from '../../../services/classService';
@@ -49,9 +29,7 @@ const formatNumber = (num) => {
 
 const TeachersManagement = () => {
   const { isArabic } = useLanguage();
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const { notify } = useNotification();
+      const { notify } = useNotification();
   
   // State
   const [teachers, setTeachers] = useState([]);
@@ -62,12 +40,12 @@ const TeachersManagement = () => {
   const [filterSubject, setFilterSubject] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [totalTeachersCount, setTotalTeachersCount] = useState(0);
+  const [ setTotalTeachersCount] = useState(0);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [allSubjects, setAllSubjects] = useState([]);
-  const [allClasses, setAllClasses] = useState([]);
+  const [ setAllClasses] = useState([]);
   const [sortField, setSortField] = useState('id');
   const [sortDirection, setSortDirection] = useState('asc');
 
@@ -567,8 +545,7 @@ const TeachersManagement = () => {
   const totalTeachers = teachers.length;
   const activeTeachers = teachers.filter(t => t.status === 'active').length;
   const pendingTeachers = teachers.filter(t => t.status === 'pending').length;
-  const inactiveTeachers = teachers.filter(t => t.status === 'inactive' || t.status === 'suspended').length;
-  const avgExperience = teachers.length > 0 
+    const avgExperience = teachers.length > 0 
     ? Math.round(teachers.reduce((sum, t) => sum + (t.displayExperience || 0), 0) / teachers.length) 
     : 0;
 

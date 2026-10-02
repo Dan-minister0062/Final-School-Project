@@ -2,19 +2,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Container, Nav, Navbar, NavDropdown, Button, Badge, Offcanvas } from 'react-bootstrap';
 import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
-import {
-  FaUserGraduate, FaChalkboardTeacher, FaBuilding, FaBullhorn,
-  FaCalendarCheck, FaUserPlus, FaFileAlt, FaCog, FaUser, FaSignOutAlt,
-  FaBars, FaBell, FaMoon, FaSun, FaSchool,
-  FaTachometerAlt,
-  FaStar, FaAward,
-  FaClock, FaChevronDown,
-  FaLanguage, FaCheckDouble, FaTimes, FaUsers, FaUserCog, FaBook, FaMoneyBillWave,
-  FaClipboardList, FaEnvelope // Added for assessments
-} from 'react-icons/fa';
+import {FaUserGraduate, FaChalkboardTeacher, FaBuilding, FaBullhorn, FaCalendarCheck, FaUserPlus, FaFileAlt, FaCog, FaUser, FaSignOutAlt, FaBars, FaBell, FaMoon, FaSun, FaSchool, FaTachometerAlt, FaAward, FaClock, FaChevronDown, FaLanguage, FaCheckDouble, FaTimes, FaUsers, FaUserCog, FaBook, FaClipboardList, FaEnvelope} from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { useLanguage } from '../../context/LanguageContext';
-import { getInitials } from '../../utils/helpers';
 import { useNotification } from '../../hooks/useNotification';
 import notificationService from '../../services/notificationService';
 import logo from "../../assets/images/school logo.jpeg";
@@ -30,7 +20,7 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
-  const { language, toggleLanguage, isArabic } = useLanguage();
+  const {  toggleLanguage, isArabic } = useLanguage();
   const { notify } = useNotification();
 
   // ===== Get user role =====
@@ -215,7 +205,6 @@ const DashboardLayout = () => {
         { path: '/dashboard/admin/settings', icon: <FaCog />, label: isArabic ? 'الإعدادات' : 'Settings' },
         { path: '/dashboard/admin/subjects', icon: <FaBook />, label: isArabic ? 'المواد الدراسية' : 'Subjects' },
         { path: '/dashboard/admin/admissions', icon: <FaBook />, label: isArabic ? 'القبول' : 'Admission' },
-        { path: '/dashboard/admin/payments', icon: <FaMoneyBillWave />, label: isArabic ? 'المدفوعات' : 'Payments' },
         { path: '/dashboard/admin/contacts', icon: <FaEnvelope />, label: isArabic ? 'رسائل التواصل' : 'Contact Messages' },
         { path: '/dashboard/admin/notifications', icon: <FaBell />, label: isArabic ? 'الإشعارات' : 'Notifications' },
       ];
@@ -236,7 +225,6 @@ const DashboardLayout = () => {
       return [
         ...baseItems,
         { path: '/dashboard/parent/child-results', icon: <FaAward />, label: isArabic ? 'نتائج طفلي' : 'Child Results' },
-        { path: '/dashboard/parent/payments', icon: <FaMoneyBillWave />, label: isArabic ? 'المدفوعات' : 'Payments' },
         { path: '/dashboard/parent/announcements', icon: <FaBullhorn />, label: isArabic ? 'الإعلانات' : 'Announcements' },
       ];
     }
@@ -245,7 +233,6 @@ const DashboardLayout = () => {
       return [
         ...baseItems,
         { path: '/dashboard/student/my-results', icon: <FaAward />, label: isArabic ? 'نتائجي' : 'My Results' },
-        { path: '/dashboard/student/payments', icon: <FaMoneyBillWave />, label: isArabic ? 'المدفوعات' : 'Payments' },
         { path: '/dashboard/student/announcements', icon: <FaBullhorn />, label: isArabic ? 'الإعلانات' : 'Announcements' },
       ];
     }

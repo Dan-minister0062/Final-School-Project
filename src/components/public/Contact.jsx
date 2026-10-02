@@ -1,38 +1,7 @@
 // src/components/public/Contact.jsx
-import React, { useState, useEffect, useRef } from 'react';
-import { Container, Row, Col, Card, Form, Button, Alert, Spinner, Badge, InputGroup } from 'react-bootstrap';
-import {
-  FaPhone,
-  FaEnvelope,
-  FaMapMarkerAlt,
-  FaClock,
-  FaFacebook,
-  FaTwitter,
-  FaInstagram,
-  FaYoutube,
-  FaWhatsapp,
-  FaArrowRight,
-  FaCheckCircle,
-  FaPaperPlane,
-  FaUser,
-  FaComment,
-  FaRegClock,
-  FaBuilding,
-  FaParking,
-  FaBus,
-  FaBookOpen,
-  FaChalkboardTeacher,
-  FaGraduationCap,
-  FaClipboardCheck,
-  FaHeadset,
-  FaMapPin,
-  FaDirections,
-  FaPhoneAlt,
-  FaEnvelopeOpen,
-  FaSchool,
-  FaStar,
-  FaChevronRight
-} from 'react-icons/fa';
+import React, {useState, useEffect} from 'react';
+import {Container, Row, Col, Card, Form, Button, Alert, Spinner} from 'react-bootstrap';
+import {FaPhone, FaEnvelope, FaMapMarkerAlt, FaClock, FaCheckCircle, FaPaperPlane, FaUser, FaComment, FaRegClock, FaBuilding, FaBus, FaBookOpen, FaChalkboardTeacher, FaGraduationCap, FaClipboardCheck, FaHeadset, FaMapPin, FaDirections, FaPhoneAlt, FaEnvelopeOpen, FaSchool} from 'react-icons/fa';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -57,8 +26,7 @@ const Contact = () => {
 
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [hoveredCard, setHoveredCard] = useState(null);
-
+  
   // Auto-hide success message after 5 seconds
   useEffect(() => {
     if (submitted) {
@@ -69,7 +37,7 @@ const Contact = () => {
     }
   }, [submitted]);
 
-  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm({
+  const { register, handleSubmit, formState: { errors }, reset } = useForm({
     resolver: yupResolver(contactSchema),
     defaultValues: {
       name: isAuthenticated ? user?.name || '' : '',

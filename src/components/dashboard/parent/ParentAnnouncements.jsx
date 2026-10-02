@@ -1,67 +1,8 @@
 // src/components/dashboard/parent/ParentAnnouncements.jsx
 import React, { useState, useEffect } from "react";
 import { syncGet } from '../../../services/apiSync';
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Badge,
-  Button,
-  Form,
-  InputGroup,
-  Pagination,
-  Modal,
-} from "react-bootstrap";
-import {
-  FaBullhorn,
-  FaCalendarAlt,
-  FaClock,
-  FaUser,
-  FaTag,
-  FaEye,
-  FaHeart,
-  FaRegHeart,
-  FaComment,
-  FaShare,
-  FaSearch,
-  FaArrowRight,
-  FaSync,
-  FaBell,
-  FaStar,
-  FaRegStar,
-  FaCheckCircle,
-  FaExclamationTriangle,
-  FaInfoCircle,
-  FaPaperPlane,
-  FaEnvelope,
-  FaPhone,
-  FaMapMarkerAlt,
-  FaBuilding,
-  FaUsers,
-  FaGraduationCap,
-  FaChalkboardTeacher,
-  FaFileAlt,
-  FaImage,
-  FaVideo,
-  FaPlayCircle,
-  FaTimes,
-  FaLink,
-  FaWhatsapp,
-  FaTwitter,
-  FaFacebook,
-  FaSpinner,
-  FaChild,
-  FaUserGraduate,
-  FaBookOpen,
-  FaClipboardList,
-  FaHourglassHalf,
-  FaCheckDouble,
-  FaMoneyBillWave,
-  FaTrash,
-  FaTrashAlt,
-  FaExclamationCircle
-} from "react-icons/fa";
+import {Row, Col, Card, Badge, Button, Form, InputGroup, Pagination, Modal} from "react-bootstrap";
+import {FaBullhorn, FaCalendarAlt, FaClock, FaUser, FaTag, FaEye, FaHeart, FaRegHeart, FaComment, FaSearch, FaArrowRight, FaSync, FaBell, FaStar, FaCheckCircle, FaExclamationTriangle, FaPaperPlane, FaUsers, FaTimes, FaSpinner, FaChild, FaCheckDouble, FaTrash, FaTrashAlt, FaExclamationCircle} from "react-icons/fa";
 import { useLanguage } from "../../../context/LanguageContext";
 import { getTranslation } from "../../../utils/translations";
 import { useNotification } from "../../../hooks/useNotification";
@@ -86,34 +27,6 @@ const formatNumber = (num) => {
 };
 
 // ===== Map announcement =====
-const mapAnnouncement = (a) => ({
-  id: a.id || `ANN${Date.now()}`,
-  title: a.title || "Announcement",
-  titleAr: a.titleAr || a.title || "إشعار",
-  content: a.content || "",
-  contentAr: a.contentAr || a.content || "",
-  type: a.type || "announcement",
-  priority: a.priority || "medium",
-  date: a.date || new Date().toISOString().split("T")[0],
-  time:
-    a.time ||
-    new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-  author: a.author || "Admin",
-  authorAr: a.authorAr || a.author || "المسؤول",
-  image: a.image || null,
-  video: a.video || null,
-  mediaType: a.mediaType || "none",
-  views: a.views || 0,
-  likes: a.likes || 0,
-  comments: a.comments || 0,
-  targetAudience: a.targetAudience || ["all"],
-  isRead: a.isRead || false,
-  isImportant: a.priority === "high",
-  category: a.type || "announcement",
-  studentId: a.studentId || null,
-  studentName: a.studentName || null,
-  createdAt: a.createdAt || new Date().toISOString(),
-});
 
 const ParentAnnouncements = () => {
   const { language, isArabic } = useLanguage();
@@ -296,7 +209,6 @@ const readStatus = readStatusMap;
       news: "#6f42c1",
       submission: "#0d6efd",
       grade: "#2ecc71",
-      payment: "#f39c12",
     };
     return colors[category] || "#6c757d";
   };
@@ -310,7 +222,6 @@ const readStatus = readStatusMap;
       news: <FaTag />,
       submission: <FaPaperPlane />,
       grade: <FaStar />,
-      payment: <FaMoneyBillWave />,
     };
     return icons[category] || <FaTag />;
   };
@@ -324,7 +235,6 @@ const readStatus = readStatusMap;
       news: t("News"),
       submission: t("Submission"),
       grade: t("Grade"),
-      payment: t("Payment"),
     };
     return labels[category] || category;
   };
@@ -347,7 +257,6 @@ const readStatus = readStatusMap;
       news: "linear-gradient(90deg, #6f42c1, #8e44ad)",
       submission: "linear-gradient(90deg, #0d6efd, #4a9eff)",
       grade: "linear-gradient(90deg, #2ecc71, #27ae60)",
-      payment: "linear-gradient(90deg, #f39c12, #e67e22)",
     };
     return gradients[category] || "linear-gradient(90deg, #6c757d, #adb5bd)";
   };
@@ -785,7 +694,6 @@ const readStatus = readStatusMap;
             const isLiked = likedItems[announcement.id];
             const isHovered = hoveredCard === announcement.id;
             const gradient = getGradient(announcement.category);
-            const priorityInfo = getPriorityBadge(announcement.priority);
             const categoryColor = getCategoryColor(announcement.category);
 
             const title = isArabic ? announcement.titleAr : announcement.title;

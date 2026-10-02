@@ -1,8 +1,8 @@
 // src/pages/AcceptInvite.jsx
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Form, Button, Alert, Spinner, InputGroup, Badge } from 'react-bootstrap';
+import {Container, Row, Col, Card, Form, Button, Spinner, InputGroup, Badge} from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaLock, FaUser, FaEnvelope, FaCheckCircle, FaArrowRight, FaEye, FaEyeSlash, FaPaperPlane } from 'react-icons/fa';
+import {FaLock, FaEnvelope, FaCheckCircle, FaArrowRight, FaEye, FaEyeSlash} from 'react-icons/fa';
 import { useLanguage } from '../context/LanguageContext';
 import { useNotification } from '../hooks/useNotification';
 import api from '../services/api';

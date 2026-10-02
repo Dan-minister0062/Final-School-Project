@@ -1,67 +1,9 @@
 // src/components/dashboard/student/StudentDashboard.jsx
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Table, Badge, ProgressBar, Button, Form, Modal, Alert, Spinner, Pagination, InputGroup } from 'react-bootstrap';
-import { Link, useNavigate } from 'react-router-dom';
-import { 
-  FaUser, 
-  FaGraduationCap, 
-  FaBook, 
-  FaClock, 
-  FaCheckCircle, 
-  FaTimesCircle, 
-  FaUpload, 
-  FaDownload, 
-  FaEye, 
-  FaSearch,
-  FaCalendarAlt, 
-  FaChartLine, 
-  FaAward, 
-  FaStar,
-  FaChevronDown, 
-  FaChevronUp, 
-  FaPaperPlane, 
-  FaFileAlt,
-  FaExclamationTriangle, 
-  FaInfoCircle,
-  FaTrophy, 
-  FaSchool, 
-  FaBell,
-  FaClipboardList, 
-  FaTasks, 
-  FaHourglassHalf, 
-  FaCheckDouble,
-  FaSync, 
-  FaUserGraduate, 
-  FaChartBar, 
-  FaPercent,
-  FaCalendarCheck,
-  FaMoneyBillWave,
-  FaCreditCard,
-  FaWallet,
-  FaChild,
-  FaBookOpen,
-  FaQuran,
-  FaLanguage,
-  FaCalculator,
-  FaFlask,
-  FaLaptop,
-  FaRunning,
-  FaPalette,
-  FaGlobe,
-  FaAtom,
-  FaDna,
-  FaBrain,
-  FaMicroscope,
-  FaMusic,
-  FaRocket,
-  FaUniversity,
-  FaBuilding,
-  FaSpinner,
-  FaBullhorn,
-  FaArrowRight
-} from 'react-icons/fa';
+import {Row, Col, Card, Badge, ProgressBar, Button} from 'react-bootstrap';
+import {useNavigate} from 'react-router-dom';
+import {FaUser, FaGraduationCap, FaBook, FaClock, FaExclamationTriangle, FaSchool, FaBell, FaSync, FaUserGraduate, FaCalendarCheck, FaChild, FaBookOpen, FaQuran, FaLanguage, FaCalculator, FaFlask, FaLaptop, FaRunning, FaPalette, FaGlobe, FaAtom, FaDna, FaBrain, FaMicroscope, FaMusic, FaUniversity, FaBuilding, FaBullhorn, FaArrowRight} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
-import { getTranslation } from '../../../utils/translations';
 import { useNotification } from '../../../hooks/useNotification';
 import { useAuth } from '../../../hooks/useAuth';
 import { syncGet } from '../../../services/apiSync';
@@ -102,36 +44,32 @@ const getSubjectIcon = (subjectName) => {
 };
 
 const StudentDashboard = () => {
-  const { language, isArabic } = useLanguage();
-  const t = (key) => getTranslation(key, language);
-  const { notify } = useNotification();
-  const { user, updateUser } = useAuth();
+  const {  isArabic } = useLanguage();
+    const { notify } = useNotification();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  const [ setIsMobile] = useState(false);
   const [studentData, setStudentData] = useState(null);
-  const [attendanceRecords, setAttendanceRecords] = useState([]);
+  const [ setAttendanceRecords] = useState([]);
   const [attendanceStats, setAttendanceStats] = useState({ present: 0, absent: 0, late: 0, excused: 0, total: 0, monthlyPresent: 0, monthlyTotal: 0 });
-  const [classes, setClasses] = useState([]);
+  const [ setClasses] = useState([]);
   const [error, setError] = useState(null);
-  const [allStudents, setAllStudents] = useState([]);
-  const [paymentStatus, setPaymentStatus] = useState({ status: 'pending', amount: 0, dueDate: '' });
-  const [subjects, setSubjects] = useState([]);
+  const [ setAllStudents] = useState([]);
+  const [ setSubjects] = useState([]);
   const [studentSubjects, setStudentSubjects] = useState([]);
   
   // ===== ANNOUNCEMENTS & NOTIFICATIONS STATE - ALL DEFAULT TO 0 =====
   const [announcements, setAnnouncements] = useState([]);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const [unreadAssessments, setUnreadAssessments] = useState(0);
+  const [ setUnreadNotifications] = useState(0);
+  const [ setUnreadAssessments] = useState(0);
   const [totalNotifications, setTotalNotifications] = useState(0);
   const [newAnnouncementCount, setNewAnnouncementCount] = useState(0);
   
   // ===== MODAL STATE =====
-  const [showViewModal, setShowViewModal] = useState(false);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [readAnnouncements, setReadAnnouncements] = useState(new Set());
+      const [readAnnouncements, setReadAnnouncements] = useState(new Set());
 
   // ===== Arabic Font Style =====
   const arabicFontStyle = getArabicFontStyle(isArabic);
@@ -329,11 +267,10 @@ const StudentDashboard = () => {
       const studentLevel = student.level || student.educationLevel || '';
 
       // ===== Fetch all data in parallel =====
-      const [subjectsRes, classesRes, attendanceRes, paymentsRes] = await Promise.all([
+      const [subjectsRes, classesRes, attendanceRes] = await Promise.all([
         syncGet('/subjects', { level: studentLevel, limit: 100 }),
         syncGet('/classes'),
         syncGet('/attendance'),
-        syncGet('/payments'),
       ]);
 
       // ===== SUBJECTS =====
@@ -382,23 +319,6 @@ const StudentDashboard = () => {
       setAttendanceRecords(attendanceRows);
       console.log('📊 Attendance:', { present, absent, late, excused, total, monthlyPresent, monthlyTotal });
 
-      // ===== PAYMENTS =====
-      const paymentRows = Array.isArray(paymentsRes?.data) ? paymentsRes.data : [];
-      // /payments for student is already scoped by student_name
-      const studentPayment = paymentRows.find(p => {
-        const pStudentId = p.studentId || p.student_id;
-        return Number(pStudentId) === Number(studentJoinId) || Number(pStudentId) === Number(currentUser.id);
-      }) || paymentRows[0];
-      
-      if (studentPayment) {
-        setPaymentStatus({
-          status: studentPayment.status || 'pending',
-          amount: studentPayment.amount || 0,
-          dueDate: studentPayment.dueDate || studentPayment.due_date || '',
-        });
-      }
-      console.log('💰 Payment status:', studentPayment);
-
       // ===== LOAD ANNOUNCEMENTS & NOTIFICATIONS =====
       await loadAnnouncementsAndNotifications();
 
@@ -425,12 +345,6 @@ const StudentDashboard = () => {
       loadStudentData();
     };
     window.addEventListener("attendanceUpdated", handleAttendanceUpdated);
-
-    const handlePaymentUpdated = () => {
-      console.log("💰 Payment updated, refreshing student data");
-      loadStudentData();
-    };
-    window.addEventListener("paymentUpdated", handlePaymentUpdated);
 
     const handleSubmissionChanged = () => {
       console.log("📤 Submission changed, refreshing");
@@ -459,7 +373,6 @@ const StudentDashboard = () => {
     return () => {
       window.removeEventListener("assessmentChanged", handleAssessmentChanged);
       window.removeEventListener("attendanceUpdated", handleAttendanceUpdated);
-      window.removeEventListener("paymentUpdated", handlePaymentUpdated);
       window.removeEventListener("submissionChanged", handleSubmissionChanged);
       window.removeEventListener("notificationAdded", handleNotificationAdded);
       window.removeEventListener("announcementsUpdated", handleAnnouncementsUpdated);
@@ -511,32 +424,6 @@ const StudentDashboard = () => {
       high_school: '#9b59b6',
     };
     return colors[level] || '#6c757d';
-  };
-
-  // ===== GET PAYMENT STATUS DISPLAY =====
-  const getPaymentStatusDisplay = () => {
-    if (paymentStatus.status === 'paid' || paymentStatus.status === 'approved') {
-      return {
-        label: isArabic ? '✅ مدفوع' : '✅ Paid',
-        color: '#2ecc71',
-        icon: <FaCheckCircle />,
-        bg: 'rgba(46, 204, 113, 0.1)',
-      };
-    } else if (paymentStatus.status === 'pending') {
-      return {
-        label: isArabic ? '⏳ قيد الانتظار' : '⏳ Pending',
-        color: '#f39c12',
-        icon: <FaClock />,
-        bg: 'rgba(243, 156, 18, 0.1)',
-      };
-    } else {
-      return {
-        label: isArabic ? '❌ غير مدفوع' : '❌ Unpaid',
-        color: '#e74c3c',
-        icon: <FaTimesCircle />,
-        bg: 'rgba(231, 76, 60, 0.1)',
-      };
-    }
   };
 
   // ===== GET TRANSLATED ANNOUNCEMENT =====
@@ -592,7 +479,6 @@ const StudentDashboard = () => {
   const levelDisplay = getLevelDisplay(studentLevel);
   const levelColor = getLevelColor(studentLevel);
   const levelIcon = getLevelIcon(studentLevel);
-  const paymentDisplay = getPaymentStatusDisplay();
 
   // ===== STATS CARDS =====
   const statsCards = [
@@ -615,16 +501,6 @@ const StudentDashboard = () => {
       subtitle: studentData.className || studentData.class || 'N/A',
       subIcon: <FaSchool />,
       subColor: '#6c757d',
-    },
-    {
-      label: isArabic ? 'حالة التسجيل' : 'Registration Status',
-      value: paymentDisplay.label,
-      icon: paymentDisplay.icon,
-      gradient: 'linear-gradient(135deg, #1a5f7a 0%, #2a7f9a 100%)',
-      shadow: '0 8px 30px rgba(26, 95, 122, 0.4)',
-      subtitle: paymentStatus.amount > 0 ? `${paymentStatus.amount} ${isArabic ? 'د.م.' : 'MAD'}` : (isArabic ? 'غير محدد' : 'N/A'),
-      subIcon: <FaMoneyBillWave />,
-      subColor: paymentDisplay.color,
     },
     {
       label: isArabic ? 'نسبة الحضور' : 'Attendance Rate',
@@ -764,19 +640,6 @@ const StudentDashboard = () => {
                   background: darkMode ? '#2d2d44' : '#f8f9fa'
                 }}>
                   <FaUser className="me-1" /> {isArabic ? 'الرقم' : 'ID'}: {studentData.studentNumber || 'N/A'}
-                </span>
-                <span className="student-info-tag" style={{
-                  ...arabicFontStyle,
-                  fontSize: '0.75rem',
-                  color: paymentDisplay.color,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '2px 10px',
-                  borderRadius: '50px',
-                  background: paymentDisplay.bg,
-                }}>
-                  {paymentDisplay.icon} {paymentDisplay.label}
                 </span>
               </div>
             </div>

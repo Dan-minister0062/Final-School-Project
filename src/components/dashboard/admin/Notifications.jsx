@@ -1,12 +1,7 @@
 // src/components/dashboard/admin/Notifications.jsx
 import React, { useState, useEffect } from 'react';
 import { Card, Badge, Button, Form, InputGroup, Row, Col, Container } from 'react-bootstrap';
-import { 
-  FaBell, FaUserPlus, FaBullhorn, FaCog, FaUser, FaCheckCircle,
-  FaSync, FaSearch, FaTimesCircle, FaClock, FaTrash,
-  FaTasks, FaFileAlt, FaUserGraduate, FaCalendarCheck, FaBook,
-  FaEye, FaCheckDouble, FaFilter, FaSpinner, FaEnvelope
-} from 'react-icons/fa';
+import {FaBell, FaUserPlus, FaBullhorn, FaCog, FaUser, FaCheckCircle, FaSync, FaSearch, FaTimesCircle, FaClock, FaTrash, FaTasks, FaFileAlt, FaCalendarCheck, FaBook, FaEye, FaCheckDouble, FaSpinner, FaEnvelope} from 'react-icons/fa';
 import { useNotification } from '../../../hooks/useNotification';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useAuth } from '../../../hooks/useAuth';
@@ -51,10 +46,10 @@ const Notifications = () => {
   // Get role-specific notification types
   const getNotificationTypes = () => {
     const types = {
-      admin: ['registration', 'contact', 'payment', 'system', 'announcement', 'reminder'],
+      admin: ['registration', 'contact', 'system', 'announcement', 'reminder'],
       teacher: ['assignment', 'submission', 'schedule', 'announcement'],
-      parent: ['grade', 'attendance', 'announcement', 'payment'],
-      student: ['grade', 'announcement', 'assignment', 'payment']
+      parent: ['grade', 'attendance', 'announcement'],
+      student: ['grade', 'announcement', 'assignment']
     };
     return types[userRole] || ['announcement'];
   };
@@ -83,7 +78,6 @@ const Notifications = () => {
       schedule: isArabic ? 'جدول' : 'Schedule',
       system: isArabic ? 'نظام' : 'System',
       reminder: isArabic ? 'تذكير' : 'Reminder',
-      payment: isArabic ? 'دفع' : 'Payment',
       profile: isArabic ? 'ملف' : 'Profile'
     };
     return labels[type] || type;
@@ -102,7 +96,6 @@ const Notifications = () => {
       schedule: <FaClock />,
       system: <FaCog />,
       reminder: <FaBell />,
-      payment: <FaFileAlt />,
       profile: <FaUser />
     };
     return icons[type] || <FaBell />;
@@ -121,7 +114,6 @@ const Notifications = () => {
       schedule: '#e74c3c',
       system: '#4a9eff',
       reminder: '#f39c12',
-      payment: '#2ecc71',
       profile: '#4a9eff'
     };
     return colors[type] || '#6c757d';
@@ -139,8 +131,7 @@ const Notifications = () => {
       attendance: isArabic ? 'حضور' : 'Attendance',
       schedule: isArabic ? 'جدول' : 'Schedule',
       system: isArabic ? 'نظام' : 'System',
-      reminder: isArabic ? 'تذكير' : 'Reminder',
-      payment: isArabic ? 'دفع' : 'Payment'
+      reminder: isArabic ? 'تذكير' : 'Reminder'
     };
     const allowedTypes = getNotificationTypes();
     const options = {};

@@ -1,43 +1,9 @@
 // src/components/public/About.jsx
 import React, { useState } from "react";
 import { Container, Row, Col, Card } from "react-bootstrap";
-import {
-  FaHistory,
-  FaEye,
-  FaBullseye,
-  FaKaaba,
-  FaBook,
-  FaUsers,
-  FaHands,
-  FaQuran,
-  FaGlobe,
-  FaAward,
-  FaGraduationCap,
-  FaChalkboardTeacher,
-  FaUserTie,
-  FaQuoteLeft,
-  FaStar,
-  FaCertificate,
-  FaRocket,
-  FaChartLine,
-  FaLaptop,
-  FaHandsHelping,
-  FaGlobeAsia,
-  FaSchool,
-  FaUserGraduate,
-  FaChalkboard,
-  FaBuilding,
-  FaClock,
-  FaArrowRight,
-  FaPlayCircle,
-  FaChevronRight,
-  FaPenFancy,
-  FaTools,
-  FaWrench,
-} from "react-icons/fa";
+import {FaHistory, FaEye, FaBullseye, FaKaaba, FaBook, FaUsers, FaHands, FaAward, FaChalkboardTeacher, FaQuoteLeft, FaRocket, FaGlobeAsia, FaSchool, FaUserGraduate, FaBuilding, FaPlayCircle, FaPenFancy, FaTools} from "react-icons/fa";
 import { useLanguage } from "../../context/LanguageContext";
 import { getTranslation } from "../../utils/translations";
-import { formatMilestoneYear } from "../../utils/helpers";
 
 const About = () => {
   const { language, isArabic } = useLanguage();

@@ -14,74 +14,16 @@ import {
   InputGroup,
   Modal,
 } from "react-bootstrap";
-import { Link, useNavigate } from "react-router-dom";
+import {useNavigate} from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
-import {
-  FaUser,
-  FaEnvelope,
-  FaPhone,
-  FaCalendarAlt,
-  FaChild,
-  FaFileUpload,
-  FaCheckCircle,
-  FaLock,
-  FaUserPlus,
-  FaSchool,
-  FaHeart,
-  FaArrowRight,
-  FaStar,
-  FaRocket,
-  FaShieldAlt,
-  FaClock,
-  FaUsers,
-  FaGraduationCap,
-  FaAward,
-  FaBookOpen,
-  FaClipboardCheck,
-  FaChevronRight,
-  FaHandsHelping,
-  FaChartLine,
-  FaComments,
-  FaBell,
-  FaBus,
-  FaBuilding,
-  FaLeaf,
-  FaUserTie,
-  FaMicroscope,
-  FaLaptop,
-  FaBasketballBall,
-  FaBookReader,
-  FaQuran,
-  FaGift,
-  FaThumbsUp,
-  FaHeadset,
-  FaChalkboardTeacher,
-  FaBook,
-  FaGlobe,
-  FaHandshake,
-  FaUserGraduate,
-  FaLock as FaLockIcon,
-  FaEye,
-  FaEyeSlash,
-  FaInfoCircle,
-  FaExclamationTriangle,
-  FaIdCard,
-  FaMapMarkerAlt,
-  FaFlag,
-  FaBirthdayCake,
-  FaVenusMars,
-  FaGlobeAmericas,
-} from "react-icons/fa";
+import {FaEnvelope, FaPhone, FaChild, FaCheckCircle, FaLock, FaUserPlus, FaSchool, FaShieldAlt, FaClock, FaUsers, FaGraduationCap, FaClipboardCheck, FaComments, FaUserTie, FaHeadset, FaEye, FaEyeSlash, FaInfoCircle} from "react-icons/fa";
 import { useLanguage } from "../../context/LanguageContext";
-import { getTranslation } from "../../utils/translations";
 import { useNotification } from "../../hooks/useNotification";
 import { submitAdmission } from "../../services/admissionService";
-import logo from "../../assets/images/school logo.jpeg";
 
 // ===== ALWAYS use English numbers - NO Arabic numeral conversion =====
-const formatNumber = (num) => num.toString();
 
 // ===== Class options per education level =====
 const classOptions = {
@@ -179,9 +121,8 @@ const admissionSchema = yup.object().shape({
 });
 
 const Admissions = () => {
-  const { language, isArabic } = useLanguage();
-  const t = (key) => getTranslation(key, language);
-  const { notify } = useNotification();
+  const {  isArabic } = useLanguage();
+    const { notify } = useNotification();
   const navigate = useNavigate();
 
   const [submitting, setSubmitting] = useState(false);
@@ -192,8 +133,8 @@ const Admissions = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // File state
-  const [reportCardFile, setReportCardFile] = useState(null);
-  const [schoolCertificateFile, setSchoolCertificateFile] = useState(null);
+  const [ setReportCardFile] = useState(null);
+  const [ setSchoolCertificateFile] = useState(null);
 
   const {
     register,
@@ -201,7 +142,6 @@ const Admissions = () => {
     formState: { errors },
     reset,
     watch,
-    setValue,
   } = useForm({
     resolver: yupResolver(admissionSchema),
     defaultValues: {

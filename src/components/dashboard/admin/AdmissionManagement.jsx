@@ -1,66 +1,8 @@
 // src/components/dashboard/admin/AdmissionManagement.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Table,
-  Button,
-  Badge,
-  Spinner,
-  Alert,
-  Modal,
-  Form,
-  InputGroup,
-  Pagination,
-  OverlayTrigger,
-  Tooltip,
-} from 'react-bootstrap';
-import {
-  FaEye,
-  FaEdit,
-  FaTrash,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaClock,
-  FaFilter,
-  FaSearch,
-  FaInfoCircle,
-  FaExclamationTriangle,
-  FaFileAlt,
-  FaUsers,
-  FaSync,
-  FaSpinner,
-  FaSort,
-  FaSortUp,
-  FaSortDown,
-  FaUserGraduate,
-  FaUser,
-  FaEnvelope,
-  FaPhone,
-  FaMapMarkerAlt,
-  FaCity,
-  FaBirthdayCake,
-  FaVenusMars,
-  FaGlobe,
-  FaIdCard,
-  FaUserTie,
-  FaHandshake,
-  FaPhoneAlt,
-  FaSchool,
-  FaGraduationCap,
-  FaBuilding,
-  FaCalendarAlt,
-  FaClipboardList,
-  FaUserPlus,
-  FaLock,
-  FaUnlock,
-  FaSave,
-  FaUserCircle,
-} from 'react-icons/fa';
+import {Row, Col, Card, Table, Button, Badge, Alert, Modal, Form, InputGroup, Pagination, OverlayTrigger, Tooltip} from 'react-bootstrap';
+import {FaEye, FaEdit, FaTrash, FaCheckCircle, FaTimesCircle, FaClock, FaFilter, FaSearch, FaInfoCircle, FaExclamationTriangle, FaFileAlt, FaUsers, FaSync, FaSpinner, FaSort, FaSortUp, FaSortDown, FaUserGraduate, FaEnvelope, FaPhone, FaMapMarkerAlt, FaBirthdayCake, FaVenusMars, FaGlobe, FaUserTie, FaPhoneAlt, FaSchool, FaGraduationCap, FaBuilding, FaCalendarAlt, FaClipboardList} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
-import { getTranslation } from '../../../utils/translations';
 import { useNotification } from '../../../hooks/useNotification';
 import api from '../../../services/api';
 import { syncGet, syncSend } from '../../../services/apiSync';
@@ -123,9 +65,8 @@ const editSchema = yup.object().shape({
 });
 
 const AdmissionManagement = () => {
-  const { language, isArabic } = useLanguage();
-  const t = (key) => getTranslation(key, language);
-  const { notify } = useNotification();
+  const {  isArabic } = useLanguage();
+    const { notify } = useNotification();
 
   // ---- State ----
   const [admissions, setAdmissions] = useState([]);
@@ -154,7 +95,7 @@ const AdmissionManagement = () => {
     register,
     handleSubmit,
     setValue,
-    reset,
+    
     watch,
     formState: { errors },
   } = useForm({
@@ -197,7 +138,7 @@ const AdmissionManagement = () => {
   };
 
   // ===== Build the snake_case payload for server-backed admission edits =====
-  const buildServerEditPayload = (data, requestedClassName, requestedClassId) => {
+  const buildServerEditPayload = (data, requestedClassName) => {
     const nameParts = String(data.studentName || '').trim().split(/\s+/);
     const firstName = nameParts[0] || '';
     const lastName = nameParts.slice(1).join(' ') || '';
@@ -285,10 +226,6 @@ const AdmissionManagement = () => {
         status: r.status || 'pending',
         adminNotes: r.admin_notes || r.adminNotes || '',
         classId: r.classId || r.class_id || null,
-        paymentStatus: r.payment_status || r.paymentStatus || null,
-        paymentAmount: r.payment_amount ?? r.paymentAmount ?? null,
-        paymentRequestedAt: r.payment_requested_at || r.paymentRequestedAt || null,
-        paymentPaidAt: r.payment_paid_at || r.paymentPaidAt || null,
         createdAt: r.submitted_at || r.createdAt || new Date().toISOString(),
         updatedAt: r.updatedAt || r.createdAt || new Date().toISOString(),
       }));
@@ -357,7 +294,7 @@ const AdmissionManagement = () => {
           return;
         }
         throw new Error('empty');
-      } catch (e) {
+      } catch {
         const fallback = [
           ['kindergarden', 'Kindergarden', ['Introductory', 'Preparatory 1 -A-', 'Preparatory 1 -B-', 'Preparatory 2 -A-', 'Preparatory 2 -B-']],
           ['primary', 'Primary', ['1 -A-', '1 -B-', '2 -A-', '2 -B-', '3 -A-', '3 -B-', '4 -A-', '4 -B-', '5 -A-', '5 -B-', '6 -A-', '6 -B-']],
@@ -660,20 +597,6 @@ const AdmissionManagement = () => {
       </td>
     </tr>
   );
-
-  // ---- Classes filtered by the selected level (edit modal) ----
-  const currentLevel = watch('level');
-  const normLevelKey = (v) =>
-    String(v || '').toLowerCase() === 'kindergarden' ? 'kindergarten'
-      : String(v || '').toLowerCase() === 'highschool' ? 'high_school'
-      : String(v || '').toLowerCase();
-  const filteredClasses = currentLevel
-    ? classesList.filter(
-        (c) =>
-          normLevelKey(c.level_key) === normLevelKey(currentLevel) ||
-          String(c.level || '').toLowerCase() === String(currentLevel).toLowerCase()
-      )
-    : classesList;
 
   return (
     <div className="admission-management" dir={isArabic ? 'rtl' : 'ltr'}>

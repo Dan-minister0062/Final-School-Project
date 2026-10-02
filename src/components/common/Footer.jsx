@@ -4,7 +4,6 @@ import { Container, Row, Col } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { FaFacebook, FaTwitter, FaInstagram, FaYoutube, FaPhone, FaEnvelope, FaMapMarkerAlt } from 'react-icons/fa';
 import { useLanguage } from '../../context/LanguageContext';
-import { getTranslation } from '../../utils/translations';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();

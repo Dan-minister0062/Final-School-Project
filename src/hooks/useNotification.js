@@ -29,7 +29,6 @@ export const useNotification = () => {
   // Load notifications based on role
   const loadNotifications = useCallback(() => {
     const role = getUserRole();
-    const all = notificationService.getNotifications();
     const filtered = notificationService.getNotificationsByRole(role);
     setLocalNotifications(filtered);
     setLocalUnreadCount(filtered.filter(n => !n.read).length);
@@ -137,8 +136,7 @@ export const useNotification = () => {
       attendance: '✅',
       schedule: '📅',
       system: '⚙️',
-      reminder: '🔔',
-      payment: '💰'
+      reminder: '🔔'
     };
     return icons[type] || '📌';
   };
@@ -155,8 +153,7 @@ export const useNotification = () => {
       attendance: '#1abc9c',
       schedule: '#e74c3c',
       system: '#4a9eff',
-      reminder: '#f39c12',
-      payment: '#2ecc71'
+      reminder: '#f39c12'
     };
     return colors[type] || '#6c757d';
   };

@@ -1,23 +1,8 @@
 // src/components/dashboard/student/StudentResults.jsx
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Table, Badge, Button, ProgressBar, Form, InputGroup } from 'react-bootstrap';
-import { Link, useNavigate } from 'react-router-dom';
-import { 
-  FaSearch, FaFilter, FaDownload, FaFilePdf, FaPrint,
-  FaGraduationCap, FaBook, FaChartLine, FaAward,
-  FaCheckCircle, FaTimesCircle, FaClock, FaStar,
-  FaEye, FaChevronDown, FaChevronUp, FaSync,
-  FaTrophy, FaMedal, FaCertificate, FaRocket,
-  FaArrowUp, FaArrowDown, FaPercent, FaChartBar,
-  FaCalendarAlt, FaUser, FaSchool, FaClipboardCheck,
-  FaInfoCircle, FaExclamationTriangle, FaSave, FaTimes,
-  FaBookOpen, FaQuran, FaLanguage, FaCalculator,
-  FaFlask, FaLaptop, FaRunning, FaPalette, FaGlobe,
-  FaAtom, FaDna, FaBrain, FaMicroscope, FaMusic,
-  FaUniversity, FaBuilding, FaChild
-} from 'react-icons/fa';
+import {Row, Col, Card, Table, Badge, Button, Form, InputGroup} from 'react-bootstrap';
+import {FaSearch, FaFilePdf, FaPrint, FaGraduationCap, FaBook, FaChartLine, FaCheckCircle, FaClock, FaStar, FaSync, FaPercent, FaSchool, FaExclamationTriangle, FaBookOpen, FaQuran, FaLanguage, FaCalculator, FaFlask, FaLaptop, FaRunning, FaPalette, FaGlobe, FaAtom, FaDna, FaBrain, FaMicroscope, FaMusic, FaUniversity, FaBuilding, FaChild} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
-import { getTranslation } from '../../../utils/translations';
 import { useNotification } from '../../../hooks/useNotification';
 import { useAuth } from '../../../hooks/useAuth';
 import { syncGet } from '../../../services/apiSync';
@@ -58,15 +43,12 @@ const getSubjectIcon = (subjectName) => {
 };
 
 const StudentResults = () => {
-  const { language, isArabic } = useLanguage();
-  const t = (key) => getTranslation(key, language);
-  const { notify } = useNotification();
+  const {  isArabic } = useLanguage();
+    const { notify } = useNotification();
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const [darkMode, setDarkMode] = useState(false);
+    const [darkMode, setDarkMode] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [hoveredStat, setHoveredStat] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
   const [filterSubject, setFilterSubject] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterType, setFilterType] = useState('all');
@@ -76,7 +58,7 @@ const StudentResults = () => {
   const [error, setError] = useState(null);
   const [results, setResults] = useState([]);
   const [studentData, setStudentData] = useState(null);
-  const [subjects, setSubjects] = useState([]);
+  const [ setSubjects] = useState([]);
   const [studentSubjects, setStudentSubjects] = useState([]);
 
   // ===== Arabic Font Style =====
@@ -500,7 +482,7 @@ const StudentResults = () => {
   const pivotTypes = pivotData.types;
 
   // ===== GET STATUS BADGE =====
-  const getStatusBadge = (status, isExam) => {
+  const getStatusBadge = (status) => {
     if (status === 'graded') {
       return { bg: 'success', icon: <FaCheckCircle />, label: isArabic ? 'مصحح' : 'Graded' };
     }
@@ -660,7 +642,7 @@ const StudentResults = () => {
           isArabic ? 'تم تصدير النتائج بنجاح' : 'Results exported successfully',
           'success'
         );
-      } catch (error) {
+      } catch {
         notify(
           isArabic ? 'حدث خطأ أثناء تصدير النتائج' : 'Error exporting results',
           'error'
@@ -680,7 +662,7 @@ const StudentResults = () => {
           isArabic ? 'تم فتح الطباعة' : 'Print dialog opened',
           'info'
         );
-      } catch (error) {
+      } catch {
         notify(
           isArabic ? 'حدث خطأ أثناء الطباعة' : 'Error printing',
           'error'

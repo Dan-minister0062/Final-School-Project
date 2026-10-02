@@ -1,9 +1,8 @@
 // src/components/dashboard/teacher/AssessmentForm.jsx
 import React, { useState, useEffect } from "react";
-import { Form, Row, Col, Button, Alert } from "react-bootstrap";
+import {Form, Row, Col, Alert} from "react-bootstrap";
 import { FaSave, FaTimes, FaSpinner, FaUsers, FaBook, FaGraduationCap } from "react-icons/fa";
 import { useLanguage } from "../../../context/LanguageContext";
-import { teacherService } from "../../../services/teacherService";
 
 // ===== DEFAULT SUBJECTS BY LEVEL (Directly in this file) =====
 const defaultSubjectsByCategory = {

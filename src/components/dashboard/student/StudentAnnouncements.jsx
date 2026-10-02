@@ -1,18 +1,7 @@
 // src/components/dashboard/student/StudentAnnouncements.jsx
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Badge, Table, Modal, Form, Row, Col, Alert, Nav, Tab, Spinner } from 'react-bootstrap';
-import { 
-  FaFileAlt, FaEye, FaCheck, FaTimes, FaSearch, FaSync, 
-  FaSpinner, FaExclamationTriangle, FaDownload, FaFilePdf,
-  FaFileWord, FaFileImage, FaFile, FaClock, FaUserGraduate,
-  FaChalkboardTeacher, FaBook, FaCalendarAlt, FaInfoCircle,
-  FaUser, FaEnvelope, FaIdCard, FaGraduationCap, FaUsers,
-  FaCheckCircle, FaClock as FaClockIcon, FaPaperPlane,
-  FaUpload, FaFilter, FaSort, FaArrowRight, FaArrowLeft,
-  FaBell, FaFileExcel, FaFilePowerpoint, FaFileCode, FaStar,
-  FaTrash, FaInbox, FaUserCheck, FaPlus, FaEdit, FaSave,
-  FaTimesCircle, FaCheckDouble, FaComment, FaReply
-} from 'react-icons/fa';
+import {Card, Button, Badge, Table, Modal, Form, Row, Col} from 'react-bootstrap';
+import {FaFileAlt, FaEye, FaTimes, FaSearch, FaSync, FaSpinner, FaExclamationTriangle, FaDownload, FaFilePdf, FaFileWord, FaFileImage, FaFile, FaClock, FaChalkboardTeacher, FaBook, FaInfoCircle, FaGraduationCap, FaCheckCircle, FaPaperPlane, FaFilter, FaFileExcel, FaFilePowerpoint, FaFileCode, FaStar, FaTrash, FaComment} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
 import { useAuth } from '../../../hooks/useAuth';
@@ -102,7 +91,7 @@ const StudentAnnouncements = () => {
   
   // Student's submissions
   const [mySubmissions, setMySubmissions] = useState([]);
-  const [filteredSubmissions, setFilteredSubmissions] = useState([]);
+  const [ setFilteredSubmissions] = useState([]);
   
   // Search and filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -421,12 +410,7 @@ const getStudentId = () => {
   };
 
   // ===== GET SUBMISSION STATUS =====
-  const getSubmissionStatus = (assessmentId) => {
-    const submission = mySubmissions.find(s => s.assessmentId === assessmentId);
-    if (!submission) return null;
-    return submission.status || 'submitted';
-  };
-
+  
   // ===== GET SUBMISSION GRADE =====
   const getSubmissionGrade = (assessmentId) => {
     // Check from submissions first

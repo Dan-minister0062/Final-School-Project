@@ -37,14 +37,26 @@ class AuthController extends Controller
             ], 422);
         }
 
-        $user->forceFill(['last_login' => now()])->save();
-
-        if ($user->status === 'inactive') {
-            return response()->json(['message' => 'Your account is inactive.'], 403);
+        // Accounts created before the status column was populated carry NULL, and the
+        // presenter/admin views already treat NULL as 'active'. Keep login in step with
+        // them, otherwise a strict comparison locks out every pre-existing account.
+        if (($user->status ?: 'active') !== 'active') {
+            return response()->json([
+                'message' => 'Your account is not active yet. Please contact the administration.',
+            ], 403);
         }
 
-        Auth::login($user);
-        $request->session()->regenerate();
+        $user->forceFill(['last_login' => now()])->save();
+
+        // Sanctum only starts a session for stateful (first-party) requests. API
+        // clients without a matching Origin/Referer have no session store, so
+        // guard the cookie-based login instead of throwing.
+        if ($request->hasSession()) {
+            Auth::login($user);
+            $request->session()->regenerate();
+        } else {
+            Auth::setUser($user);
+        }
 
         return response()->json([
             'role' => $user->role,
@@ -57,8 +69,8 @@ class AuthController extends Controller
         $request->validate([
             'name' => 'required|string|max:120',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:6',
-            'role' => 'required|in:admin,teacher,parent,student',
+            'password' => 'required|string|min:8|confirmed',
+            'role' => 'required|in:teacher,parent,student',
         ]);
 
         $data = $request->only([
@@ -68,6 +80,7 @@ class AuthController extends Controller
             'emergency_contact_phone',
         ]);
         $data['role'] = $request->role;
+        $data['status'] = 'pending';
 
         if (in_array($request->role, ['teacher', 'parent', 'student'])) {
             $this->attachProfile($request, $data);
@@ -79,12 +92,9 @@ class AuthController extends Controller
         \App\Support\ChildLinker::link($user);
         \App\Support\ChildLinker::linkAll();
 
-        Auth::login($user);
-        $request->session()->regenerate();
-
         return response()->json([
-            'role' => $user->role,
-            'user' => $this->userPayload($user),
+            'success' => true,
+            'message' => 'Your account has been created and is pending admin approval.',
         ], 201);
     }
 
@@ -101,6 +111,7 @@ class AuthController extends Controller
                 'subject_code' => $request->subject_code ?? $request->subject_specialization,
                 'subject' => $request->subject_code ?? $request->subject_specialization,
                 'class_codes' => $request->class_codes ?? [],
+                'status' => 'pending',
             ]);
             $data['teacher_id'] = $teacher->id;
         }
@@ -112,6 +123,7 @@ class AuthController extends Controller
                 'phone' => $request->phone,
                 'cin_id' => $request->cin_id,
                 'address' => $request->address,
+                'status' => 'pending',
             ]);
             $data['parent_id'] = $parent->id;
         }
@@ -122,6 +134,7 @@ class AuthController extends Controller
                 'email' => $request->email,
                 'class_code' => $request->class_code,
                 'code' => $request->code,
+                'status' => 'pending',
             ]);
             $data['student_id'] = $student->id;
         }
@@ -205,8 +218,11 @@ class AuthController extends Controller
     public function logout(Request $request): JsonResponse
     {
         Auth::logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
 
         return response()->json(['message' => 'Logged out successfully.']);
     }

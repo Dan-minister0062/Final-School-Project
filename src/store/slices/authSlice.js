@@ -35,7 +35,7 @@ export const registerUser = createAsyncThunk(
     try {
       await fetchCsrfCookie();
       const response = await api.post('/auth/register', userData);
-      return resolveAuth(response.data);
+      return response.data;
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.errors ||
@@ -147,15 +147,15 @@ const authSlice = createSlice({
         state.loading = true;
         state.error = null;
       })
-      .addCase(registerUser.fulfilled, (state, action) => {
+      .addCase(registerUser.fulfilled, (state) => {
         state.loading = false;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
-        state.role = action.payload.role;
-        state.isAuthenticated = true;
-        state.status = 'authenticated';
+        state.user = null;
+        state.token = null;
+        state.role = null;
+        state.isAuthenticated = false;
+        state.status = 'guest';
         state.error = null;
-        setAuthIdentity(state.user);
+        setAuthIdentity(null);
       })
       .addCase(registerUser.rejected, (state, action) => {
         state.loading = false;

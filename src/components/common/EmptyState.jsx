@@ -1,7 +1,6 @@
 // src/components/common/EmptyState.jsx
 import React from 'react';
 import { Card } from 'react-bootstrap';
-import { useLanguage } from '../../context/LanguageContext';
 
 const EmptyState = ({ 
   title, 
@@ -11,8 +10,7 @@ const EmptyState = ({
   actionButton = null,
   className = ''
 }) => {
-  const { isArabic } = useLanguage();
-
+  
   const getIconSize = () => {
     switch(size) {
       case 'small':

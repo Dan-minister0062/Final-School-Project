@@ -3,39 +3,14 @@ import React, { useState, useEffect } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
 import { useLanguage } from "../../../context/LanguageContext";
-import { syncGet } from "../../../services/apiSync";
 import notificationService from "../../../services/notificationService";
-import {
-  FaChartPie,
-  FaGraduationCap,
-  FaTasks,
-  FaCalendarCheck,
-  FaBell,
-  FaUserCircle,
-  FaSignOutAlt,
-  FaBook,
-  FaUser,
-  FaBullhorn,
-  FaMoneyBillWave,
-} from "react-icons/fa";
+import {FaChartPie, FaGraduationCap, FaUserCircle, FaSignOutAlt, FaUser, FaBullhorn} from "react-icons/fa";
 import { Badge } from "react-bootstrap";
 
 const StudentSidebar = () => {
   const { user, logout } = useAuth();
   const { isArabic } = useLanguage();
   const [unreadCount, setUnreadCount] = useState(0);
-  const [pendingPaymentsCount, setPendingPaymentsCount] = useState(0);
-
-  const getPendingPaymentsCount = async () => {
-    try {
-      const res = await syncGet('/payments');
-      const rows = Array.isArray(res?.data) ? res.data : [];
-      return rows.filter(p => (p.status === 'pending' || p.status === 'submitted')).length;
-    } catch (error) {
-      console.error("Error getting pending payments count:", error);
-      return 0;
-    }
-  };
 
   const getUnreadCount = () => {
     return notificationService.getUnreadCount('student');
@@ -46,27 +21,14 @@ const StudentSidebar = () => {
       setUnreadCount(getUnreadCount());
     };
 
-    const updatePendingPayments = async () => {
-      setPendingPaymentsCount(await getPendingPaymentsCount());
-    };
-
     updateUnreadCount();
-    updatePendingPayments();
 
     const unsubNotifications = notificationService.subscribe(() => {
       updateUnreadCount();
     });
 
-    const handlePaymentUpdated = () => {
-      updatePendingPayments();
-    };
-    window.addEventListener("paymentUpdated", handlePaymentUpdated);
-    window.addEventListener("paymentApproved", handlePaymentUpdated);
-
     return () => {
       unsubNotifications();
-      window.removeEventListener("paymentUpdated", handlePaymentUpdated);
-      window.removeEventListener("paymentApproved", handlePaymentUpdated);
     };
   }, [user]);
 
@@ -87,12 +49,6 @@ const StudentSidebar = () => {
       icon: <FaBullhorn />,
       label: isArabic ? "الإعلانات" : "Announcements",
       badge: unreadCount,
-    },
-    {
-      path: "/dashboard/student/payments",
-      icon: <FaMoneyBillWave />,
-      label: isArabic ? "المدفوعات" : "Payments",
-      badge: pendingPaymentsCount,
     },
     {
       path: "/dashboard/student/profile",

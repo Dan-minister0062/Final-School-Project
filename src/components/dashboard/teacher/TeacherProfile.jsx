@@ -1,7 +1,7 @@
 // src/components/dashboard/teacher/TeacherProfile.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, Row, Col, Form, Button, Badge } from 'react-bootstrap';
-import { FaSave, FaUserEdit, FaKey, FaChalkboardTeacher, FaBook, FaUserGraduate, FaCamera } from 'react-icons/fa';
+import {FaSave, FaUserEdit, FaKey, FaChalkboardTeacher, FaBook, FaCamera} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
 import { useAuth } from '../../../hooks/useAuth';

@@ -13,7 +13,7 @@ class SchoolClass extends Model
 
     protected $fillable = [
         'code', 'name', 'name_en', 'name_ar', 'level_key', 'capacity',
-        'academic_year', 'room', 'teacher_name', 'status',
+        'academic_year', 'room', 'teacher_name', 'status', 'section_id',
     ];
 
     protected $casts = [
@@ -23,6 +23,16 @@ class SchoolClass extends Model
     public function students()
     {
         return $this->hasMany(Student::class, 'class_code', 'code');
+    }
+
+    public function section()
+    {
+        return $this->belongsTo(Section::class, 'section_id');
+    }
+
+    public function lessons()
+    {
+        return $this->hasMany(Lesson::class, 'class_id');
     }
 
     public function teachers()

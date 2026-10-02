@@ -1,17 +1,9 @@
 // src/components/public/NewsEvents.jsx
 import React, { useState, useEffect } from 'react';
 import { Container, Row, Col, Card, Badge, Button, Form, InputGroup, Pagination, Modal } from 'react-bootstrap';
-import {
-  FaCalendarAlt, FaClock, FaUser, FaTag, FaShare, FaHeart,
-  FaRegHeart, FaComment, FaEye, FaSearch, FaFilter,
-  FaBullhorn, FaCalendarCheck, FaUsers, FaCheckCircle,
-  FaImage, FaVideo, FaPlayCircle, FaArrowRight, FaSync,
-  FaTimes, FaLink, FaEnvelope, FaWhatsapp, FaTwitter, FaFacebook,
-  FaInfoCircle, FaStar, FaTrophy, FaAward, FaGraduationCap,
-  FaChalkboardTeacher, FaBookOpen, FaQuran, FaMosque
-} from 'react-icons/fa';
+import {FaCalendarAlt, FaClock, FaUser, FaTag, FaHeart, FaRegHeart, FaComment, FaEye, FaSearch, FaBullhorn, FaCalendarCheck, FaUsers, FaCheckCircle, FaPlayCircle, FaArrowRight, FaSync, FaTimes, FaLink, FaEnvelope, FaWhatsapp, FaTwitter, FaFacebook} from 'react-icons/fa';
 import { useLanguage } from '../../context/LanguageContext';
-import { getTranslation, getAnnouncementTranslation } from '../../utils/translations';
+import {getAnnouncementTranslation} from '../../utils/translations';
 import { useNotification } from '../../hooks/useNotification';
 import { syncGet } from '../../services/apiSync';
 

@@ -5,6 +5,7 @@ import {
   Routes,
   Route,
   Navigate,
+  useLocation,
 } from "react-router-dom";
 import { Provider, useDispatch } from "react-redux";
 import { ToastContainer } from "react-toastify";
@@ -19,32 +20,15 @@ import {
 } from "./store/slices/authSlice";
 
 // ===== IMPORTS FOR ADMIN PAGES =====
-import { Card, Table, Badge, Button, Row, Col, Form } from "react-bootstrap";
-import {
-  FaEye,
-  FaEdit,
-  FaTrash,
-  FaPlus,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaFilePdf,
-  FaDownload,
-  FaPlusCircle,
-  FaSave,
-  FaSchool,
-  FaCalendarAlt,
-  FaCog,
-  FaUserEdit,
-  FaKey,
-  FaExclamationTriangle,
-  FaArchive,
-  FaBell,
-  FaCamera,
-} from "react-icons/fa";
+import {Card, Badge, Button, Row, Col, Form} from "react-bootstrap";
+import {FaSave, FaUserEdit, FaKey, FaCamera} from "react-icons/fa";
 import { useLanguage } from "./context/LanguageContext";
+import { RbacProvider, useRbac } from "./context/RbacContext";
+import { RequireSuperAdmin } from "./components/auth/RbacGuards";
 import { useNotification } from "./hooks/useNotification";
 import { useAuth } from "./hooks/useAuth";
 import { getInitials } from "./utils/helpers";
+import { getTranslation } from "./utils/translations";
 import api from "./services/api";
 
 // ===== LAYOUTS =====
@@ -78,10 +62,13 @@ import UsersManagement from "./components/dashboard/admin/UsersManagement";
 import Notifications from "./components/dashboard/admin/Notifications";
 import SubjectsManagement from "./components/dashboard/admin/SubjectsManagement";
 import AdmissionManagement from "./components/dashboard/admin/AdmissionManagement";
-import PaymentsManagement from "./components/dashboard/admin/PaymentsManagement";
 import AdminAssessments from './components/dashboard/admin/AdminAssessments';
 import Settings from './components/dashboard/admin/Settings';
 import ContactMessages from './components/dashboard/admin/ContactMessages';
+import SubAdminsManagement from './components/dashboard/admin/SubAdminsManagement';
+import AuditLog from './components/dashboard/admin/AuditLog';
+import AdminLessons from './components/dashboard/admin/AdminLessons';
+import LessonEditor from './components/dashboard/admin/LessonEditor';
 // ===== TEACHER PAGES =====
 import TeacherDashboard from "./components/dashboard/teacher/TeacherDashboard";
 import TeacherStudents from "./components/dashboard/teacher/TeacherStudents";
@@ -96,14 +83,12 @@ import TeacherClasses from "./components/dashboard/teacher/TeacherClasses";
 import ParentDashboard from "./components/dashboard/parent/ParentDashboard";
 import ChildResults from "./components/dashboard/parent/ChildResults";
 import ParentAnnouncements from "./components/dashboard/parent/ParentAnnouncements";
-import ParentPayments from "./components/dashboard/parent/ParentPayments";
 
 // ===== STUDENT PAGES =====
 import StudentDashboard from "./components/dashboard/student/StudentDashboard";
 import StudentResults from "./components/dashboard/student/StudentResults";
 // ✅ FIXED: Changed from '../components/dashboard/student/StudentAnnouncements' to './components/dashboard/student/StudentAnnouncements'
 import StudentAnnouncements from "./components/dashboard/student/StudentAnnouncements";
-import StudentPayments from "./components/dashboard/student/StudentPayments";
 
 // ===== ACCEPT INVITE PAGE =====
 import AcceptInvite from "./pages/AcceptInvite";
@@ -561,8 +546,17 @@ const Profile = () => {
 };
 
 // ===== PROTECTED ROUTE =====
-const ProtectedRoute = ({ children, allowedRoles = [] }) => {
+const ProtectedRoute = ({ children, allowedRoles = [], permission, anyOf = [] }) => {
   const { status, isAuthenticated, role } = useAuth();
+  const {
+    loaded: rbacLoaded,
+    loading: rbacLoading,
+    hasPermission,
+    hasAnyPermission,
+  } = useRbac();
+  const { language } = useLanguage();
+  const t = (key) => getTranslation(key, language);
+  const location = useLocation();
 
   if (status === "checking") {
     return (
@@ -576,9 +570,9 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
             style={{ width: "3rem", height: "3rem" }}
             role="status"
           >
-            <span className="visually-hidden">Loading...</span>
+            <span className="visually-hidden">{t("loading")}</span>
           </div>
-          <div className="text-muted small">Loading...</div>
+          <div className="text-muted small">{t("loading")}</div>
         </div>
       </div>
     );
@@ -588,14 +582,41 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
     return <Navigate to="/login" />;
   }
 
+  const roleDashboards = {
+    admin: "/dashboard/admin",
+    teacher: "/dashboard/teacher",
+    parent: "/dashboard/parent",
+    student: "/dashboard/student",
+  };
+
   if (allowedRoles.length > 0 && !allowedRoles.includes(role)) {
-    const roleDashboards = {
-      admin: "/dashboard/admin",
-      teacher: "/dashboard/teacher",
-      parent: "/dashboard/parent",
-      student: "/dashboard/student",
-    };
     return <Navigate to={roleDashboards[role] || "/dashboard/admin"} />;
+  }
+
+  // Permissions come from /rbac/me. Wait for the capability payload before
+  // deciding, otherwise a Sub-Admin would be bounced off their own screens
+  // during the first render.
+  if (rbacLoading || !rbacLoaded) {
+    return (
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ minHeight: "60vh" }}
+      >
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">{t("loading")}</span>
+        </div>
+      </div>
+    );
+  }
+
+  const permissionOk =
+    !permission && anyOf.length === 0
+      ? true
+      : (!!permission && hasPermission(permission)) ||
+        (anyOf.length > 0 && hasAnyPermission(anyOf));
+
+  if (!permissionOk) {
+    return <Navigate to={roleDashboards[role] || "/dashboard"} state={{ from: location }} />;
   }
 
   return children;
@@ -679,22 +700,152 @@ function AppRoutes() {
             }
           >
             <Route index element={<AdminDashboard />} />
-            <Route path="students" element={<StudentsManagement />} />
-            <Route path="teachers" element={<TeachersManagement />} />
-            <Route path="classes" element={<ClassesManagement />} />
-            <Route path="classes/add" element={<ClassesManagement />} />
-            <Route path="announcements" element={<AnnouncementsManagement />} />
-            <Route path="registrations" element={<RegistrationsManagement />} />
+            <Route
+              path="students"
+              element={<StudentsManagement />}
+            />
+            <Route
+              path="teachers"
+              element={
+                <ProtectedRoute anyOf={["users.view", "users.create"]}>
+                  <TeachersManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="classes"
+              element={
+                <ProtectedRoute anyOf={["classes.view", "classes.update"]}>
+                  <ClassesManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="classes/add"
+              element={
+                <ProtectedRoute permission="classes.create">
+                  <ClassesManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="announcements"
+              element={
+                <ProtectedRoute
+                  anyOf={[
+                    "announcements.view",
+                    "announcements.create",
+                    "announcements.update",
+                  ]}
+                >
+                  <AnnouncementsManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="registrations"
+              element={
+                <ProtectedRoute
+                  anyOf={["registrations.view", "registrations.review"]}
+                >
+                  <RegistrationsManagement />
+                </ProtectedRoute>
+              }
+            />
             <Route path="parents" element={<ParentsManagement />} />
-            <Route path="users" element={<UsersManagement />} />
-            <Route path="settings" element={<Settings />} />
+            <Route
+              path="users"
+              element={
+                <ProtectedRoute permission="users.view">
+                  <UsersManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="settings"
+              element={
+                <ProtectedRoute anyOf={["settings.view", "settings.update"]}>
+                  <Settings />
+                </ProtectedRoute>
+              }
+            />
             <Route path="profile" element={<Profile />} />
-            <Route path="subjects" element={<SubjectsManagement />} />
+            <Route
+              path="subjects"
+              element={
+                <ProtectedRoute
+                  anyOf={["subjects.view", "subjects.manage"]}
+                >
+                  <SubjectsManagement />
+                </ProtectedRoute>
+              }
+            />
             <Route path="notifications" element={<Notifications />} />
-            <Route path="contacts" element={<ContactMessages />} />
-            <Route path="admissions" element={<AdmissionManagement />} />
-            <Route path="/dashboard/admin/assessments" element={<AdminAssessments />} />
-            <Route path="payments" element={<PaymentsManagement />} />
+            <Route
+              path="contacts"
+              element={
+                <ProtectedRoute anyOf={["messages.view", "messages.reply"]}>
+                  <ContactMessages />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="admissions"
+              element={
+                <ProtectedRoute anyOf={["registrations.view", "registrations.review"]}>
+                  <AdmissionManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dashboard/admin/assessments"
+              element={
+                <ProtectedRoute anyOf={["grades.view", "grades.manage"]}>
+                  <AdminAssessments />
+                </ProtectedRoute>
+              }
+            />
+            {/* Super Admin only: admin lifecycle, permissions and the audit log. */}
+            <Route
+              path="subadmins"
+              element={
+                <RequireSuperAdmin>
+                  <SubAdminsManagement />
+                </RequireSuperAdmin>
+              }
+            />
+            <Route
+              path="audit"
+              element={
+                <RequireSuperAdmin>
+                  <AuditLog />
+                </RequireSuperAdmin>
+              }
+            />
+            <Route
+              path="lessons"
+              element={
+                <ProtectedRoute permission="lessons.view">
+                  <AdminLessons />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="lessons/new"
+              element={
+                <ProtectedRoute permission="lessons.create">
+                  <LessonEditor />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="lessons/:lessonId/edit"
+              element={
+                <ProtectedRoute permission="lessons.update">
+                  <LessonEditor />
+                </ProtectedRoute>
+              }
+            />
           </Route>
 
           {/* ===== TEACHER ROUTES ===== */}
@@ -727,7 +878,6 @@ function AppRoutes() {
             <Route index element={<ParentDashboard />} />
             <Route path="child-results" element={<ChildResults />} />
             <Route path="announcements" element={<ParentAnnouncements />} />
-            <Route path="payments" element={<ParentPayments />} />
             <Route path="profile" element={<Profile />} />
           </Route>
 
@@ -745,7 +895,6 @@ function AppRoutes() {
             <Route path="profile" element={<Profile />} />
             {/* ✅ FIXED: StudentAnnouncements route with correct path */}
             <Route path="announcements" element={<StudentAnnouncements />} />
-            <Route path="payments" element={<StudentPayments />} />
           </Route>
 
           {/* ===== FALLBACK ===== */}
@@ -759,7 +908,9 @@ function AppRoutes() {
 function App() {
   return (
     <Provider store={store}>
-      <AppRoutes />
+      <RbacProvider>
+        <AppRoutes />
+      </RbacProvider>
     </Provider>
   );
 }

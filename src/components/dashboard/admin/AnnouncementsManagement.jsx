@@ -1,37 +1,14 @@
 // src/components/dashboard/admin/AnnouncementsManagement.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  Container, Row, Col, Card, Badge, Button, Table, 
-  Modal, Form, Alert, InputGroup, Pagination 
-} from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
-import {
-  FaBullhorn, FaPlus, FaEdit, FaTrash, FaEye, FaSearch,
-  FaSync, FaCheckCircle, FaTimesCircle, FaExclamationTriangle,
-  FaSpinner, FaSave, FaTimes, FaFilter, FaDownload,
-  FaPrint, FaClock, FaCalendarAlt, FaUser, FaEnvelope,
-  FaBell, FaPaperPlane, FaImage, FaVideo, FaFile,
-  FaCloudUploadAlt, FaUpload, FaArchive, FaEyeSlash,
-  FaTag, FaUsers, FaStar, FaRegStar, FaShare, FaArrowRight,
-  FaRocket, FaInfoCircle, FaChild, FaUserGraduate, FaChalkboardTeacher,
-  FaUserPlus
-} from 'react-icons/fa';
+import {Row, Col, Card, Badge, Button, Table, Modal, Form, Alert, InputGroup, Pagination} from 'react-bootstrap';
+import {FaBullhorn, FaPlus, FaEdit, FaTrash, FaEye, FaSearch, FaSync, FaCheckCircle, FaTimesCircle, FaExclamationTriangle, FaSpinner, FaSave, FaTimes, FaDownload, FaPrint, FaClock, FaCalendarAlt, FaUser, FaBell, FaPaperPlane, FaFile, FaCloudUploadAlt, FaUpload, FaArchive, FaEyeSlash, FaTag, FaUsers, FaInfoCircle, FaUserGraduate, FaChalkboardTeacher, FaUserPlus} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useAuth } from '../../../hooks/useAuth';
 import { useNotification } from '../../../hooks/useNotification';
 import { syncGet, syncSend } from '../../../services/apiSync';
 import notificationService from '../../../services/notificationService';
-import { format, formatDistanceToNow } from 'date-fns';
-import { ar, enUS } from 'date-fns/locale';
-import {
-  getTranslation,
-  getAnnouncementTitle,
-  getAnnouncementContent,
-  getAnnouncementTranslation,
-  getAnnouncementKeys,
-  getAllAnnouncements,
-  translateAnnouncement
-} from '../../../utils/translations';
+import {format} from 'date-fns';
+import {getAnnouncementTranslation, getAnnouncementKeys} from '../../../utils/translations';
 
 // ===== ALWAYS use English numbers =====
 const formatNumber = (num) => {
@@ -41,8 +18,7 @@ const formatNumber = (num) => {
 
 const AnnouncementsManagement = () => {
   const { isArabic, language } = useLanguage();
-  const navigate = useNavigate();
-  const { user } = useAuth();
+    const { user } = useAuth();
   const { notify } = useNotification();
   const tableRef = useRef(null);
 
@@ -339,8 +315,7 @@ const AnnouncementsManagement = () => {
   // ===== HANDLE PREDEFINED ANNOUNCEMENT SELECTION =====
   const handlePredefinedAnnouncementSelect = (key, isEdit = false) => {
     const setTarget = isEdit ? setEditFormData : setFormData;
-    const currentData = isEdit ? editFormData : formData;
-    
+        
     if (key) {
       const translation = getAnnouncementTranslation(key, language);
       const arTranslation = getAnnouncementTranslation(key, 'ar');
@@ -952,7 +927,6 @@ const AnnouncementsManagement = () => {
       let tableRows = '';
       currentData.forEach((ann, index) => {
         const displayTitle = getTranslatedTitle(ann);
-        const displayContent = getTranslatedContent(ann);
         tableRows += `
           <tr>
             <td>${index + 1}</td>
@@ -1059,7 +1033,7 @@ const AnnouncementsManagement = () => {
             </div>
             <script>
               window.onload = function() { window.print(); }
-            <\/script>
+            </script>
           </body>
         </html>
       `;

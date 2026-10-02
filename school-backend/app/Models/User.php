@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use App\Traits\HasAdminTiers;
 
 class User extends Authenticatable
 {
@@ -65,6 +66,11 @@ class User extends Authenticatable
         'children_names',
         'invite_token',
         'invite_token_expires_at',
+        'is_super_admin',
+        'is_sub_admin',
+        'section_id',
+        'section_scope',
+        'permissions',
     ];
 
     /**
@@ -97,7 +103,17 @@ class User extends Authenticatable
             'attendance' => 'integer',
             'average_grade' => 'decimal:2',
             'experience' => 'integer',
+            'is_super_admin' => 'boolean',
+            'is_sub_admin' => 'boolean',
+            'permissions' => 'array',
         ];
+    }
+
+    use HasAdminTiers;
+
+    public function section(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Section::class, 'section_id');
     }
 
     public function teacher(): \Illuminate\Database\Eloquent\Relations\BelongsTo

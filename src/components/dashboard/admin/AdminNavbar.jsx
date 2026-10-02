@@ -1,21 +1,13 @@
 // src/components/dashboard/admin/AdminNavbar.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Navbar, Nav, NavDropdown, Badge, Button, Dropdown } from 'react-bootstrap';
+import {Navbar, Nav} from 'react-bootstrap';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  FaBell, FaUserCircle, FaCog, FaSignOutAlt, 
-  FaUser, FaBars, FaTimes, FaChevronDown,
-  FaEnvelope, FaCalendarAlt, FaFileAlt, FaUsers,
-  FaGraduationCap, FaChalkboardTeacher, FaBullhorn,
-  FaBook, FaHome, FaInfoCircle, FaPhone, FaNewspaper,
-  FaClipboardList, FaChartLine, FaSchool, FaUserPlus,
-  FaCheckCircle, FaExclamationTriangle
-} from 'react-icons/fa';
+import {FaBell, FaUserCircle, FaCog, FaSignOutAlt, FaUser, FaBars, FaTimes, FaChevronDown, FaEnvelope, FaUsers, FaGraduationCap, FaChalkboardTeacher, FaBullhorn, FaBook, FaHome, FaSchool, FaUserPlus, FaCheckCircle, FaExclamationTriangle} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useAuth } from '../../../hooks/useAuth';
 import notificationService from '../../../services/notificationService';
 
-const AdminNavbar = ({ userRole = 'admin' }) => {
+const AdminNavbar = () => {
   const { language, isArabic } = useLanguage();
   const navigate = useNavigate();
   const location = useLocation();
@@ -99,7 +91,6 @@ const AdminNavbar = ({ userRole = 'admin' }) => {
       n.type === 'registration_approved' ||
       n.type === 'registration_declined' ||
       n.type === 'new_registration' ||
-      n.type === 'payment' ||
       n.type === 'contact'
     );
     setNotifications(filteredNotifications);
@@ -113,7 +104,7 @@ const AdminNavbar = ({ userRole = 'admin' }) => {
     // Listen for new notifications
     const handleNewNotification = (event) => {
       const newNotif = event.detail;
-      if (newNotif && (newNotif.type === 'announcement' || newNotif.type === 'registration' || newNotif.type === 'new_registration' || newNotif.type === 'payment' || newNotif.type === 'contact')) {
+      if (newNotif && (newNotif.type === 'announcement' || newNotif.type === 'registration' || newNotif.type === 'new_registration' || newNotif.type === 'contact')) {
         loadNotifications();
       }
     };

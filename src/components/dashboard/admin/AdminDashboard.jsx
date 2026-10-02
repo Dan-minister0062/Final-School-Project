@@ -1,95 +1,10 @@
 // src/components/dashboard/admin/AdminDashboard.jsx
-import React, { useState, useEffect, useRef } from "react";
+import React, {useState, useEffect} from "react";
 import { syncGet, syncSend } from '../../../services/apiSync';
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Badge,
-  Button,
-  Table,
-  Nav,
-  Modal,
-  Form,
-  Alert,
-} from "react-bootstrap";
-import { Link, useNavigate } from "react-router-dom";
-import {
-  FaUsers,
-  FaUserGraduate,
-  FaChalkboardTeacher,
-  FaBuilding,
-  FaBell,
-  FaChartLine,
-  FaTrophy,
-  FaUserPlus,
-  FaClock,
-  FaRocket,
-  FaCalendarCheck,
-  FaBullhorn,
-  FaCog,
-  FaFilePdf,
-  FaFileAlt,
-  FaSync,
-  FaHeart,
-  FaAward,
-  FaArrowRight,
-  FaGraduationCap,
-  FaBook,
-  FaChild,
-  FaSchool,
-  FaChartBar,
-  FaUserTie,
-  FaBriefcase,
-  FaCalendarWeek,
-  FaShieldAlt,
-  FaStar,
-  FaFire,
-  FaGift,
-  FaComments,
-  FaEnvelope,
-  FaPhone,
-  FaMapMarkerAlt,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaEye,
-  FaEdit,
-  FaTrash,
-  FaPlus,
-  FaSearch,
-  FaFilter,
-  FaDownload,
-  FaPrint,
-  FaInfoCircle,
-  FaChevronRight,
-  FaChevronDown,
-  FaChevronUp,
-  FaThumbsUp,
-  FaShare,
-  FaBookmark,
-  FaRegBookmark,
-  FaRegCalendarAlt,
-  FaClock as FaClockIcon,
-  FaHourglassHalf,
-  FaTachometerAlt,
-  FaSlidersH,
-  FaPalette,
-  FaMagic,
-  FaMoon,
-  FaSun,
-  FaCloud,
-  FaRainbow,
-  FaChartPie,
-  FaExclamationTriangle,
-  FaSpinner,
-  FaMoneyBillWave,
-  FaReceipt,
-  FaWallet,
-  FaCreditCard,
-} from "react-icons/fa";
+import {Row, Col, Card, Badge, Button, Modal} from "react-bootstrap";
+import {useNavigate} from "react-router-dom";
+import {FaUsers, FaUserGraduate, FaChartLine, FaUserPlus, FaClock, FaCalendarCheck, FaBullhorn, FaCog, FaSync, FaArrowRight, FaEnvelope, FaPhone, FaMapMarkerAlt, FaCheckCircle, FaTimesCircle, FaEye, FaPlus, FaInfoCircle, FaChevronRight, FaChevronDown, FaChevronUp, FaRegCalendarAlt, FaClock as FaClockIcon, FaChartPie, FaExclamationTriangle, FaSpinner} from "react-icons/fa";
 import { useLanguage } from "../../../context/LanguageContext";
-import { getTranslation } from "../../../utils/translations";
 import { useAuth } from "../../../hooks/useAuth";
 import { useNotification } from "../../../hooks/useNotification";
 import { format, formatDistanceToNow } from "date-fns";
@@ -108,7 +23,7 @@ import {
   Filler,
   RadialLinearScale,
 } from "chart.js";
-import { Bar, Pie, Doughnut, Line, Radar } from "react-chartjs-2";
+import {Doughnut, Line, Radar} from "react-chartjs-2";
 import notificationService from "../../../services/notificationService";
 
 ChartJS.register(
@@ -126,9 +41,8 @@ ChartJS.register(
 );
 
 const AdminDashboard = () => {
-  const { language, isArabic } = useLanguage();
-  const t = (key) => getTranslation(key, language);
-  const navigate = useNavigate();
+  const {  isArabic } = useLanguage();
+    const navigate = useNavigate();
   const { user } = useAuth();
   const { notify } = useNotification();
   const [darkMode, setDarkMode] = useState(false);
@@ -136,25 +50,18 @@ const AdminDashboard = () => {
   const [error, setError] = useState(null);
   const [stats, setStats] = useState(null);
   const [pendingRegistrations, setPendingRegistrations] = useState([]);
-  const [pendingPayments, setPendingPayments] = useState([]);
-  const [paidStudents, setPaidStudents] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [monthlyTrend, setMonthlyTrend] = useState([]);
   const [classDistribution, setClassDistribution] = useState([]);
   const [showAllRegistrations, setShowAllRegistrations] = useState(false);
-  const [showAllPayments, setShowAllPayments] = useState(false);
   const [showAllActivities, setShowAllActivities] = useState(false);
   const [showViewModal, setShowViewModal] = useState(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(null);
   const [showDeclineConfirm, setShowDeclineConfirm] = useState(null);
   const [showApproveConfirm, setShowApproveConfirm] = useState(null);
-  const [showPaymentApproveConfirm, setShowPaymentApproveConfirm] = useState(null);
-  const [showPaymentDeclineConfirm, setShowPaymentDeclineConfirm] = useState(null);
   const [processingAction, setProcessingAction] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [allStudents, setAllStudents] = useState([]);
-  const [paymentReceiptUrl, setPaymentReceiptUrl] = useState(null);
+  const [ setAllStudents] = useState([]);
 
   const locale = isArabic ? ar : enUS;
 
@@ -247,95 +154,8 @@ const AdminDashboard = () => {
     }
   };
 
-  // ===== Get pending payments from API =====
-  const getPendingPaymentsFromAPI = async () => {
-    try {
-      const res = await syncGet('/payments');
-      const rows = Array.isArray(res?.data) ? res.data : [];
-      return rows.filter(p => p.status === 'submitted' || p.status === 'pending').map(p => ({
-        id: p.id || `pay-${Date.now()}`,
-        studentId: p.student_id || p.studentId,
-        studentName: p.student_name || p.studentName || 'Unknown Student',
-        className: p.class_name || p.className || 'N/A',
-        amount: p.amount || 0,
-        month: p.month || new Date().getMonth() + 1,
-        year: p.year || new Date().getFullYear(),
-        status: p.status || 'pending',
-        receiptData: p.receipt || null,
-        receiptName: p.receipt_name || null,
-        receiptType: null,
-        hasReceipt: !!p.receipt || !!p.receipt_name,
-        note: p.notes || '',
-        createdAt: p.created_at || p.createdAt || new Date().toISOString(),
-        parentName: p.parent_name || p.parentName || 'Unknown Parent',
-        parentEmail: p.parent_email || p.parentEmail || '',
-        parentPhone: p.phone || '',
-        parentAddress: p.address || '',
-        studentDateOfBirth: p.date_of_birth || p.dateOfBirth || '',
-        studentGender: p.gender || '',
-        studentPreviousSchool: '',
-        studentAddress: p.address || '',
-        _serverId: p._serverId || p.id,
-      }));
-    } catch (error) {
-      console.error('Error getting pending payments:', error);
-      return [];
-    }
-  };
-
-  // ===== Get paid students (approved/paid) from the DB =====
-  const getPaidStudentsFromAPI = async () => {
-    try {
-      const res = await syncGet('/payments');
-      const rows = Array.isArray(res?.data) ? res.data : [];
-      return rows
-        .filter((p) => p.status === 'approved' || p.status === 'paid')
-        .map((p) => ({
-          id: p.id,
-          studentName: p.student_name || p.studentName || 'Unknown Student',
-          className: p.class_name || p.className || 'N/A',
-          amount: p.amount || 0,
-          month: p.month || new Date().getMonth() + 1,
-          year: p.year || new Date().getFullYear(),
-          approvedAt: p.paid_at || p.paidAt || p.updated_at || p.updatedAt || new Date().toISOString(),
-          parentEmail: p.parent_email || p.parentEmail || '',
-          _serverId: p._serverId || p.id,
-        }));
-    } catch (error) {
-      console.error('Error getting paid students:', error);
-      return [];
-    }
-  };
-
-  // ===== Get pending registrations from notifications (fallback) =====
-  const getPendingRegistrationsFromNotifications = () => {
-    try {
-      if (
-        window.notificationService &&
-        typeof window.notificationService.getNotifications === "function"
-      ) {
-        return window.notificationService.getNotifications()
-          .filter(n => n.type === "registration" || n.type === "new_registration")
-          .slice(0, 5)
-          .map(n => ({
-            id: n.id || Date.now() + Math.random(),
-            student_name: n.metadata?.student_name || n.studentName || (isArabic ? "طالب" : "Student"),
-            level: "Primary",
-            parent_name: n.metadata?.parent_name || n.parentName || (isArabic ? "ولي أمر" : "Parent"),
-            parent_email: "",
-            parent_phone: "",
-            created_at: n.createdAt || n.created_at || new Date().toISOString(),
-            status: "pending",
-            registrationId: n.id,
-          }));
-      }
-      return [];
-    } catch (error) {
-      console.error("Error getting registrations:", error);
-      return [];
-    }
-  };
-
+    // ===== Get pending registrations from notifications (fallback) =====
+  
   const getRecentActivitiesFromNotifications = () => {
     try {
       let allNotifications = [];
@@ -359,19 +179,16 @@ const AdminDashboard = () => {
             n.type === "registration" ||
             n.type === "new_registration" ||
             n.type === "registration_approved" ||
-            n.type === "registration_declined" ||
-            n.type === "payment",
+            n.type === "registration_declined",
         )
         .slice(0, 10)
         .map((n) => {
-          let type = "activity";
-          let icon = <FaInfoCircle />;
+let icon = <FaInfoCircle />;
           let color = "#4a9eff";
           let label = isArabic ? "نشاط" : "Activity";
           let link = null;
 
           if (n.type === "announcement") {
-            type = "announcement";
             icon = <FaBullhorn />;
             color = "#e74c3c";
             label = isArabic ? "إعلان" : "Announcement";
@@ -380,29 +197,20 @@ const AdminDashboard = () => {
             n.type === "registration" ||
             n.type === "new_registration"
           ) {
-            type = "registration";
             icon = <FaUserPlus />;
             color = "#f39c12";
             label = isArabic ? "تسجيل" : "Registration";
             link = "/dashboard/admin/registrations";
           } else if (n.type === "registration_approved") {
-            type = "approved";
             icon = <FaCheckCircle />;
             color = "#2ecc71";
             label = isArabic ? "موافقة" : "Approved";
             link = "/dashboard/admin/registrations";
           } else if (n.type === "registration_declined") {
-            type = "declined";
             icon = <FaTimesCircle />;
             color = "#e74c3c";
             label = isArabic ? "رفض" : "Declined";
             link = "/dashboard/admin/registrations";
-          } else if (n.type === "payment") {
-            type = "payment";
-            icon = <FaMoneyBillWave />;
-            color = "#2ecc71";
-            label = isArabic ? "دفع" : "Payment";
-            link = "/dashboard/admin/payments";
           }
 
           return {
@@ -453,7 +261,7 @@ const AdminDashboard = () => {
     setError(null);
 
     try {
-      const [dashStats, { students, parents, teachers, all: allUsers }, pendingRegs] = await Promise.all([
+      const [dashStats, { students, parents, teachers }, pendingRegs] = await Promise.all([
         syncGet('/dashboard/stats'),
         getRealUsersData(),
         getPendingRegistrationsFromAPI(),
@@ -463,13 +271,6 @@ const AdminDashboard = () => {
 
       console.log("📊 Pending registrations:", pendingRegs.length);
       setPendingRegistrations(pendingRegs);
-
-      const pendingPaymentsData = await getPendingPaymentsFromAPI();
-      console.log("💰 Pending payments:", pendingPaymentsData.length);
-      setPendingPayments(pendingPaymentsData);
-
-      const paidStudentsData = await getPaidStudentsFromAPI();
-      setPaidStudents(paidStudentsData);
 
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -483,7 +284,6 @@ const AdminDashboard = () => {
         total_teachers: dashStats?.teachers ?? teachers.length,
         total_classes: dashStats?.classes ?? 0,
         pending_registrations: dashStats?.pendingRegistrations ?? pendingRegs.length,
-        pending_payments: dashStats?.pendingPayments ?? pendingPaymentsData.length,
         new_students_last_30_days: students.filter((s) => {
           const created = new Date(s.created_at || s.createdAt);
           return created >= thirtyDaysAgo;
@@ -569,11 +369,6 @@ const AdminDashboard = () => {
           return created && created.getMonth() === monthNum && created.getFullYear() === new Date().getFullYear();
         });
 
-        const monthPayments = pendingPaymentsData.filter((p) => {
-          const created = new Date(p.createdAt);
-          return created && created.getMonth() === monthNum && created.getFullYear() === new Date().getFullYear();
-        });
-
         const monthStudents = students.filter((s) => {
           const created = new Date(s.created_at || s.createdAt);
           return created && created.getMonth() === monthNum && created.getFullYear() === new Date().getFullYear();
@@ -582,7 +377,6 @@ const AdminDashboard = () => {
         return {
           month,
           registrations: monthRegistrations.length,
-          payments: monthPayments.length,
           approved: monthStudents.length,
           rejected: Math.floor(monthRegistrations.length * 0.1),
         };
@@ -618,14 +412,12 @@ const AdminDashboard = () => {
       console.error("Error fetching dashboard data:", error);
       setError(isArabic ? "فشل في تحميل البيانات" : "Failed to load data");
       setPendingRegistrations([]);
-      setPendingPayments([]);
       setStats({
         total_students: 0,
         total_parents: 0,
         total_teachers: 0,
         total_classes: 0,
         pending_registrations: 0,
-        pending_payments: 0,
         new_students_last_30_days: 0,
         new_parents_last_30_days: 0,
         registrations_last_24h: 0,
@@ -653,12 +445,6 @@ const AdminDashboard = () => {
     };
     window.addEventListener("announcementsUpdated", handleAnnouncementUpdate);
 
-    const handlePaymentUpdated = () => {
-      console.log("💰 Payment updated, refreshing dashboard");
-      fetchDashboardData();
-    };
-    window.addEventListener("paymentUpdated", handlePaymentUpdated);
-
     const handleRegistrationSubmitted = (event) => {
       console.log("📝 Registration submitted event received:", event.detail);
       setTimeout(() => fetchDashboardData(), 500);
@@ -669,31 +455,11 @@ const AdminDashboard = () => {
       fetchDashboardData();
     }, 2100000);
 
-    // Keep the Pending Payments sidebar fresh so parent-uploaded receipts
-    // appear without a page reload (the notification bell polls every ~5s).
-    const paymentsPoll = setInterval(async () => {
-      try {
-        const pending = await getPendingPaymentsFromAPI();
-        if (Array.isArray(pending)) {
-          setPendingPayments(pending);
-          setStats((prev) => ({ ...prev, pending_payments: pending.length }));
-        }
-        const paid = await getPaidStudentsFromAPI();
-        if (Array.isArray(paid)) {
-          setPaidStudents(paid);
-        }
-      } catch (e) {
-        console.error("Error polling payments:", e);
-      }
-    }, 15000);
-
     return () => {
       window.removeEventListener("newNotification", handleNewNotification);
       window.removeEventListener("announcementsUpdated", handleAnnouncementUpdate);
-      window.removeEventListener("paymentUpdated", handlePaymentUpdated);
       window.removeEventListener("registrationSubmitted", handleRegistrationSubmitted);
       clearInterval(pollInterval);
-      clearInterval(paymentsPoll);
     };
   }, []);
 
@@ -702,10 +468,9 @@ const AdminDashboard = () => {
       setStats((prev) => ({
         ...prev,
         pending_registrations: pendingRegistrations.length,
-        pending_payments: pendingPayments.length,
       }));
     }
-  }, [pendingRegistrations, pendingPayments]);
+  }, [pendingRegistrations]);
 
   // ===== HANDLE APPROVE REGISTRATION =====
   const handleApproveRegistration = async (id) => {
@@ -797,138 +562,6 @@ const AdminDashboard = () => {
   const handleViewRegistration = (reg) => {
     setShowViewModal(reg);
   };
-
-  // ===== HANDLE VIEW PAYMENT =====
-  const handleViewPayment = (payment) => {
-    setShowPaymentModal(payment);
-    // Create a preview URL for the receipt if it exists
-    if (payment.receiptData) {
-      try {
-        const raw = String(payment.receiptData);
-        const mime = raw.match(/^data:([^;,]+)/)?.[1] || payment.receiptType || 'application/pdf';
-        const base64Data = raw.includes(',') ? raw.split(',')[1] : raw;
-        const byteCharacters = atob(base64Data);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-          byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const blob = new Blob([byteArray], { type: mime });
-        const url = URL.createObjectURL(blob);
-        setPaymentReceiptUrl(url);
-      } catch (e) {
-        console.error('Error creating receipt preview:', e);
-        setPaymentReceiptUrl(null);
-      }
-    } else {
-      setPaymentReceiptUrl(null);
-    }
-  };
-
-  // ===== HANDLE APPROVE PAYMENT =====
-  const handleApprovePayment = async (id) => {
-    setProcessingAction(true);
-    try {
-      const payment = pendingPayments.find((p) => p.id === id);
-      if (payment) {
-        const serverId = payment._serverId || id;
-        await syncSend('patch', `/payments/${serverId}/status`, { status: 'approved' });
-
-        setPendingPayments((prev) => prev.filter((p) => p.id !== id));
-
-        notificationService.addNotification(
-          isArabic ? '✅ تم اعتماد دفعتك' : '✅ Your Payment Approved',
-          isArabic 
-            ? `تم اعتماد دفعتك بمبلغ ${payment.amount} MAD للطالب ${payment.studentName}`
-            : `Your payment of ${payment.amount} MAD for student ${payment.studentName} has been approved`,
-          'payment_approved',
-          '/dashboard/admin/payments',
-        );
-
-        notify(
-          isArabic
-            ? `✅ تم اعتماد دفعة ${payment.studentName} بمبلغ ${payment.amount} MAD`
-            : `✅ Payment approved for ${payment.studentName} of ${payment.amount} MAD`,
-          "success",
-        );
-        setShowPaymentApproveConfirm(null);
-        setShowPaymentModal(null);
-        fetchDashboardData();
-
-        navigate('/dashboard/admin/payments', {
-          state: {
-            approvedPayment: {
-              id: payment.id,
-              studentId: payment.studentId,
-              studentName: payment.studentName,
-              parentName: payment.parentName,
-              parentEmail: payment.parentEmail,
-              parentPhone: payment.parentPhone,
-              parentAddress: payment.parentAddress,
-              amount: payment.amount,
-              month: payment.month,
-              year: payment.year,
-              className: payment.className,
-              studentDateOfBirth: payment.studentDateOfBirth,
-              studentGender: payment.studentGender,
-            }
-          }
-        });
-      }
-    } catch (error) {
-      console.error("Payment approval error:", error);
-      notify(
-        isArabic ? "فشل اعتماد الدفعة" : "Failed to approve payment",
-        "error",
-      );
-      setShowPaymentApproveConfirm(null);
-    } finally {
-      setProcessingAction(false);
-    }
-  };
-
-  // ===== HANDLE DECLINE PAYMENT =====
-  const handleDeclinePayment = async (id) => {
-    setProcessingAction(true);
-    try {
-      const payment = pendingPayments.find((p) => p.id === id);
-      if (payment) {
-        const serverId = payment._serverId || id;
-        await syncSend('patch', `/payments/${serverId}/status`, { status: 'rejected' });
-
-        setPendingPayments((prev) => prev.filter((p) => p.id !== id));
-
-        notificationService.addNotification(
-          isArabic ? '❌ تم رفض دفعتك' : '❌ Your Payment Declined',
-          isArabic 
-            ? `تم رفض دفعتك بمبلغ ${payment.amount} MAD للطالب ${payment.studentName}. يرجى التواصل مع الإدارة.`
-            : `Your payment of ${payment.amount} MAD for student ${payment.studentName} has been declined. Please contact administration.`,
-          'payment_declined',
-          '/dashboard/admin/payments',
-        );
-
-        notify(
-          isArabic
-            ? `❌ تم رفض دفعة ${payment.studentName} بمبلغ ${payment.amount} MAD`
-            : `❌ Payment declined for ${payment.studentName} of ${payment.amount} MAD`,
-          "warning",
-        );
-        setShowPaymentDeclineConfirm(null);
-        setShowPaymentModal(null);
-        fetchDashboardData();
-      }
-    } catch (error) {
-      console.error("Payment decline error:", error);
-      notify(
-        isArabic ? "فشل رفض الدفعة" : "Failed to decline payment",
-        "error",
-      );
-      setShowPaymentDeclineConfirm(null);
-    } finally {
-      setProcessingAction(false);
-    }
-  };
-
   // ===== Performance Radar Data =====
   const performanceRadarData = {
     labels: isArabic
@@ -1028,19 +661,6 @@ const AdminDashboard = () => {
         pointHoverRadius: 8,
         borderDash: [5, 5],
       },
-      {
-        label: isArabic ? "المدفوعات" : "Payments",
-        data: monthlyTrend.length > 0 ? monthlyTrend.map((d) => d.payments || 0) : [2, 4, 6, 8, 10, 12],
-        borderColor: "#f39c12",
-        backgroundColor: "rgba(243, 156, 18, 0.15)",
-        fill: true,
-        tension: 0.4,
-        pointBackgroundColor: "#f39c12",
-        pointBorderColor: darkMode ? "#1a1a2e" : "#ffffff",
-        pointBorderWidth: 2,
-        pointRadius: 6,
-        pointHoverRadius: 8,
-      },
     ],
   };
 
@@ -1111,7 +731,6 @@ const AdminDashboard = () => {
   };
 
   const displayedRegistrations = showAllRegistrations ? pendingRegistrations : pendingRegistrations.slice(0, 3);
-  const displayedPayments = showAllPayments ? pendingPayments : pendingPayments.slice(0, 3);
   const displayedActivities = showAllActivities ? recentActivities : recentActivities.slice(0, 5);
 
   // ===== STATS CARDS =====
@@ -1141,24 +760,6 @@ const AdminDashboard = () => {
       gradientClass: "children-card",
       iconClass: "children-icon",
       change: `+${stats?.registrations_last_24h || 0}`,
-      changeLabel: isArabic ? "اليوم" : "today",
-    },
-    {
-      icon: <FaMoneyBillWave />,
-      number: stats?.pending_payments || 0,
-      label: isArabic ? "مدفوعات معلقة" : "Pending Payments",
-      gradientClass: "payment-card",
-      iconClass: "payment-icon",
-      change: `+${pendingPayments.filter(p => new Date(p.createdAt) > new Date(Date.now() - 24 * 60 * 60 * 1000)).length || 0}`,
-      changeLabel: isArabic ? "اليوم" : "today",
-    },
-    {
-      icon: <FaCheckCircle />,
-      number: paidStudents.length || 0,
-      label: isArabic ? "طلاب دفعوا" : "Students Paid",
-      gradientClass: "payment-card",
-      iconClass: "payment-icon",
-      change: `+${paidStudents.filter(p => new Date(p.approvedAt) > new Date(Date.now() - 24 * 60 * 60 * 1000)).length || 0}`,
       changeLabel: isArabic ? "اليوم" : "today",
     },
   ];
@@ -1347,180 +948,6 @@ const AdminDashboard = () => {
         </Col>
       </Row>
 
-      {/* ===== PENDING PAYMENTS ===== */}
-      <Row className="g-3 g-md-4 mb-3 mb-md-4">
-        <Col xs={12}>
-          <Card className="modern-card" style={{
-            background: darkMode ? "#1a1a2e" : "#ffffff",
-            borderColor: darkMode ? "#2d2d44" : "#e9ecef",
-          }}>
-            <Card.Header className="modern-card-header d-flex flex-wrap justify-content-between align-items-center gap-2" style={{ borderColor: darkMode ? "#2d2d44" : "#e9ecef" }}>
-              <h6 className="fw-bold mb-0" style={{
-                ...arabicFontStyle,
-                color: "#2ecc71",
-                fontSize: isArabic ? "clamp(0.9rem, 1.2vw, 1.1rem)" : "clamp(0.85rem, 1.1vw, 1.05rem)",
-              }}>
-                <FaMoneyBillWave className="me-2" size={isMobile ? 14 : 16} />
-                {isArabic ? "مدفوعات معلقة" : "Pending Payments"}
-              </h6>
-              <div className="d-flex align-items-center gap-1 gap-sm-2 flex-wrap">
-                {pendingPayments.length > 0 && (
-                  <Badge bg="success" className="rounded-pill" style={{ fontSize: isMobile ? "0.6rem" : "0.75rem" }}>
-                    {pendingPayments.length}
-                  </Badge>
-                )}
-                <Button
-                  variant="link"
-                  className="p-0 text-decoration-none small"
-                  onClick={() => navigate("/dashboard/admin/payments")}
-                  style={{
-                    ...arabicFontStyle,
-                    fontSize: isArabic ? "clamp(0.65rem, 0.8vw, 0.85rem)" : "clamp(0.6rem, 0.75vw, 0.8rem)",
-                  }}
-                >
-                  {isArabic ? "عرض الكل" : "View All"}
-                  <FaArrowRight className="ms-1" size={isMobile ? 8 : 10} />
-                </Button>
-              </div>
-            </Card.Header>
-            <Card.Body className="p-0">
-              {pendingPayments.length === 0 ? (
-                <div className="text-center py-3 py-md-4 text-muted">
-                  <FaCheckCircle size={isMobile ? 24 : 32} className="mb-2 text-success" />
-                  <div style={arabicFontStyle}>
-                    {isArabic ? "لا توجد مدفوعات معلقة" : "No pending payments"}
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {displayedPayments.map((payment) => (
-                    <div key={payment.id} className="pending-item px-2 px-sm-3 py-2 border-bottom" style={{ borderColor: darkMode ? "#2d2d44" : "#e9ecef" }}>
-                      <div className="d-flex flex-wrap justify-content-between align-items-center gap-2">
-                        <div className="min-width-0 flex-grow-1">
-                          <div className="fw-semibold" style={{
-                            ...arabicFontStyle,
-                            color: darkMode ? "#e9ecef" : "#212529",
-                            fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)",
-                          }}>
-                            {payment.studentName}
-                            <span className="text-muted ms-2" style={{
-                              fontSize: isArabic ? "clamp(0.6rem, 0.7vw, 0.75rem)" : "clamp(0.55rem, 0.65vw, 0.7rem)",
-                            }}>
-                              {payment.amount} MAD
-                            </span>
-                          </div>
-                          <small className="text-muted" style={{
-                            ...arabicFontStyle,
-                            fontSize: isArabic ? "clamp(0.65rem, 0.8vw, 0.8rem)" : "clamp(0.6rem, 0.7vw, 0.75rem)",
-                          }}>
-                            {payment.className} • {isArabic ? getMonthName(payment.month) : getMonthName(payment.month)} {payment.year}
-                            {payment.parentName && ` • ${payment.parentName}`}
-                          </small>
-                          <small className="text-muted d-block" style={{
-                            ...arabicFontStyle,
-                            fontSize: isArabic ? "clamp(0.6rem, 0.7vw, 0.75rem)" : "clamp(0.55rem, 0.65vw, 0.7rem)",
-                          }}>
-                            {payment.parentEmail && (
-                              <><FaEnvelope className="me-1" size={isMobile ? 8 : 10} />{payment.parentEmail}{payment.parentPhone ? " • " : ""}</>
-                            )}
-                            {payment.parentPhone && (
-                              <><FaPhone className="me-1" size={isMobile ? 8 : 10} />{payment.parentPhone}</>
-                            )}
-                          </small>
-                        </div>
-                        <div className="d-flex gap-1 flex-shrink-0">
-                          <Button
-                            variant="success"
-                            size="sm"
-                            className="p-1 px-2"
-                            style={{
-                              borderRadius: "8px",
-                              fontSize: isArabic ? "clamp(0.55rem, 0.7vw, 0.7rem)" : "clamp(0.5rem, 0.6vw, 0.65rem)",
-                              padding: isMobile ? "2px 6px" : "4px 8px",
-                              minWidth: isMobile ? "28px" : "32px",
-                              minHeight: isMobile ? "28px" : "32px",
-                            }}
-                            onClick={() => setShowPaymentApproveConfirm(payment.id)}
-                            disabled={processingAction}
-                            title={isArabic ? "اعتماد" : "Approve"}
-                          >
-                            <FaCheckCircle size={isMobile ? 10 : 12} />
-                          </Button>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            className="p-1 px-2"
-                            style={{
-                              borderRadius: "8px",
-                              fontSize: isArabic ? "clamp(0.55rem, 0.7vw, 0.7rem)" : "clamp(0.5rem, 0.6vw, 0.65rem)",
-                              padding: isMobile ? "2px 6px" : "4px 8px",
-                              minWidth: isMobile ? "28px" : "32px",
-                              minHeight: isMobile ? "28px" : "32px",
-                            }}
-                            onClick={() => setShowPaymentDeclineConfirm(payment.id)}
-                            disabled={processingAction}
-                            title={isArabic ? "رفض" : "Decline"}
-                          >
-                            <FaTimesCircle size={isMobile ? 10 : 12} />
-                          </Button>
-                          <Button
-                            variant="outline-primary"
-                            size="sm"
-                            className="p-1 px-2"
-                            style={{
-                              borderRadius: "8px",
-                              fontSize: isArabic ? "clamp(0.55rem, 0.7vw, 0.7rem)" : "clamp(0.5rem, 0.6vw, 0.65rem)",
-                              padding: isMobile ? "2px 6px" : "4px 8px",
-                              minWidth: isMobile ? "28px" : "32px",
-                              minHeight: isMobile ? "28px" : "32px",
-                            }}
-                            onClick={() => handleViewPayment(payment)}
-                            title={isArabic ? "عرض" : "View"}
-                          >
-                            <FaEye size={isMobile ? 10 : 12} />
-                          </Button>
-                        </div>
-                      </div>
-                      <div className="mt-1 d-flex flex-wrap gap-2">
-                        <small className="text-muted" style={{
-                          ...arabicFontStyle,
-                          fontSize: isArabic ? "clamp(0.5rem, 0.6vw, 0.65rem)" : "clamp(0.45rem, 0.55vw, 0.6rem)",
-                        }}>
-                          <FaClockIcon className="me-1" size={isMobile ? 8 : 10} />
-                          {formatTime(payment.createdAt)}
-                        </small>
-                        {payment.hasReceipt && (
-                          <Badge bg="info" className="rounded-pill" style={{ fontSize: isArabic ? "clamp(0.45rem, 0.55vw, 0.6rem)" : "clamp(0.4rem, 0.5vw, 0.55rem)" }}>
-                            <FaReceipt className="me-1" /> {isArabic ? "الإيصال مرفوع" : "Receipt Uploaded"}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {pendingPayments.length > 3 && (
-                    <div className="text-center p-2 border-top" style={{ borderColor: darkMode ? "#2d2d44" : "#e9ecef" }}>
-                      <Button
-                        variant="link"
-                        className="text-decoration-none small"
-                        onClick={() => setShowAllPayments(!showAllPayments)}
-                        style={{
-                          ...arabicFontStyle,
-                          fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)",
-                        }}
-                      >
-                        {showAllPayments
-                          ? isArabic ? "عرض أقل" : "Show Less"
-                          : `${isArabic ? "عرض المزيد" : "View More"} (${pendingPayments.length - 3} ${isArabic ? "المزيد" : "more"})`}
-                        {showAllPayments ? <FaChevronUp className="ms-1" size={isMobile ? 8 : 10} /> : <FaChevronDown className="ms-1" size={isMobile ? 8 : 10} />}
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
-            </Card.Body>
-          </Card>
-        </Col>
-      </Row>
 
       {/* ===== PENDING REGISTRATIONS ===== */}
       <Row className="g-3 g-md-4 mb-3 mb-md-4">
@@ -1941,228 +1368,6 @@ const AdminDashboard = () => {
           </Button>
         </Modal.Footer>
       </Modal>
-
-      {/* ===== ENHANCED VIEW PAYMENT MODAL with Student & Parent Info ===== */}
-      <Modal show={showPaymentModal !== null} onHide={() => { setShowPaymentModal(null); if (paymentReceiptUrl) { URL.revokeObjectURL(paymentReceiptUrl); setPaymentReceiptUrl(null); } }} centered size="lg" className="modern-modal">
-        <Modal.Header closeButton className="border-0" style={{ background: darkMode ? "#1a1a2e" : "white" }}>
-          <Modal.Title style={{
-            ...arabicFontStyle,
-            color: darkMode ? "#e9ecef" : "#212529",
-            fontSize: isArabic ? "clamp(1rem, 1.3vw, 1.2rem)" : "clamp(0.95rem, 1.2vw, 1.15rem)",
-          }}>
-            <FaMoneyBillWave className="me-2 text-success" size={isMobile ? 18 : 20} />
-            {isArabic ? "تفاصيل الدفعة" : "Payment Details"}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body style={{ background: darkMode ? "#0d1117" : "white" }}>
-          {showPaymentModal && (
-            <Row className="g-2 g-sm-3">
-              {/* ===== STUDENT INFORMATION ===== */}
-              <Col xs={12}>
-                <h6 className="fw-bold text-primary mb-2" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.9rem, 1.1vw, 1rem)" : "clamp(0.85rem, 1vw, 0.95rem)" }}>
-                  {isArabic ? "معلومات التلميذ" : "Student Information"}
-                </h6>
-              </Col>
-              <Col sm={6} xs={12}>
-                <div className="mb-2">
-                  <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
-                    {isArabic ? "الاسم الكامل" : "Full Name"}
-                  </label>
-                  <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
-                    {showPaymentModal.studentName}
-                  </p>
-                </div>
-                <div className="mb-2">
-                  <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
-                    {isArabic ? "الفصل" : "Class"}
-                  </label>
-                  <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
-                    {showPaymentModal.className}
-                  </p>
-                </div>
-                {showPaymentModal.studentDateOfBirth && (
-                  <div className="mb-2">
-                    <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
-                      {isArabic ? "تاريخ الميلاد" : "Date of Birth"}
-                    </label>
-                    <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
-                      {format(new Date(showPaymentModal.studentDateOfBirth), "PPP", { locale })}
-                    </p>
-                  </div>
-                )}
-                {showPaymentModal.studentGender && (
-                  <div className="mb-2">
-                    <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
-                      {isArabic ? "الجنس" : "Gender"}
-                    </label>
-                    <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
-                      {showPaymentModal.studentGender}
-                    </p>
-                  </div>
-                )}
-                {showPaymentModal.studentPreviousSchool && (
-                  <div className="mb-2">
-                    <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
-                      {isArabic ? "المدرسة السابقة" : "Previous School"}
-                    </label>
-                    <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
-                      {showPaymentModal.studentPreviousSchool}
-                    </p>
-                  </div>
-                )}
-              </Col>
-              <Col sm={6} xs={12}>
-                <div className="mb-2">
-                  <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
-                    {isArabic ? "المبلغ" : "Amount"}
-                  </label>
-                  <p className="fw-bold mb-0" style={{ color: "#2ecc71", fontSize: isArabic ? "clamp(1rem, 1.2vw, 1.2rem)" : "clamp(0.95rem, 1.1vw, 1.15rem)" }}>
-                    {showPaymentModal.amount} MAD
-                  </p>
-                </div>
-                <div className="mb-2">
-                  <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
-                    {isArabic ? "الشهر" : "Month"}
-                  </label>
-                  <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
-                    {getMonthName(showPaymentModal.month)} {showPaymentModal.year}
-                  </p>
-                </div>
-                {showPaymentModal.note && (
-                  <div className="mb-2">
-                    <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
-                      {isArabic ? "ملاحظات" : "Notes"}
-                    </label>
-                    <p className="mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
-                      {showPaymentModal.note}
-                    </p>
-                  </div>
-                )}
-              </Col>
-
-              {/* ===== PARENT INFORMATION ===== */}
-              <Col xs={12} className="mt-2">
-                <h6 className="fw-bold text-primary mb-2" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.9rem, 1.1vw, 1rem)" : "clamp(0.85rem, 1vw, 0.95rem)" }}>
-                  {isArabic ? "معلومات ولي الأمر" : "Parent Information"}
-                </h6>
-              </Col>
-              <Col sm={6} xs={12}>
-                <div className="mb-2">
-                  <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
-                    {isArabic ? "الاسم" : "Name"}
-                  </label>
-                  <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
-                    {showPaymentModal.parentName || (isArabic ? "غير متوفر" : "N/A")}
-                  </p>
-                </div>
-                <div className="mb-2">
-                  <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
-                    <FaEnvelope className="me-1" size={isMobile ? 10 : 12} />
-                    {isArabic ? "البريد الإلكتروني" : "Email"}
-                  </label>
-                  <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
-                    {showPaymentModal.parentEmail || (isArabic ? "غير متوفر" : "N/A")}
-                  </p>
-                </div>
-              </Col>
-              <Col sm={6} xs={12}>
-                <div className="mb-2">
-                  <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
-                    <FaPhone className="me-1" size={isMobile ? 10 : 12} />
-                    {isArabic ? "الهاتف" : "Phone"}
-                  </label>
-                  <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
-                    {showPaymentModal.parentPhone || (isArabic ? "غير متوفر" : "N/A")}
-                  </p>
-                </div>
-                {showPaymentModal.parentAddress && (
-                  <div className="mb-2">
-                    <label className="text-muted small" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
-                      <FaMapMarkerAlt className="me-1" size={isMobile ? 10 : 12} />
-                      {isArabic ? "العنوان" : "Address"}
-                    </label>
-                    <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.85rem, 1vw, 1rem)" : "clamp(0.8rem, 0.9vw, 0.95rem)" }}>
-                      {showPaymentModal.parentAddress}
-                    </p>
-                  </div>
-                )}
-              </Col>
-
-              {/* ===== RECEIPT ===== */}
-              {showPaymentModal.hasReceipt && paymentReceiptUrl && (
-                <Col xs={12}>
-                  <div className="mt-2">
-                    <label className="text-muted small d-block mb-2" style={{ ...arabicFontStyle, fontSize: isArabic ? "clamp(0.7rem, 0.9vw, 0.85rem)" : "clamp(0.65rem, 0.8vw, 0.8rem)" }}>
-                      <FaReceipt className="me-1" /> {isArabic ? "إيصال الدفع" : "Payment Receipt"}
-                    </label>
-                    <div style={{ 
-                      background: darkMode ? "#1a1a2e" : "#f8f9fa", 
-                      borderRadius: "8px", 
-                      padding: "10px",
-                      border: `1px solid ${darkMode ? "#2d2d44" : "#e9ecef"}`,
-                      minHeight: "200px",
-                      maxHeight: "400px",
-                      overflow: "auto"
-                    }}>
-                      {showPaymentModal.receiptType && showPaymentModal.receiptType.toLowerCase().includes('image') ? (
-                        <img src={`data:${showPaymentModal.receiptType};base64,${showPaymentModal.receiptData}`} alt="Receipt" style={{ maxWidth: '100%', maxHeight: '380px', display: 'block', margin: '0 auto' }} />
-                      ) : (
-                        <iframe
-                          src={paymentReceiptUrl}
-                          title="Receipt Preview"
-                          style={{
-                            width: '100%',
-                            height: '380px',
-                            border: 'none',
-                            borderRadius: '4px',
-                            background: 'white'
-                          }}
-                        />
-                      )}
-                    </div>
-                  </div>
-                </Col>
-              )}
-
-              {/* ===== APPROVE / DECLINE BUTTONS ===== */}
-              <Col xs={12}>
-                <div className="mt-2 mt-sm-3 d-flex gap-2 flex-wrap">
-                  <Button 
-                    variant="success" 
-                    onClick={() => { 
-                      setShowPaymentApproveConfirm(showPaymentModal.id); 
-                      setShowPaymentModal(null); 
-                    }} 
-                    disabled={processingAction} 
-                    style={{ ...arabicFontStyle, borderRadius: "12px", fontSize: isArabic ? "clamp(0.8rem, 1vw, 0.95rem)" : "clamp(0.75rem, 0.9vw, 0.9rem)" }}
-                  >
-                    <FaCheckCircle className="me-2" size={isMobile ? 12 : 14} />
-                    {isArabic ? "اعتماد الدفعة" : "Approve Payment"}
-                  </Button>
-                  <Button 
-                    variant="danger" 
-                    onClick={() => { 
-                      setShowPaymentDeclineConfirm(showPaymentModal.id); 
-                      setShowPaymentModal(null); 
-                    }} 
-                    disabled={processingAction} 
-                    style={{ ...arabicFontStyle, borderRadius: "12px", fontSize: isArabic ? "clamp(0.8rem, 1vw, 0.95rem)" : "clamp(0.75rem, 0.9vw, 0.9rem)" }}
-                  >
-                    <FaTimesCircle className="me-2" size={isMobile ? 12 : 14} />
-                    {isArabic ? "رفض الدفعة" : "Decline Payment"}
-                  </Button>
-                </div>
-              </Col>
-            </Row>
-          )}
-        </Modal.Body>
-        <Modal.Footer className="border-0" style={{ background: darkMode ? "#1a1a2e" : "white" }}>
-          <Button variant="secondary" onClick={() => { setShowPaymentModal(null); if (paymentReceiptUrl) { URL.revokeObjectURL(paymentReceiptUrl); setPaymentReceiptUrl(null); } }} style={{ ...arabicFontStyle, borderRadius: "12px", fontSize: isArabic ? "clamp(0.8rem, 1vw, 0.95rem)" : "clamp(0.75rem, 0.9vw, 0.9rem)" }}>
-            {isArabic ? "إغلاق" : "Close"}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
       {/* ===== APPROVE REGISTRATION CONFIRM ===== */}
       <Modal show={showApproveConfirm !== null} onHide={() => setShowApproveConfirm(null)} centered className="modern-modal">
         <Modal.Header closeButton className="border-0" style={{ background: darkMode ? "#1a1a2e" : "white" }}>
@@ -2240,65 +1445,6 @@ const AdminDashboard = () => {
           </Button>
         </Modal.Footer>
       </Modal>
-
-      {/* ===== APPROVE PAYMENT CONFIRM ===== */}
-      <Modal show={showPaymentApproveConfirm !== null} onHide={() => setShowPaymentApproveConfirm(null)} centered className="modern-modal">
-        <Modal.Header closeButton className="border-0" style={{ background: darkMode ? "#1a1a2e" : "white" }}>
-          <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(1rem, 1.3vw, 1.2rem)" : "clamp(0.95rem, 1.2vw, 1.15rem)" }}>
-            <FaCheckCircle className="me-2 text-success" size={isMobile ? 18 : 20} />
-            {isArabic ? "تأكيد اعتماد الدفعة" : "Confirm Payment Approval"}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body style={{ background: darkMode ? "#0d1117" : "white" }}>
-          <p style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.9rem, 1.1vw, 1.05rem)" : "clamp(0.85rem, 1vw, 1rem)" }}>
-            {isArabic
-              ? `هل أنت متأكد من اعتماد هذه الدفعة بمبلغ ${pendingPayments.find(p => p.id === showPaymentApproveConfirm)?.amount || 0} MAD للطالب ${pendingPayments.find(p => p.id === showPaymentApproveConfirm)?.studentName || ''}؟`
-              : `Are you sure you want to approve this payment of ${pendingPayments.find(p => p.id === showPaymentApproveConfirm)?.amount || 0} MAD for student ${pendingPayments.find(p => p.id === showPaymentApproveConfirm)?.studentName || ''}?`}
-          </p>
-        </Modal.Body>
-        <Modal.Footer className="border-0" style={{ background: darkMode ? "#1a1a2e" : "white" }}>
-          <Button variant="secondary" onClick={() => setShowPaymentApproveConfirm(null)} disabled={processingAction} style={{ ...arabicFontStyle, borderRadius: "12px", fontSize: isArabic ? "clamp(0.8rem, 1vw, 0.95rem)" : "clamp(0.75rem, 0.9vw, 0.9rem)" }}>
-            {isArabic ? "إلغاء" : "Cancel"}
-          </Button>
-          <Button variant="success" onClick={() => handleApprovePayment(showPaymentApproveConfirm)} disabled={processingAction} style={{ ...arabicFontStyle, borderRadius: "12px", fontSize: isArabic ? "clamp(0.8rem, 1vw, 0.95rem)" : "clamp(0.75rem, 0.9vw, 0.9rem)" }}>
-            {processingAction ? (
-              <><FaSpinner className="spinning me-2" /> {isArabic ? "جاري..." : "Processing..."}</>
-            ) : (
-              <><FaCheckCircle className="me-2" /> {isArabic ? "تأكيد الاعتماد" : "Confirm Approval"}</>
-            )}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* ===== DECLINE PAYMENT CONFIRM ===== */}
-      <Modal show={showPaymentDeclineConfirm !== null} onHide={() => setShowPaymentDeclineConfirm(null)} centered className="modern-modal">
-        <Modal.Header closeButton className="border-0" style={{ background: darkMode ? "#1a1a2e" : "white" }}>
-          <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(1rem, 1.3vw, 1.2rem)" : "clamp(0.95rem, 1.2vw, 1.15rem)" }}>
-            <FaExclamationTriangle className="me-2 text-danger" size={isMobile ? 18 : 20} />
-            {isArabic ? "تأكيد رفض الدفعة" : "Confirm Payment Decline"}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body style={{ background: darkMode ? "#0d1117" : "white" }}>
-          <p style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.9rem, 1.1vw, 1.05rem)" : "clamp(0.85rem, 1vw, 1rem)" }}>
-            {isArabic
-              ? `هل أنت متأكد من رفض هذه الدفعة بمبلغ ${pendingPayments.find(p => p.id === showPaymentDeclineConfirm)?.amount || 0} MAD للطالب ${pendingPayments.find(p => p.id === showPaymentDeclineConfirm)?.studentName || ''}؟ سيتم إشعار ولي الأمر.`
-              : `Are you sure you want to decline this payment of ${pendingPayments.find(p => p.id === showPaymentDeclineConfirm)?.amount || 0} MAD for student ${pendingPayments.find(p => p.id === showPaymentDeclineConfirm)?.studentName || ''}? The parent will be notified.`}
-          </p>
-        </Modal.Body>
-        <Modal.Footer className="border-0" style={{ background: darkMode ? "#1a1a2e" : "white" }}>
-          <Button variant="secondary" onClick={() => setShowPaymentDeclineConfirm(null)} disabled={processingAction} style={{ ...arabicFontStyle, borderRadius: "12px", fontSize: isArabic ? "clamp(0.8rem, 1vw, 0.95rem)" : "clamp(0.75rem, 0.9vw, 0.9rem)" }}>
-            {isArabic ? "إلغاء" : "Cancel"}
-          </Button>
-          <Button variant="danger" onClick={() => handleDeclinePayment(showPaymentDeclineConfirm)} disabled={processingAction} style={{ ...arabicFontStyle, borderRadius: "12px", fontSize: isArabic ? "clamp(0.8rem, 1vw, 0.95rem)" : "clamp(0.75rem, 0.9vw, 0.9rem)" }}>
-            {processingAction ? (
-              <><FaSpinner className="spinning me-2" /> {isArabic ? "جاري..." : "Processing..."}</>
-            ) : (
-              <><FaTimesCircle className="me-2" /> {isArabic ? "تأكيد الرفض" : "Confirm Decline"}</>
-            )}
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
       <style>{`
         .admin-dashboard { 
           padding: 0;
@@ -2368,7 +1514,6 @@ const AdminDashboard = () => {
         .total-card .stat-card-gradient-bar { background: linear-gradient(90deg, #4a9eff, #6ab0ff); }
         .active-card .stat-card-gradient-bar { background: linear-gradient(90deg, #2ecc71, #27ae60); }
         .children-card .stat-card-gradient-bar { background: linear-gradient(90deg, #f39c12, #e67e22); }
-        .payment-card .stat-card-gradient-bar { background: linear-gradient(90deg, #2ecc71, #27ae60); }
 
         .stat-card-content {
           display: flex;
@@ -2397,7 +1542,6 @@ const AdminDashboard = () => {
         .total-icon { background: rgba(74, 158, 255, 0.15); color: #4a9eff; }
         .active-icon { background: rgba(46, 204, 113, 0.15); color: #2ecc71; }
         .children-icon { background: rgba(243, 156, 18, 0.15); color: #f39c12; }
-        .payment-icon { background: rgba(46, 204, 113, 0.15); color: #2ecc71; }
 
         .stat-info { flex: 1; min-width: 0; }
         .stat-number { display: block; font-size: 1.4rem; font-weight: 700; color: ${darkMode ? "#e9ecef" : "#1a1a2e"}; line-height: 1.2; letter-spacing: -0.5px; }
@@ -2571,19 +1715,6 @@ const AdminDashboard = () => {
       `}</style>
     </div>
   );
-};
-
-// ===== HELPER: getMonthName =====
-const getMonthName = (month) => {
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  const monthNamesAr = [
-    'يناير', 'فبراير', 'مارس', 'أبريل', 'ماي', 'يونيو',
-    'يوليوز', 'غشت', 'شتنبر', 'أكتوبر', 'نونبر', 'دجنبر'
-  ];
-  return monthNames[month - 1] || month;
 };
 
 export default AdminDashboard;

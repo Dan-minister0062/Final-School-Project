@@ -1,18 +1,8 @@
 // src/components/dashboard/admin/AdminAssessments.jsx
 import React, { useState, useEffect } from 'react';
 import { syncGet, syncSend } from '../../../services/apiSync';
-import { Card, Button, Badge, Table, Modal, Form, Row, Col, Alert, Nav, Tab } from 'react-bootstrap';
-import { 
-  FaFileAlt, FaEye, FaCheck, FaTimes, FaSearch, FaSync, 
-  FaSpinner, FaExclamationTriangle, FaDownload, FaFilePdf,
-  FaFileWord, FaFileImage, FaFile, FaClock, FaUserGraduate,
-  FaChalkboardTeacher, FaBook, FaCalendarAlt, FaInfoCircle,
-  FaUser, FaEnvelope, FaIdCard, FaGraduationCap, FaUsers,
-  FaCheckCircle, FaClock as FaClockIcon, FaPaperPlane,
-  FaUpload, FaFilter, FaSort, FaArrowRight, FaArrowLeft,
-  FaBell, FaFileExcel, FaFilePowerpoint, FaFileCode, FaStar,
-  FaTrash
-} from 'react-icons/fa';
+import {Card, Button, Badge, Table, Modal, Form, Row, Col, Nav, Tab} from 'react-bootstrap';
+import {FaFileAlt, FaEye, FaCheck, FaTimes, FaSearch, FaSync, FaSpinner, FaExclamationTriangle, FaDownload, FaFilePdf, FaFileWord, FaFileImage, FaFile, FaClock, FaUserGraduate, FaChalkboardTeacher, FaBook, FaInfoCircle, FaGraduationCap, FaClock as FaClockIcon, FaUpload, FaFilter, FaBell, FaFileExcel, FaFilePowerpoint, FaFileCode, FaStar, FaTrash} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
 
@@ -48,42 +38,7 @@ const getFileTypeLabel = (fileType) => {
   return fileType;
 };
 
-// ===== GET FILE EXTENSION =====
-const getFileExtension = (fileName) => {
-  if (!fileName) return '';
-  const parts = fileName.split('.');
-  return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : '';
-};
-
 // ===== GET MIME TYPE =====
-const getMimeType = (fileName, fileType) => {
-  if (fileType && fileType.startsWith('data:')) {
-    const match = fileType.match(/^data:([^;]+);/);
-    if (match) return match[1];
-  }
-  
-  if (fileType && fileType !== 'text/plain') {
-    return fileType;
-  }
-  
-  const ext = getFileExtension(fileName);
-  const mimeMap = {
-    'pdf': 'application/pdf',
-    'doc': 'application/msword',
-    'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'xls': 'application/vnd.ms-excel',
-    'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'ppt': 'application/vnd.ms-powerpoint',
-    'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'png': 'image/png',
-    'gif': 'image/gif',
-    'webp': 'image/webp',
-    'txt': 'text/plain',
-  };
-  return mimeMap[ext] || 'application/octet-stream';
-};
 
 // ===== DOWNLOAD FILE HELPER =====
 const downloadFileHelper = (content, fileName, fileType) => {

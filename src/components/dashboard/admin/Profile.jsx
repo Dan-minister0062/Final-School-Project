@@ -1,10 +1,7 @@
 // src/components/dashboard/admin/Profile.jsx (shared across all roles)
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, Form, Button, Row, Col, Badge, Alert, Image } from 'react-bootstrap';
-import { 
-  FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaSave, FaEdit, 
-  FaCamera, FaUpload, FaTrash, FaUserCircle, FaSpinner
-} from 'react-icons/fa';
+import {FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaSave, FaEdit, FaCamera, FaTrash, FaSpinner} from 'react-icons/fa';
 import { useAuth } from '../../../hooks/useAuth';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';

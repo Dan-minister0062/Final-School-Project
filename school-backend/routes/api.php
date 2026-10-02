@@ -13,10 +13,11 @@ use App\Http\Controllers\SubjectController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\RegistrationController;
-use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\AssessmentController;
 use App\Http\Controllers\StudentController;
+use App\Http\Controllers\RbacController;
+use App\Http\Controllers\LessonController;
 
 /* ---------- Public ---------- */
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
@@ -63,7 +64,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
 
     // Read endpoints are scoped inside the controllers by role.
-    Route::get('/payments', [PaymentController::class, 'index']);
     Route::get('/attendance', [AttendanceController::class, 'index']);
     Route::get('/assessments', [AssessmentController::class, 'index']);
     Route::get('/submissions', [AssessmentController::class, 'allSubmissions']);
@@ -73,9 +73,57 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('/submissions/{id}', [AssessmentController::class, 'updateSubmission']);
     Route::delete('/submissions/{id}', [AssessmentController::class, 'destroySubmission']);
 
-    Route::post('/payments', [PaymentController::class, 'store']);
-    Route::put('/payments/{id}', [PaymentController::class, 'update']);
-    Route::patch('/payments/{id}/status', [PaymentController::class, 'status']);
+    /* ---------- RBAC: who am I, and what may I do ---------- */
+    Route::get('/rbac/me', [RbacController::class, 'me']);
+    Route::get('/rbac/sections', [RbacController::class, 'sections']);
+
+    /* ---------- Lessons: read + submit + progress ---------- */
+    // Read scoping (section / class / role) happens inside the controller.
+    Route::get('/lessons', [LessonController::class, 'index']);
+    Route::get('/lessons/{lesson}', [LessonController::class, 'show']);
+    Route::get('/lessons/{lesson}/submissions', [LessonController::class, 'submissions']);
+    Route::post('/lessons/{lesson}/progress', [LessonController::class, 'trackProgress']);
+
+    // Student-only write paths.
+    Route::post('/lesson-assignments/{assignment}/submit', [LessonController::class, 'submit'])
+        ->middleware('role:student');
+    Route::get('/lesson-submissions/mine', [LessonController::class, 'mySubmissions'])
+        ->middleware('role:student');
+});
+
+/* ---------- Super Admin only: the platform control plane ---------- */
+Route::middleware(['auth:sanctum', 'super_admin'])->group(function () {
+    Route::get('/rbac/permissions', [RbacController::class, 'permissionCatalogue']);
+    Route::get('/audit-logs', [RbacController::class, 'auditLogs']);
+
+    // Sub-Admin lifecycle.
+    Route::post('/admins', [RbacController::class, 'store']);
+    Route::put('/admins/{user}', [RbacController::class, 'update']);
+    Route::delete('/admins/{user}', [RbacController::class, 'destroy']);
+    Route::patch('/admins/{user}/permissions', [RbacController::class, 'updatePermissions']);
+    Route::patch('/admins/{user}/status', [RbacController::class, 'setStatus']);
+    Route::patch('/admins/{user}/demote', [RbacController::class, 'demoteSuperAdmin']);
+    Route::patch('/admins/{user}/promote', [RbacController::class, 'promoteSuperAdmin']);
+});
+
+/* ---------- Admin listing (Super Admin sees all, Sub-Admin sees itself) ---------- */
+Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
+    Route::get('/admins', [RbacController::class, 'index']);
+});
+
+/* ---------- Lesson authoring: teachers + authorized section admins ---------- */
+Route::middleware(['auth:sanctum', 'role:teacher,admin'])->group(function () {
+    Route::post('/lessons', [LessonController::class, 'store']);
+    Route::put('/lessons/{lesson}', [LessonController::class, 'update']);
+    Route::delete('/lessons/{lesson}', [LessonController::class, 'destroy']);
+    Route::post('/lessons/{lesson}/publish', [LessonController::class, 'publish']);
+    Route::post('/lessons/{lesson}/archive', [LessonController::class, 'archive']);
+    Route::post('/lessons/{lesson}/duplicate', [LessonController::class, 'duplicate']);
+    Route::get('/lessons/{lesson}/analytics', [LessonController::class, 'analytics']);
+
+    // Grading is a separate, explicitly authorised action.
+    Route::put('/lesson-submissions/{submission}/grade', [LessonController::class, 'grade'])
+        ->middleware('permission:lessons.grade');
 });
 
 /* ---------- Admin only ---------- */
@@ -103,8 +151,6 @@ Route::middleware(['auth:sanctum', 'role:admin'])->group(function () {
     Route::put('/registrations/{id}', [RegistrationController::class, 'update']);
     Route::patch('/registrations/{id}/status', [RegistrationController::class, 'status']);
     Route::delete('/registrations/{id}', [RegistrationController::class, 'destroy']);
-
-    Route::delete('/payments/{id}', [PaymentController::class, 'destroy']);
 
     Route::get('/admin/contacts', [ContactController::class, 'index']);
     Route::post('/admin/contacts/{id}/reply', [ContactController::class, 'reply']);

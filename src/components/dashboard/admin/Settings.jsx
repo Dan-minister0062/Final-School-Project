@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Container, Row, Col, Card, Form, Button } from 'react-bootstrap';
-import { FaSave, FaSchool, FaCalendarAlt, FaCog, FaExclamationTriangle } from 'react-icons/fa';
+import {Row, Col, Card, Form, Button} from 'react-bootstrap';
+import {FaSave, FaSchool, FaCog, FaExclamationTriangle} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
 import { syncGet, syncSend } from '../../../services/apiSync';
 
 // ===== SETTINGS COMPONENT WITH SAVE FUNCTIONALITY =====
 const Settings = () => {
-  const { language, isArabic } = useLanguage();
+  const {  isArabic } = useLanguage();
   const { notify } = useNotification();
   const [loading, setLoading] = useState(false);
   const [settings, setSettings] = useState({

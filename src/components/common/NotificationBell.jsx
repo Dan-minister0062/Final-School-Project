@@ -1,13 +1,8 @@
 // src/components/dashboard/admin/NotificationBell.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import React, {useState, useRef} from 'react';
 import { Badge } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { 
-  FaBell, FaCheckCircle, FaInfoCircle, FaExclamationTriangle, 
-  FaBullhorn, FaUserPlus, FaTimesCircle, FaClock, FaTrash,
-  FaChevronDown, FaChevronUp, FaSync, FaTasks, FaFileAlt,
-  FaUserGraduate, FaCalendarCheck, FaBook, FaEnvelope
-} from 'react-icons/fa';
+import {FaBell, FaInfoCircle, FaBullhorn, FaUserPlus, FaClock, FaTrash, FaChevronDown, FaChevronUp, FaSync, FaTasks, FaFileAlt, FaCalendarCheck, FaBook, FaEnvelope} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
 import { useAuth } from '../../../hooks/useAuth';
@@ -20,19 +15,15 @@ const NotificationBell = () => {
   const navigate = useNavigate();
   const { 
     notifications, 
-    unreadCount, 
+     
     markAsRead, 
     markAllAsRead, 
     deleteNotification,
-    loadNotifications,
-    getNotificationIcon,
-    getNotificationColor
+    loadNotifications
   } = useNotification();
   
-  const [loading, setLoading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [isOpen, setIsOpen] = useState(false);
+  const [loading] = useState(false);
+      const [isOpen, setIsOpen] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const dropdownRef = useRef(null);
 
@@ -60,10 +51,10 @@ const NotificationBell = () => {
   // Get role-specific notification types
   const getNotificationTypes = () => {
     const types = {
-      admin: ['registration', 'contact', 'payment', 'system', 'announcement', 'reminder'],
+      admin: ['registration', 'contact', 'system', 'announcement', 'reminder'],
       teacher: ['assignment', 'submission', 'schedule', 'announcement'],
-      parent: ['grade', 'attendance', 'announcement', 'payment'],
-      student: ['grade', 'announcement', 'payment']
+      parent: ['grade', 'attendance', 'announcement'],
+      student: ['grade', 'announcement']
     };
     return types[userRole] || ['announcement'];
   };
@@ -100,8 +91,7 @@ const NotificationBell = () => {
   };
 
   // Get display notifications
-  const displayNotifications = showAll ? notifications : notifications.slice(0, 5);
-
+  
   // Get notification icon by type
   const getIcon = (type) => {
     const icons = {
@@ -114,8 +104,7 @@ const NotificationBell = () => {
       attendance: <FaCalendarCheck />,
       schedule: <FaClock />,
       system: <FaInfoCircle />,
-      reminder: <FaBell />,
-      payment: <FaFileAlt />
+      reminder: <FaBell />
     };
     return icons[type] || <FaInfoCircle />;
   };
@@ -132,21 +121,13 @@ const NotificationBell = () => {
       attendance: '#1abc9c',
       schedule: '#e74c3c',
       system: '#4a9eff',
-      reminder: '#f39c12',
-      payment: '#2ecc71'
+      reminder: '#f39c12'
     };
     return colors[type] || '#6c757d';
   };
 
   // Get priority label
-  const getPriorityLabel = (priority) => {
-    if (isArabic) {
-      const labels = { high: 'عاجل', medium: 'متوسط', low: 'منخفض' };
-      return labels[priority] || '';
-    }
-    return priority || '';
-  };
-
+  
   // Filter notifications by role
   const getFilteredNotifications = () => {
     const allowedTypes = getNotificationTypes();

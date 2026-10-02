@@ -1,57 +1,11 @@
 // src/components/dashboard/parent/ChildResults.jsx
-import React, { useState, useEffect, useRef } from "react";
-import {
-  Container,
-  Row,
-  Col,
-  Card,
-  Table,
-  Badge,
-  Button,
-} from "react-bootstrap";
-import {
-  FaUserGraduate,
-  FaStar,
-  FaChartLine,
-  FaCalendarAlt,
-  FaCheckCircle,
-  FaTimesCircle,
-  FaClock,
-  FaPrint,
-  FaTrophy,
-  FaBook,
-  FaCalculator,
-  FaLanguage,
-  FaFlask,
-  FaAtom,
-  FaDna,
-  FaMusic,
-  FaQuran,
-  FaMicroscope,
-  FaLaptop,
-  FaPalette,
-  FaDumbbell,
-  FaGlobe,
-  FaBrain,
-  FaSpinner,
-  FaSync,
-  FaChild,
-  FaSchool,
-  FaBookOpen,
-  FaChalkboardTeacher,
-  FaUser,
-  FaEnvelope,
-  FaIdCard,
-  FaGraduationCap,
-  FaHourglassHalf,
-  FaPaperPlane,
-  FaRunning
-} from "react-icons/fa";
+import React, {useState, useEffect} from "react";
+import {Card, Table, Badge, Button} from "react-bootstrap";
+import {FaUserGraduate, FaStar, FaChartLine, FaCalendarAlt, FaCheckCircle, FaClock, FaPrint, FaTrophy, FaBook, FaCalculator, FaLanguage, FaFlask, FaAtom, FaDna, FaMusic, FaQuran, FaMicroscope, FaLaptop, FaPalette, FaGlobe, FaBrain, FaSpinner, FaSync, FaBookOpen, FaChalkboardTeacher, FaHourglassHalf, FaPaperPlane, FaRunning} from "react-icons/fa";
 import { useLanguage } from "../../../context/LanguageContext";
 import { getTranslation } from "../../../utils/translations";
 import { useAuth } from "../../../hooks/useAuth";
 import { useNotification } from "../../../hooks/useNotification";
-import api from "../../../services/api";
 import { syncGet } from "../../../services/apiSync";
 
 // ===== ARABIC FONT STYLE =====
@@ -577,9 +531,6 @@ const ChildResults = () => {
 
           // Calculate attendance
           let present = 0,
-            absent = 0,
-            late = 0,
-            excused = 0,
             total = 0;
 
           allAttendance.forEach((record) => {
@@ -591,21 +542,8 @@ const ChildResults = () => {
               )
             ) {
               total++;
-              switch (record.status) {
-                case "present":
-                  present++;
-                  break;
-                case "absent":
-                  absent++;
-                  break;
-                case "late":
-                  late++;
-                  break;
-                case "excused":
-                  excused++;
-                  break;
-                default:
-                  break;
+              if (record.status === "present") {
+                present++;
               }
             }
           });
@@ -781,7 +719,6 @@ const ChildResults = () => {
             subject.score,
             subject.totalMarks,
           );
-          const statusInfo = getStatusBadge(subject.status);
           const typeLabel = subject.type ? getTypeLabel(subject.type) : "";
 
           subjectsHtml += `

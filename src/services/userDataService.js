@@ -1433,20 +1433,6 @@ class UserDataService {
     };
   }
 
-  // ===== NOTIFY LISTENERS - Always pass the users array =====
-  notifyListeners(action, data, usersArray) {
-    const users = usersArray || [...this.users];
-    console.log(`📢 Notifying ${this.listeners.length} listeners: ${action}`);
-    this.listeners.forEach((callback) => {
-      try {
-        // Call with action, data, and users array
-        callback(action, data, users);
-      } catch (e) {
-        console.error("Error notifying listener:", e);
-      }
-    });
-  }
-
   // ===== NOTIFY LISTENERS =====
   notifyListeners(action, data) {
     console.log(`📢 Notifying ${this.listeners.length} listeners: ${action}`);
