@@ -25,7 +25,9 @@ return new class extends Migration
             // optional class scoping (null = whole section)
             $table->unsignedBigInteger('class_id')->nullable();
 
-            $table->unsignedBigInteger('created_by');
+            // nullable so the author FK can use ON DELETE SET NULL, keeping the
+            // lesson row when its author account is removed.
+            $table->unsignedBigInteger('created_by')->nullable();
             $table->unsignedBigInteger('updated_by')->nullable();
 
             // draft | published | archived
@@ -56,6 +58,7 @@ return new class extends Migration
             $table->longText('data')->nullable();
             $table->timestamps();
 
+            $table->index('lesson_id');
             $table->foreign('lesson_id')->references('id')->on('lessons')->cascadeOnDelete();
             $table->index(['lesson_id', 'order']);
         });
@@ -72,9 +75,10 @@ return new class extends Migration
             $table->string('external_url', 500)->nullable();
             $table->timestamps();
 
+            $table->index('lesson_id');
+            $table->index('uploaded_by');
             $table->foreign('lesson_id')->references('id')->on('lessons')->cascadeOnDelete();
             $table->foreign('uploaded_by')->references('id')->on('users')->nullOnDelete();
-            $table->index('lesson_id');
         });
 
         Schema::create('lesson_assignments', function (Blueprint $table) {
@@ -92,6 +96,8 @@ return new class extends Migration
             $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamps();
 
+            $table->index('lesson_id');
+            $table->index('created_by');
             $table->foreign('lesson_id')->references('id')->on('lessons')->cascadeOnDelete();
             $table->foreign('created_by')->references('id')->on('users')->nullOnDelete();
             $table->index(['lesson_id', 'type']);
@@ -102,7 +108,9 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('lesson_assignment_id');
             $table->unsignedBigInteger('lesson_id');
-            $table->unsignedBigInteger('student_id');
+            // nullable: the owner FK below uses ON DELETE SET NULL, which
+            // MySQL/MariaDB reject (errno 150) against a NOT NULL column.
+            $table->unsignedBigInteger('student_id')->nullable();
             $table->unsignedBigInteger('class_id')->nullable();
             $table->unsignedBigInteger('section_id')->nullable();
 
@@ -120,6 +128,12 @@ return new class extends Migration
             $table->string('status', 20)->default('draft')->index();
             $table->timestamps();
 
+            $table->index('lesson_assignment_id');
+            $table->index('lesson_id');
+            $table->index('student_id');
+            $table->index('graded_by');
+            $table->index('section_id');
+            $table->index('class_id');
             $table->foreign('lesson_assignment_id')->references('id')->on('lesson_assignments')->cascadeOnDelete();
             $table->foreign('lesson_id')->references('id')->on('lessons')->cascadeOnDelete();
             // Owner references are set null on removal so that deleting a user
@@ -147,6 +161,10 @@ return new class extends Migration
             $table->unsignedInteger('time_spent_seconds')->default(0);
             $table->timestamps();
 
+            $table->index('lesson_id');
+            $table->index('student_id');
+            $table->index('section_id');
+            $table->index('class_id');
             $table->foreign('lesson_id')->references('id')->on('lessons')->cascadeOnDelete();
             $table->foreign('student_id')->references('id')->on('users')->cascadeOnDelete();
             $table->foreign('section_id')->references('id')->on('sections')->nullOnDelete();
@@ -158,6 +176,10 @@ return new class extends Migration
         // Lessons belong to a section and (optionally) a class, and their author
         // rows are preserved when an account is removed.
         Schema::table('lessons', function (Blueprint $table) {
+            $table->index('section_id');
+            $table->index('class_id');
+            $table->index('created_by');
+            $table->index('updated_by');
             $table->foreign('section_id')->references('id')->on('sections')->cascadeOnDelete();
             $table->foreign('class_id')->references('id')->on('classes')->nullOnDelete();
             $table->foreign('created_by')->references('id')->on('users')->nullOnDelete();

@@ -2,96 +2,110 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 /**
  * Backfill section membership for the accounts that already exist.
  *
- * Sections are keyed by the class `level` value, which is the only section
+ * Sections are keyed by the class `level_key` value, which is the only section
  * signal the legacy schema carries. Teachers inherit a section from the classes
  * they are assigned to; students and parents inherit from their class / children.
  *
  * Admins are left untouched: HasAdminTiers treats a flagless admin as a Super
  * Admin, and pinning them here would silently demote existing accounts.
+ *
+ * Every lookup is feature-detected. The legacy tables that carry the section
+ * signal (and the columns linking a user row to them) differ between
+ * installations, so a missing column simply means that role cannot be
+ * backfilled and is left with a NULL section.
  */
 return new class extends Migration
 {
     public function up(): void
     {
-        if (! DB::getSchemaBuilder()->hasColumn('users', 'section_id')) {
+        if (! Schema::hasColumn('users', 'section_id')) {
             return;
         }
 
-        $sectionKeys = DB::table('sections')->pluck('key', 'id');
+        // key => id, so a section key can be resolved to its row id directly.
+        $sectionIds = Schema::hasTable('sections') ? DB::table('sections')->pluck('id', 'key') : collect();
 
-        if ($sectionKeys->isEmpty()) {
+        if ($sectionIds->isEmpty()) {
             return;
         }
 
-        // classes -> section (classes carry the section in level_key)
-        $classSections = DB::table('classes')
-            ->whereNotNull('level_key')
-            ->get(['code', 'level_key'])
-            ->filter(fn ($class) => $sectionKeys->contains($class->level_key))
-            ->pluck('level_key', 'code');
+        $hasClassLevelKey = Schema::hasColumn('classes', 'level_key');
+        $hasTeacherLink = Schema::hasColumn('users', 'teacher_id')
+            && Schema::hasColumn('teachers', 'class_codes');
+        $hasStudentLink = Schema::hasColumn('users', 'student_id')
+            && Schema::hasColumn('students', 'class_code');
+        $hasParentLink = Schema::hasColumn('users', 'parent_id')
+            && Schema::hasColumn('students', 'parent_id');
 
-        // teachers -> section, via their assigned classes
-        foreach (DB::table('users')->where('role', 'teacher')->whereNull('section_id')->get(['id']) as $teacher) {
-            $codes = DB::table('teachers')->where('user_id', $teacher->id)->value('assigned_classes');
-            $codes = is_string($codes) ? (json_decode($codes, true) ?: []) : (array) $codes;
+        // classes -> section (a class carries the section in level_key)
+        $classSections = $hasClassLevelKey
+            ? DB::table('classes')
+                ->whereNotNull('level_key')
+                ->get(['code', 'level_key'])
+                ->filter(fn ($class) => $sectionIds->has($class->level_key))
+                ->pluck('level_key', 'code')
+            : collect();
 
-            $key = collect($codes)
-                ->map(fn ($code) => $classSections[$code] ?? null)
-                ->filter()
-                ->first();
+        $assign = function (?int $userId, ?string $key): void {
+            if ($userId === null || $key === null) {
+                return;
+            }
+            DB::table('users')->where('id', $userId)->update([
+                'section_id' => DB::table('sections')->where('key', $key)->value('id'),
+                'section_scope' => $key,
+            ]);
+        };
 
-            if ($key !== null) {
-                DB::table('users')->where('id', $teacher->id)->update([
-                    'section_id' => $sectionKeys->firstWhere('key', $key),
-                    'section_scope' => $key,
-                ]);
+        $keyForClassCode = function ($code) use ($classSections) {
+            return is_string($code) && $code !== '' ? ($classSections[$code] ?? null) : null;
+        };
+
+        // teachers -> section, via the classes they are assigned to
+        if ($hasTeacherLink) {
+            foreach (DB::table('users')->where('role', 'teacher')->whereNull('section_id')->get(['id', 'teacher_id']) as $teacher) {
+                $raw = DB::table('teachers')->where('id', $teacher->teacher_id)->value('class_codes');
+                $codes = is_string($raw) ? (json_decode($raw, true) ?: []) : (array) $raw;
+
+                $key = collect($codes)->map($keyForClassCode)->filter()->first();
+                $assign($teacher->id, $key);
             }
         }
 
         // students -> section, via their class_code
-        foreach (DB::table('users')->where('role', 'student')->whereNull('section_id')->get(['id']) as $student) {
-            $code = DB::table('students')->where('user_id', $student->id)->value('class_code');
-            $key = $code ? ($classSections[$code] ?? null) : null;
-
-            if ($key !== null) {
-                DB::table('users')->where('id', $student->id)->update([
-                    'section_id' => $sectionKeys->firstWhere('key', $key),
-                    'section_scope' => $key,
-                ]);
+        if ($hasStudentLink) {
+            foreach (DB::table('users')->where('role', 'student')->whereNull('section_id')->get(['id', 'student_id']) as $student) {
+                $code = DB::table('students')->where('id', $student->student_id)->value('class_code');
+                $assign($student->id, $keyForClassCode($code));
             }
         }
 
         // parents -> section, via their children's classes
-        foreach (DB::table('users')->where('role', 'parent')->whereNull('section_id')->get(['id']) as $parent) {
-            $parentRowId = DB::table('users')->where('id', $parent->id)->value('parent_id');
+        if ($hasParentLink) {
+            foreach (DB::table('users')->where('role', 'parent')->whereNull('section_id')->get(['id', 'parent_id']) as $parent) {
+                if ($parent->parent_id === null) {
+                    continue;
+                }
 
-            if (! $parentRowId) {
-                continue;
-            }
+                $key = DB::table('students')
+                    ->where('parent_id', $parent->parent_id)
+                    ->pluck('class_code')
+                    ->map($keyForClassCode)
+                    ->filter()
+                    ->first();
 
-            $key = DB::table('students')
-                ->where('parent_id', $parentRowId)
-                ->pluck('class_code')
-                ->map(fn ($code) => $classSections[$code] ?? null)
-                ->filter()
-                ->first();
-
-            if ($key !== null) {
-                DB::table('users')->where('id', $parent->id)->update([
-                    'section_id' => $sectionKeys->firstWhere('key', $key),
-                    'section_scope' => $key,
-                ]);
+                $assign($parent->id, $key);
             }
         }
     }
 
     public function down(): void
     {
-        if (! DB::getSchemaBuilder()->hasColumn('users', 'section_id')) {
+        if (! Schema::hasColumn('users', 'section_id')) {
             return;
         }
 
