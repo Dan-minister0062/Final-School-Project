@@ -46,9 +46,18 @@ const normalise = (payload) => {
 const AdminLessons = () => {
   const { notify } = useNotification();
   const navigate = useNavigate();
-  const { hasPermission, isSubAdmin, sectionName } = useRbac();
+  const { hasPermission, isSubAdmin, sectionName, role } = useRbac();
   const { language, isArabic } = useLanguage();
   const t = (key) => getTranslation(key, language);
+
+  // Teachers are authorised for every authoring action by the route middleware
+  // (role:teacher,admin), so they do not need RBAC grants for them; only lesson
+  // grading is gated behind an explicit permission.
+  const isTeacher = role === "teacher";
+  const basePath = isTeacher
+    ? "/dashboard/teacher/lessons"
+    : "/dashboard/admin/lessons";
+  const can = (permission) => isTeacher || hasPermission(permission);
   const localSectionName = (section) =>
     isArabic ? section?.name_ar || section?.name : section?.name_en || section?.name;
 
@@ -116,9 +125,11 @@ const AdminLessons = () => {
             {t("lessonsManagement")}
           </h2>
           <p className="text-muted mb-0">
-            {isSubAdmin && sectionName
-              ? t("scopedToSection").replace("{section}", sectionName)
-              : t("allSectionsScope")}
+            {isTeacher
+              ? t("lessonsSubtitle")
+              : isSubAdmin && sectionName
+                ? t("scopedToSection").replace("{section}", sectionName)
+                : t("allSectionsScope")}
           </p>
         </div>
         <div className="d-flex gap-2">
@@ -130,10 +141,10 @@ const AdminLessons = () => {
             <FaSync className={loading ? "me-2 fa-spin" : "me-2"} />
             {t("refreshLabel")}
           </Button>
-          {hasPermission("lessons.create") && (
+          {can("lessons.create") && (
             <Button
               variant="primary"
-              onClick={() => navigate("/dashboard/admin/lessons/new")}
+              onClick={() => navigate(`${basePath}/new`)}
             >
               <FaPlus className="me-2" />
               {t("newLesson")}
@@ -233,26 +244,26 @@ const AdminLessons = () => {
                       variant="outline-secondary"
                       className="me-2"
                       onClick={() =>
-                        navigate(`/dashboard/admin/lessons/${lesson.id}/edit`)
+                        navigate(`${basePath}/${lesson.id}/edit`)
                       }
                     >
                       <FaEye />
                     </Button>
 
-                    {hasPermission("lessons.update") && (
+                    {can("lessons.update") && (
                       <Button
                         size="sm"
                         variant="outline-info"
                         className="me-2"
                         onClick={() =>
-                          navigate(`/dashboard/admin/lessons/${lesson.id}/edit`)
+                          navigate(`${basePath}/${lesson.id}/edit`)
                         }
                       >
 {t("editLesson")}
                         </Button>
                     )}
 
-                    {hasPermission("lessons.publish") &&
+                    {can("lessons.publish") &&
                       lesson.status === "draft" && (
                         <Button
                           size="sm"
@@ -268,7 +279,7 @@ const AdminLessons = () => {
                         </Button>
                       )}
 
-                    {hasPermission("lessons.archive") &&
+                    {can("lessons.archive") &&
                       lesson.status === "published" && (
                         <Button
                           size="sm"
@@ -284,7 +295,7 @@ const AdminLessons = () => {
                         </Button>
                       )}
 
-                    {hasPermission("lessons.duplicate") && (
+                    {can("lessons.duplicate") && (
                       <Button
                         size="sm"
                         variant="outline-primary"
@@ -299,7 +310,7 @@ const AdminLessons = () => {
                       </Button>
                     )}
 
-                    {hasPermission("lessons.delete") && (
+                    {can("lessons.delete") && (
                       <Button
                         size="sm"
                         variant="outline-danger"

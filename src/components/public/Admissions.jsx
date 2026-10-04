@@ -133,8 +133,8 @@ const Admissions = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // File state
-  const [ setReportCardFile] = useState(null);
-  const [ setSchoolCertificateFile] = useState(null);
+  const [, setReportCardFile] = useState(null);
+  const [, setSchoolCertificateFile] = useState(null);
 
   const {
     register,

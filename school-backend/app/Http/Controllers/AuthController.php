@@ -217,7 +217,13 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
-        Auth::logout();
+        // Sanctum resolves the default guard to a RequestGuard, which has no
+        // logout(). The session guard is what actually holds the SPA login, so
+        // target it explicitly and only when a session store exists - a
+        // stateless request has nothing to log out and must not throw a 500.
+        if ($request->hasSession() && Auth::guard('web')->check()) {
+            Auth::guard('web')->logout();
+        }
 
         if ($request->hasSession()) {
             $request->session()->invalidate();

@@ -69,6 +69,7 @@ import SubAdminsManagement from './components/dashboard/admin/SubAdminsManagemen
 import AuditLog from './components/dashboard/admin/AuditLog';
 import AdminLessons from './components/dashboard/admin/AdminLessons';
 import LessonEditor from './components/dashboard/admin/LessonEditor';
+import StudentLessons from './components/dashboard/student/StudentLessons';
 // ===== TEACHER PAGES =====
 import TeacherDashboard from "./components/dashboard/teacher/TeacherDashboard";
 import TeacherStudents from "./components/dashboard/teacher/TeacherStudents";
@@ -863,6 +864,11 @@ function AppRoutes() {
             <Route path="attendance" element={<TeacherAttendance />} />
             <Route path="classes" element={<TeacherClasses />} />
             <Route path="notifications" element={<TeacherNotifications />} />
+            {/* Lessons: teachers author via route middleware (role:teacher,admin),
+                so these are role-gated rather than permission-gated. */}
+            <Route path="lessons" element={<AdminLessons />} />
+            <Route path="lessons/new" element={<LessonEditor />} />
+            <Route path="lessons/:lessonId/edit" element={<LessonEditor />} />
             <Route path="profile" element={<TeacherProfile />} />
           </Route>
 
@@ -892,6 +898,8 @@ function AppRoutes() {
           >
             <Route index element={<StudentDashboard />} />
             <Route path="my-results" element={<StudentResults />} />
+            {/* Lessons are read-only for students; the backend scopes the list. */}
+            <Route path="lessons" element={<StudentLessons />} />
             <Route path="profile" element={<Profile />} />
             {/* ✅ FIXED: StudentAnnouncements route with correct path */}
             <Route path="announcements" element={<StudentAnnouncements />} />

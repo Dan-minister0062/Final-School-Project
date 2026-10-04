@@ -3,7 +3,7 @@ import React from "react";
 import {NavLink} from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useLanguage } from "../../context/LanguageContext";
-import {FaChartPie, FaChalkboardTeacher, FaUserGraduate, FaTasks, FaCalendarCheck, FaBell, FaUserCircle, FaSignOutAlt, FaUser} from "react-icons/fa";
+import {FaChartPie, FaChalkboardTeacher, FaUserGraduate, FaTasks, FaCalendarCheck, FaBell, FaUserCircle, FaSignOutAlt, FaUser, FaBookOpen} from "react-icons/fa";
 
 const TeacherSidebar = () => {
   const { user, logout } = useAuth();
@@ -34,6 +34,11 @@ const TeacherSidebar = () => {
       path: "/dashboard/teacher/attendance",
       icon: <FaCalendarCheck />,
       label: isArabic ? "الحضور" : "Attendance",
+    },
+    {
+      path: "/dashboard/teacher/lessons",
+      icon: <FaBookOpen />,
+      label: isArabic ? "الدروس" : "Lessons",
     },
     {
       path: "/dashboard/teacher/notifications",

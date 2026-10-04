@@ -58,7 +58,7 @@ const StudentResults = () => {
   const [error, setError] = useState(null);
   const [results, setResults] = useState([]);
   const [studentData, setStudentData] = useState(null);
-  const [ setSubjects] = useState([]);
+  const [, setSubjects] = useState([]);
   const [studentSubjects, setStudentSubjects] = useState([]);
 
   // ===== Arabic Font Style =====

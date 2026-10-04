@@ -51,20 +51,20 @@ const StudentDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
-  const [ setIsMobile] = useState(false);
+  const [, setIsMobile] = useState(false);
   const [studentData, setStudentData] = useState(null);
-  const [ setAttendanceRecords] = useState([]);
+  const [, setAttendanceRecords] = useState([]);
   const [attendanceStats, setAttendanceStats] = useState({ present: 0, absent: 0, late: 0, excused: 0, total: 0, monthlyPresent: 0, monthlyTotal: 0 });
-  const [ setClasses] = useState([]);
+  const [, setClasses] = useState([]);
   const [error, setError] = useState(null);
-  const [ setAllStudents] = useState([]);
-  const [ setSubjects] = useState([]);
+  const [, setAllStudents] = useState([]);
+  const [, setSubjects] = useState([]);
   const [studentSubjects, setStudentSubjects] = useState([]);
   
   // ===== ANNOUNCEMENTS & NOTIFICATIONS STATE - ALL DEFAULT TO 0 =====
   const [announcements, setAnnouncements] = useState([]);
-  const [ setUnreadNotifications] = useState(0);
-  const [ setUnreadAssessments] = useState(0);
+  const [, setUnreadNotifications] = useState(0);
+  const [, setUnreadAssessments] = useState(0);
   const [totalNotifications, setTotalNotifications] = useState(0);
   const [newAnnouncementCount, setNewAnnouncementCount] = useState(0);
   

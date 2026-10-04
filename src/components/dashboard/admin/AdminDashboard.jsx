@@ -61,7 +61,7 @@ const AdminDashboard = () => {
   const [showApproveConfirm, setShowApproveConfirm] = useState(null);
   const [processingAction, setProcessingAction] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [ setAllStudents] = useState([]);
+  const [, setAllStudents] = useState([]);
 
   const locale = isArabic ? ar : enUS;
 

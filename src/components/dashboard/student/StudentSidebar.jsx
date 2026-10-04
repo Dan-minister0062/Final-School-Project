@@ -4,7 +4,7 @@ import { NavLink } from "react-router-dom";
 import { useAuth } from "../../../hooks/useAuth";
 import { useLanguage } from "../../../context/LanguageContext";
 import notificationService from "../../../services/notificationService";
-import {FaChartPie, FaGraduationCap, FaUserCircle, FaSignOutAlt, FaUser, FaBullhorn} from "react-icons/fa";
+import {FaChartPie, FaGraduationCap, FaUserCircle, FaSignOutAlt, FaUser, FaBullhorn, FaBookOpen} from "react-icons/fa";
 import { Badge } from "react-bootstrap";
 
 const StudentSidebar = () => {
@@ -49,6 +49,11 @@ const StudentSidebar = () => {
       icon: <FaBullhorn />,
       label: isArabic ? "الإعلانات" : "Announcements",
       badge: unreadCount,
+    },
+    {
+      path: "/dashboard/student/lessons",
+      icon: <FaBookOpen />,
+      label: isArabic ? "الدروس" : "Lessons",
     },
     {
       path: "/dashboard/student/profile",

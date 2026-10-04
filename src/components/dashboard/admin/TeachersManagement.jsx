@@ -40,12 +40,12 @@ const TeachersManagement = () => {
   const [filterSubject, setFilterSubject] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [ setTotalTeachersCount] = useState(0);
+  const [, setTotalTeachersCount] = useState(0);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [allSubjects, setAllSubjects] = useState([]);
-  const [ setAllClasses] = useState([]);
+  const [, setAllClasses] = useState([]);
   const [sortField, setSortField] = useState('id');
   const [sortDirection, setSortDirection] = useState('asc');
 

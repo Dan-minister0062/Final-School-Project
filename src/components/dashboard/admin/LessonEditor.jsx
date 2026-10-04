@@ -58,8 +58,16 @@ const LessonEditor = () => {
   const isEdit = !!lessonId;
   const navigate = useNavigate();
   const { notify } = useNotification();
-  const { isSubAdmin, sectionName, hasPermission } = useRbac();
+  const { isSubAdmin, sectionName, hasPermission, role } = useRbac();
   const { language, isArabic } = useLanguage();
+
+  // Teachers author through the same editor; they are authorised by route
+  // middleware, so they do not need RBAC grants for publishing.
+  const isTeacher = role === "teacher";
+  const basePath = isTeacher
+    ? "/dashboard/teacher/lessons"
+    : "/dashboard/admin/lessons";
+  const canPublish = isTeacher || hasPermission("lessons.publish");
   const t = (key) => getTranslation(key, language);
   const localSectionName = (section) =>
     isArabic ? section?.name_ar || section?.name : section?.name_en || section?.name;
@@ -192,7 +200,7 @@ const LessonEditor = () => {
         await createLesson({ ...payload, section_id: Number(form.section_id) });
         notify(t("lessonCreated"), "success");
       }
-      navigate("/dashboard/admin/lessons");
+      navigate(basePath);
     } catch (error) {
       const fieldErrors = error.response?.data?.errors;
       if (fieldErrors) setErrors(fieldErrors);
@@ -301,10 +309,10 @@ const LessonEditor = () => {
                     <Form.Select
                       value={form.status}
                       onChange={set("status")}
-                      disabled={form.status === "published" && !hasPermission("lessons.publish")}
+                      disabled={form.status === "published" && !canPublish}
                     >
                       <option value="draft">{t("draft")}</option>
-                      {hasPermission("lessons.publish") && (
+                      {canPublish && (
                         <option value="published">{t("published")}</option>
                       )}
                       <option value="archived">{t("archived")}</option>
@@ -430,7 +438,7 @@ const LessonEditor = () => {
           <Button
             type="button"
             variant="outline-secondary"
-            onClick={() => navigate("/dashboard/admin/lessons")}
+            onClick={() => navigate(basePath)}
           >
             {t("cancel")}
           </Button>

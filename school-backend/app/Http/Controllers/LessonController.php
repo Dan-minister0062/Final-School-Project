@@ -389,7 +389,7 @@ class LessonController extends Controller
             $status = Lesson::STATUS_DRAFT;
         }
 
-        $lesson = DB::transaction(function () use ($data, $section, $user, $status) {
+        $lesson = DB::transaction(function () use ($data, $section, $user, $status, $request) {
             $lesson = Lesson::create([
                 'title' => $data['title'],
                 'slug' => Str::slug($data['title']).'-'.Str::lower(Str::random(6)),

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {Navbar, Nav} from 'react-bootstrap';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import {FaBell, FaUserCircle, FaCog, FaSignOutAlt, FaUser, FaBars, FaTimes, FaChevronDown, FaEnvelope, FaUsers, FaGraduationCap, FaChalkboardTeacher, FaBullhorn, FaBook, FaHome, FaSchool, FaUserPlus, FaCheckCircle, FaExclamationTriangle} from 'react-icons/fa';
+import {FaBell, FaUserCircle, FaCog, FaSignOutAlt, FaUser, FaBars, FaTimes, FaChevronDown, FaEnvelope, FaUsers, FaGraduationCap, FaChalkboardTeacher, FaBullhorn, FaBook, FaBookOpen, FaHome, FaSchool, FaUserPlus, FaCheckCircle, FaExclamationTriangle} from 'react-icons/fa';
 import { useLanguage } from '../../../context/LanguageContext';
 import { useAuth } from '../../../hooks/useAuth';
 import notificationService from '../../../services/notificationService';
@@ -165,6 +165,7 @@ const AdminNavbar = () => {
     { path: '/dashboard/admin/announcements', icon: <FaBullhorn />, label: t('Announcements') },
     { path: '/dashboard/admin/contacts', icon: <FaEnvelope />, label: isArabic ? 'رسائل التواصل' : 'Contact Messages' },
     { path: '/dashboard/admin/subjects', icon: <FaBook />, label: t('Academics') },
+    { path: '/dashboard/admin/lessons', icon: <FaBookOpen />, label: t('Lessons') },
   ];
 
   // ===== Handle notification click =====

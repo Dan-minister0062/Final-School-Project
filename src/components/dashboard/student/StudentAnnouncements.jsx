@@ -91,7 +91,7 @@ const StudentAnnouncements = () => {
   
   // Student's submissions
   const [mySubmissions, setMySubmissions] = useState([]);
-  const [ setFilteredSubmissions] = useState([]);
+  const [, setFilteredSubmissions] = useState([]);
   
   // Search and filters
   const [searchTerm, setSearchTerm] = useState('');

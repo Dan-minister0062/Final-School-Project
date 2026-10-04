@@ -262,6 +262,16 @@ class UserController extends Controller
             }
         }
 
+        // experience / attendance / average_grade are NOT NULL with a 0 default.
+        // A cleared numeric input arrives as null or "" and would abort the
+        // whole save with "Column 'experience' cannot be null", so normalise
+        // them here exactly as the store path already does.
+        foreach (['experience', 'attendance', 'average_grade'] as $numeric) {
+            if (array_key_exists($numeric, $fill)) {
+                $fill[$numeric] = is_numeric($fill[$numeric]) ? $fill[$numeric] + 0 : 0;
+            }
+        }
+
         if ($request->has('bio') && $user->role === 'student') {
             $fill['level'] = $request->input('bio');
         }
