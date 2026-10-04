@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Container, Nav, Navbar, NavDropdown, Button, Badge, Offcanvas } from 'react-bootstrap';
 import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
-import {FaUserGraduate, FaChalkboardTeacher, FaBuilding, FaBullhorn, FaCalendarCheck, FaUserPlus, FaFileAlt, FaCog, FaUser, FaSignOutAlt, FaBars, FaBell, FaMoon, FaSun, FaSchool, FaTachometerAlt, FaAward, FaClock, FaChevronDown, FaLanguage, FaCheckDouble, FaTimes, FaUsers, FaUserCog, FaBook, FaClipboardList, FaEnvelope} from 'react-icons/fa';
+import {FaUserGraduate, FaChalkboardTeacher, FaBuilding, FaBullhorn, FaCalendarCheck, FaUserPlus, FaFileAlt, FaCog, FaUser, FaSignOutAlt, FaBars, FaBell, FaMoon, FaSun, FaSchool, FaTachometerAlt, FaAward, FaClock, FaChevronDown, FaLanguage, FaCheckDouble, FaTimes, FaUsers, FaUserCog, FaBook, FaBookOpen, FaClipboardList, FaEnvelope} from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { useLanguage } from '../../context/LanguageContext';
 import { useNotification } from '../../hooks/useNotification';
@@ -204,6 +204,7 @@ const DashboardLayout = () => {
         { path: '/dashboard/admin/registrations', icon: <FaUserPlus />, label: isArabic ? 'التسجيلات' : 'Registrations' },
         { path: '/dashboard/admin/settings', icon: <FaCog />, label: isArabic ? 'الإعدادات' : 'Settings' },
         { path: '/dashboard/admin/subjects', icon: <FaBook />, label: isArabic ? 'المواد الدراسية' : 'Subjects' },
+        { path: '/dashboard/admin/lessons', icon: <FaBookOpen />, label: isArabic ? 'الدروس' : 'Lessons' },
         { path: '/dashboard/admin/admissions', icon: <FaBook />, label: isArabic ? 'القبول' : 'Admission' },
         { path: '/dashboard/admin/contacts', icon: <FaEnvelope />, label: isArabic ? 'رسائل التواصل' : 'Contact Messages' },
         { path: '/dashboard/admin/notifications', icon: <FaBell />, label: isArabic ? 'الإشعارات' : 'Notifications' },
@@ -217,6 +218,7 @@ const DashboardLayout = () => {
         { path: '/dashboard/teacher/classes', icon: <FaBuilding />, label: isArabic ? 'فصولي' : 'My Classes' },
         { path: '/dashboard/teacher/assessments', icon: <FaFileAlt />, label: isArabic ? 'التقييمات' : 'Assessments' },
         { path: '/dashboard/teacher/attendance', icon: <FaClock />, label: isArabic ? 'الحضور' : 'Attendance' },
+        { path: '/dashboard/teacher/lessons', icon: <FaBookOpen />, label: isArabic ? 'الدروس' : 'Lessons' },
         { path: '/dashboard/teacher/notifications', icon: <FaBell />, label: isArabic ? 'الإشعارات' : 'Notifications' },
       ];
     }
@@ -233,6 +235,7 @@ const DashboardLayout = () => {
       return [
         ...baseItems,
         { path: '/dashboard/student/my-results', icon: <FaAward />, label: isArabic ? 'نتائجي' : 'My Results' },
+        { path: '/dashboard/student/lessons', icon: <FaBookOpen />, label: isArabic ? 'الدروس' : 'Lessons' },
         { path: '/dashboard/student/announcements', icon: <FaBullhorn />, label: isArabic ? 'الإعلانات' : 'Announcements' },
       ];
     }

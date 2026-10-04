@@ -1,6 +1,16 @@
 // src/store/slices/authSlice.js
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api, { fetchCsrfCookie, setAuthIdentity } from '../../services/api';
+import userDataService from '../../services/userDataService';
+
+// The data services read the in-memory identity and skip MySQL while it is
+// null, so they must be told to re-sync the moment a real session exists.
+const establishIdentity = (user) => {
+  setAuthIdentity(user);
+  if (user) {
+    userDataService.syncFromBackend();
+  }
+};
 
 const resolveAuth = (data) => ({
   user: data?.user || null,
@@ -97,7 +107,7 @@ const authSlice = createSlice({
     },
     updateUser: (state, action) => {
       state.user = { ...state.user, ...action.payload };
-      setAuthIdentity(state.user);
+      establishIdentity(state.user);
     },
     setSession: (state, action) => {
       const { user, role, token } = action.payload || {};
@@ -106,7 +116,7 @@ const authSlice = createSlice({
       state.token = token ?? state.token;
       state.isAuthenticated = true;
       state.status = 'authenticated';
-      setAuthIdentity(state.user);
+      establishIdentity(state.user);
     },
     clearSession: (state) => {
       state.user = null;
@@ -131,7 +141,7 @@ const authSlice = createSlice({
         state.isAuthenticated = true;
         state.status = 'authenticated';
         state.error = null;
-        setAuthIdentity(state.user);
+        establishIdentity(state.user);
       })
       .addCase(loginUser.rejected, (state, action) => {
         state.loading = false;
@@ -195,7 +205,7 @@ const authSlice = createSlice({
         state.role = action.payload.role;
         state.isAuthenticated = true;
         state.error = null;
-        setAuthIdentity(state.user);
+        establishIdentity(state.user);
       })
       .addCase(fetchMe.rejected, (state) => {
         state.status = 'guest';
