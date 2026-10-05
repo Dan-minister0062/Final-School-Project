@@ -16,11 +16,30 @@ use App\Models\User;
 use App\Services\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class LessonController extends Controller
 {
+    /**
+     * Attachment types a lesson author may upload. An allowlist is used rather
+     * than a denylist so a new executable extension cannot slip through.
+     */
+    private const ATTACHMENT_EXTENSIONS = [
+        // images
+        'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'tif', 'tiff', 'ico',
+        // video
+        'mp4', 'webm', 'ogv', 'mov', 'avi', 'mkv', 'm4v', 'mpeg', 'mpg', '3gp',
+        // audio
+        'mp3', 'wav', 'ogg', 'oga', 'm4a', 'aac', 'flac', 'opus',
+        // documents
+        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp',
+        'rtf', 'txt', 'md', 'csv', 'epub',
+        // archives
+        'zip', 'rar', '7z', 'tar', 'gz',
+    ];
+
     public function __construct(private AuditLogger $audit) {}
 
     // ---------------------------------------------------------------- helpers
@@ -585,6 +604,73 @@ class LessonController extends Controller
         ], "Updated lesson \"{$lesson->title}\"");
 
         return response()->json($lesson->fresh(['contentBlocks', 'attachments', 'assignments', 'section:id,key,name', 'schoolClass:id,code,name']));
+    }
+
+    /**
+     * Store a lesson attachment and return the metadata the lesson
+     * create/update endpoints expect in their `attachments` array.
+     *
+     * Files land in public/uploads so they are served straight from the API
+     * host; the `public` disk is not linked on this deployment. A link is
+     * also dropped in that folder so an uploaded .php could never run.
+     */
+    public function storeAttachment(Request $request)
+    {
+        $request->validate([
+            'file' => ['nullable', 'file', 'max:102400'],
+            'external_url' => ['nullable', 'url', 'max:500'],
+            'title' => ['nullable', 'string', 'max:200'],
+        ]);
+
+        $file = $request->file('file');
+        $externalUrl = $request->input('external_url');
+
+        abort_if(! $file && ! $externalUrl, 422, 'Provide a file or a link.');
+
+        if ($externalUrl) {
+            return response()->json([
+                'file_url' => $externalUrl,
+                'external_url' => $externalUrl,
+                'file_name' => null,
+                'file_type' => null,
+                'file_size' => null,
+                'title' => $request->input('title') ?: $externalUrl,
+            ], 201);
+        }
+
+        $extension = strtolower($file->getClientOriginalExtension());
+
+        abort_if($extension === '' || ! in_array($extension, self::ATTACHMENT_EXTENSIONS, true), 422, 'That file type is not allowed.');
+
+        $directory = public_path('uploads/lessons');
+        File::ensureDirectoryExists($directory, 0755, true);
+
+        // Defensive: shared hosting would happily execute a .php dropped here.
+        File::put($directory.'/.htaccess', implode("\n", [
+            '<IfModule mod_authz_core.c>',
+            '    Require all denied',
+            '</IfModule>',
+            '<IfModule !mod_authz_core.c>',
+            '    Order deny,allow',
+            '    Deny from all',
+            '</IfModule>',
+            'RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .pht .phar',
+            'AddType text/plain .php .phtml .php3 .php4 .php5 .php7 .php8 .pht .phar',
+        ])."\n");
+
+        $storedName = Str::random(40).'.'.$extension;
+        $file->move($directory, $storedName);
+
+        $title = $request->input('title') ?: $file->getClientOriginalName();
+
+        return response()->json([
+            'file_url' => rtrim(config('app.url'), '/').'/uploads/lessons/'.$storedName,
+            'external_url' => null,
+            'file_name' => $file->getClientOriginalName(),
+            'file_type' => $file->getClientMimeType(),
+            'file_size' => $file->getSize(),
+            'title' => $title,
+        ], 201);
     }
 
     public function publish(Request $request, Lesson $lesson)

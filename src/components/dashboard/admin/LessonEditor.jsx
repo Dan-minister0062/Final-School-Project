@@ -1,5 +1,5 @@
 // src/components/dashboard/admin/LessonEditor.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Button,
@@ -7,8 +7,22 @@ import {
   Col,
   Form,
   Row,
+  Spinner,
 } from "react-bootstrap";
-import { FaSave, FaTrash } from "react-icons/fa";
+import {
+  FaSave,
+  FaTrash,
+  FaPaperclip,
+  FaLink,
+  FaFileAlt,
+  FaFilePdf,
+  FaFileAudio,
+  FaFileVideo,
+  FaFileImage,
+  FaFileWord,
+  FaFileArchive,
+  FaFileCsv,
+} from "react-icons/fa";
 import { useNavigate, useParams } from "react-router-dom";
 import { useNotification } from "../../../hooks/useNotification";
 import { useRbac } from "../../../context/RbacContext";
@@ -18,7 +32,9 @@ import {
   createLesson,
   fetchLesson,
   fetchSections,
+  registerLessonAttachmentLink,
   updateLesson,
+  uploadLessonAttachment,
 } from "../../../services/rbacService";
 import { getTranslation } from "../../../utils/translations";
 
@@ -53,6 +69,92 @@ const emptyForm = () => ({
   status: "draft",
 });
 
+// Matches the extension allowlist enforced by LessonController::storeAttachment.
+const ATTACHMENT_ACCEPT = [
+  "image/*",
+  "video/*",
+  "audio/*",
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".xls",
+  ".xlsx",
+  ".ppt",
+  ".pptx",
+  ".odt",
+  ".ods",
+  ".odp",
+  ".rtf",
+  ".txt",
+  ".md",
+  ".csv",
+  ".epub",
+  ".zip",
+  ".rar",
+  ".7z",
+  ".tar",
+  ".gz",
+].join(",");
+
+// Human labels for the attachment list, kept next to the feature they serve.
+const ATTACHMENT_COPY = {
+  en: {
+    heading: "Attachments",
+    hint: "Add files or videos for this lesson. Students see them with the lesson.",
+    choose: "Choose files",
+    uploading: "Uploading…",
+    linkLabel: "Or add a link",
+    linkPlaceholder: "https://… (YouTube, Vimeo, Google Drive…)",
+    linkTitle: "Link title (optional)",
+    addLink: "Add link",
+    empty: "No attachments yet.",
+    remove: "Remove attachment",
+    uploadFailed: "Attachment upload failed",
+    linkFailed: "Could not add that link",
+    tooLarge: "That file is larger than the 100 MB limit",
+    badType: "That file type is not allowed",
+  },
+  ar: {
+    heading: "المرفقات",
+    hint: "أضف ملفات أو مقاطع فيديو لهذا الدرس. سيراها الطلاب مع الدرس.",
+    choose: "اختر الملفات",
+    uploading: "جارٍ الرفع…",
+    linkLabel: "أو أضف رابطًا",
+    linkPlaceholder: "https://… (يوتيوب، فيميو، جوجل درايف…)",
+    linkTitle: "عنوان الرابط (اختياري)",
+    addLink: "أضف الرابط",
+    empty: "لا توجد مرفقات بعد.",
+    remove: "حذف المرفق",
+    uploadFailed: "فشل رفع المرفق",
+    linkFailed: "تعذّرت إضافة الرابط",
+    tooLarge: "حجم الملف أكبر من الحد المسموح (100 ميجابايت)",
+    badType: "نوع الملف غير مسموح",
+  },
+};
+
+// Picks a glyph for an attachment based on its mime type or file extension.
+const attachmentIcon = (attachment) => {
+  const type = (attachment.file_type || "").toLowerCase();
+  const name = (attachment.file_name || attachment.title || "").toLowerCase();
+  if (type.startsWith("image/")) return <FaFileImage />;
+  if (type.startsWith("video/")) return <FaFileVideo />;
+  if (type.startsWith("audio/")) return <FaFileAudio />;
+  if (name.endsWith(".pdf")) return <FaFilePdf />;
+  if (/\.(doc|docx|odt|rtf)$/.test(name)) return <FaFileWord />;
+  if (/\.(csv|xls|xlsx|ods)$/.test(name)) return <FaFileCsv />;
+  if (/\.(zip|rar|7z|tar|gz)$/.test(name)) return <FaFileArchive />;
+  return <FaFileAlt />;
+};
+
+const formatBytes = (bytes) => {
+  const value = Number(bytes);
+  if (!Number.isFinite(value) || value <= 0) return "";
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  if (value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(value / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+};
+
 const LessonEditor = () => {
   const { lessonId } = useParams();
   const isEdit = !!lessonId;
@@ -79,6 +181,18 @@ const LessonEditor = () => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Attachments are uploaded straight away so the browser holds a real URL;
+  // that list is then sent with the lesson so the rows are persisted on save.
+  const [attachments, setAttachments] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [linkTitle, setLinkTitle] = useState("");
+  const fileInputRef = useRef(null);
+  const copy = ATTACHMENT_COPY[isArabic ? "ar" : "en"];
+  // The allowlist mirrors the controller's extension check, so an
+  // executable can never be sent to the API in the first place.
+  const MAX_BYTES = 100 * 1024 * 1024;
 
   useEffect(() => {
     fetchSections()
@@ -136,6 +250,19 @@ const LessonEditor = () => {
               }))
             : [emptyBlock()],
         );
+
+        const saved = Array.isArray(lesson.attachments) ? lesson.attachments : [];
+        setAttachments(
+          saved.map((a) => ({
+            id: a.id,
+            file_url: a.file_url,
+            external_url: a.external_url,
+            file_name: a.file_name,
+            file_type: a.file_type,
+            file_size: a.file_size,
+            title: a.title,
+          })),
+        );
       })
       .catch((error) =>
         notify(
@@ -167,6 +294,61 @@ const LessonEditor = () => {
       )
     : classes;
 
+  // ===== ATTACHMENTS =====
+
+  const handleFilesSelected = async (event) => {
+    const picked = Array.from(event.target.files || []);
+    // Reset immediately so re-picking the same file still fires a change event.
+    event.target.value = "";
+    if (picked.length === 0) return;
+
+    setUploading(true);
+    try {
+      for (const file of picked) {
+        if (file.size > MAX_BYTES) {
+          notify(`${file.name}: ${copy.tooLarge}`, "error");
+          continue;
+        }
+        try {
+          const uploaded = await uploadLessonAttachment(file);
+          setAttachments((prev) => [...prev, uploaded]);
+        } catch (error) {
+          const status = error.response?.status;
+          notify(
+            status === 422
+              ? `${file.name}: ${copy.badType}`
+              : `${copy.uploadFailed}: ${error.response?.data?.message || file.name}`,
+            "error",
+          );
+        }
+      }
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleAddLink = async () => {
+    const url = linkUrl.trim();
+    if (!url) return;
+    setUploading(true);
+    try {
+      const registered = await registerLessonAttachmentLink(url, linkTitle.trim());
+      setAttachments((prev) => [...prev, registered]);
+      setLinkUrl("");
+      setLinkTitle("");
+    } catch (error) {
+      notify(
+        error.response?.data?.message || copy.linkFailed,
+        "error",
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeAttachment = (attachment) =>
+    setAttachments((prev) => prev.filter((a) => a !== attachment));
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setSaving(true);
@@ -190,6 +372,17 @@ const LessonEditor = () => {
           title: b.title || null,
           data: { body: b.body },
         })),
+      // The controller replaces the lesson's attachment set with whatever is
+      // in this array, so removed rows disappear and kept ones are matched by
+      // file_url rather than duplicated.
+      attachments: attachments.map((a) => ({
+        file_url: a.file_url,
+        external_url: a.external_url ?? null,
+        file_name: a.file_name ?? null,
+        file_type: a.file_type ?? null,
+        file_size: a.file_size ?? null,
+        title: a.title ?? null,
+      })),
     };
 
     try {
@@ -423,6 +616,125 @@ const LessonEditor = () => {
                 />
               </div>
             ))}
+          </Card.Body>
+        </Card>
+
+        <Card className="shadow-sm border-0 mb-3">
+          <Card.Header className="bg-transparent fw-bold d-flex justify-content-between align-items-center">
+            <span className="d-inline-flex align-items-center gap-2">
+              <FaPaperclip /> {copy.heading}
+            </span>
+            <Button
+              size="sm"
+              variant="outline-primary"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              {uploading ? (
+                <>
+                  <Spinner
+                    as="span"
+                    animation="border"
+                    size="sm"
+                    className="me-2"
+                  />
+                  {copy.uploading}
+                </>
+              ) : (
+                copy.choose
+              )}
+            </Button>
+          </Card.Header>
+          <Card.Body>
+            <p className="text-muted small mb-3">{copy.hint}</p>
+
+            <Form.Control
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept={ATTACHMENT_ACCEPT}
+              onChange={handleFilesSelected}
+              className="d-none"
+              aria-hidden="true"
+              tabIndex={-1}
+            />
+
+            {attachments.length === 0 ? (
+              <p className="text-muted mb-0">{copy.empty}</p>
+            ) : (
+              <ul className="list-unstyled mb-0">
+                {attachments.map((attachment, index) => (
+                  <li
+                    key={attachment.id ?? `${attachment.file_url}-${index}`}
+                    className="d-flex align-items-center gap-2 border rounded px-3 py-2 mb-2"
+                  >
+                    <span className="text-primary">
+                      {attachment.external_url ? <FaLink /> : attachmentIcon(attachment)}
+                    </span>
+                    <span className="flex-grow-1 text-truncate">
+                      {attachment.title || attachment.file_name || attachment.file_url}
+                    </span>
+                    {attachment.file_size ? (
+                      <span className="text-muted small text-nowrap">
+                        {formatBytes(attachment.file_size)}
+                      </span>
+                    ) : null}
+                    <a
+                      href={attachment.file_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn btn-sm btn-outline-secondary text-nowrap"
+                    >
+                      {isArabic ? "فتح" : "Open"}
+                    </a>
+                    <Button
+                      variant="outline-danger"
+                      size="sm"
+                      onClick={() => removeAttachment(attachment)}
+                      title={copy.remove}
+                      aria-label={copy.remove}
+                    >
+                      <FaTrash />
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <hr className="my-3" />
+
+            <Row className="g-2 align-items-end">
+              <Col md={7}>
+                <Form.Group>
+                  <Form.Label className="small mb-1">{copy.linkLabel}</Form.Label>
+                  <Form.Control
+                    type="url"
+                    value={linkUrl}
+                    placeholder={copy.linkPlaceholder}
+                    onChange={(e) => setLinkUrl(e.target.value)}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={3}>
+                <Form.Group>
+                  <Form.Label className="small mb-1">{copy.linkTitle}</Form.Label>
+                  <Form.Control
+                    value={linkTitle}
+                    onChange={(e) => setLinkTitle(e.target.value)}
+                  />
+                </Form.Group>
+              </Col>
+              <Col md={2}>
+                <Button
+                  variant="outline-secondary"
+                  className="w-100"
+                  onClick={handleAddLink}
+                  disabled={uploading || !linkUrl.trim()}
+                >
+                  {copy.addLink}
+                </Button>
+              </Col>
+            </Row>
           </Card.Body>
         </Card>
 

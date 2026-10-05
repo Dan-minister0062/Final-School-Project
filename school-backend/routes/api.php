@@ -121,6 +121,10 @@ Route::middleware(['auth:sanctum', 'role:teacher,admin'])->group(function () {
     Route::post('/lessons/{lesson}/duplicate', [LessonController::class, 'duplicate']);
     Route::get('/lessons/{lesson}/analytics', [LessonController::class, 'analytics']);
 
+    // Uploads happen before the lesson is saved (a brand new lesson has no id
+    // yet), so this returns metadata the author then sends with the lesson.
+    Route::post('/lesson-attachments', [LessonController::class, 'storeAttachment']);
+
     // Grading is a separate, explicitly authorised action.
     Route::put('/lesson-submissions/{submission}/grade', [LessonController::class, 'grade'])
         ->middleware('permission:lessons.grade');

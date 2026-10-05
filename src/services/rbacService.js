@@ -111,6 +111,33 @@ export const fetchLessonAnalytics = async (lessonId) => {
   return data;
 };
 
+/**
+ * Upload one lesson attachment. The shared axios instance sets a JSON
+ * Content-Type, which would make axios serialise the FormData as JSON and
+ * lose the binary, so the header is cleared to let the browser set the
+ * multipart boundary itself.
+ */
+export const uploadLessonAttachment = async (file, title = "") => {
+  const body = new FormData();
+  body.append("file", file);
+  if (title) body.append("title", title);
+
+  const { data } = await api.post("/lesson-attachments", body, {
+    headers: { "Content-Type": undefined },
+    timeout: 0,
+  });
+  return data;
+};
+
+/** Register an externally hosted attachment (a YouTube/Vimeo link, a Drive file). */
+export const registerLessonAttachmentLink = async (url, title = "") => {
+  const { data } = await api.post("/lesson-attachments", {
+    external_url: url,
+    title: title || undefined,
+  });
+  return data;
+};
+
 export const fetchLessonSubmissions = async (lessonId, params = {}) => {
   const { data } = await api.get(`/lessons/${lessonId}/submissions`, { params });
   return data;
