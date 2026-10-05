@@ -39,7 +39,9 @@ const normalise = (payload) => {
 const StudentLessons = () => {
   const { notify } = useNotification();
   const { language, isArabic } = useLanguage();
-  const t = (key) => getTranslation(key, language);
+  // Stable identity: it is a dependency of the load callback below, which the
+  // mount effect depends on, so a new function each render would refetch in a loop.
+  const t = useCallback((key) => getTranslation(key, language), [language]);
   const localSectionName = (section) =>
     isArabic ? section?.name_ar || section?.name : section?.name_en || section?.name;
 

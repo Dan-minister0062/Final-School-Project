@@ -48,7 +48,9 @@ const AdminLessons = () => {
   const navigate = useNavigate();
   const { hasPermission, isSubAdmin, sectionName, role } = useRbac();
   const { language, isArabic } = useLanguage();
-  const t = (key) => getTranslation(key, language);
+  // Stable identity: this feeds a useCallback dependency chain that drives the
+// load effect, so a new function each render would refetch in a loop.
+  const t = useCallback((key) => getTranslation(key, language), [language]);
 
   // Teachers are authorised for every authoring action by the route middleware
   // (role:teacher,admin), so they do not need RBAC grants for them; only lesson

@@ -1,5 +1,5 @@
 // src/components/dashboard/admin/LessonEditor.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   Button,
@@ -170,7 +170,9 @@ const LessonEditor = () => {
     ? "/dashboard/teacher/lessons"
     : "/dashboard/admin/lessons";
   const canPublish = isTeacher || hasPermission("lessons.publish");
-  const t = (key) => getTranslation(key, language);
+  // Must be referentially stable: it is an effect dependency, and a new
+  // function identity on every render made the lesson loader re-run forever.
+  const t = useCallback((key) => getTranslation(key, language), [language]);
   const localSectionName = (section) =>
     isArabic ? section?.name_ar || section?.name : section?.name_en || section?.name;
 
