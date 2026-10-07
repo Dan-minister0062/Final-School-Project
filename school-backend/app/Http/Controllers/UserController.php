@@ -224,7 +224,6 @@ class UserController extends Controller
             'avatar' => 'avatar',
             'department' => 'department',
             'bio' => 'bio',
-            'password' => 'password',
             'dateOfBirth' => 'dob',
             'gender' => 'gender',
             'nationality' => 'nationality',
@@ -274,10 +273,6 @@ class UserController extends Controller
 
         if ($request->has('bio') && $user->role === 'student') {
             $fill['level'] = $request->input('bio');
-        }
-
-        if (isset($fill['password'])) {
-            $fill['password'] = Hash::make($fill['password']);
         }
 
         // Section + permission writes are RBAC-controlled, never mass-assignable.
@@ -341,8 +336,18 @@ class UserController extends Controller
         if ($changed !== []) {
             // A tier change revokes every live session so a stale token cannot
             // keep acting with the permissions it was issued under.
-            if (in_array('role', $changed, true) || in_array('permissions', $changed, true)
-                || in_array('section_id', $changed, true) || in_array('status', $changed, true)) {
+            //
+            // Editing one's own record must never log the caller out: the
+            // guards above already block self-demotion, and benign edits
+            // (date of birth, a normalised NULL -> 'active' status, ...) must
+            // not destroy the admin's own session mid-request.
+            $isSelfUpdate = $caller !== null && (int) $caller->id === (int) $user->id;
+
+            if (! $isSelfUpdate
+                && (in_array('role', $changed, true)
+                    || in_array('permissions', $changed, true)
+                    || in_array('section_id', $changed, true)
+                    || in_array('status', $changed, true))) {
                 $user->tokens()->delete();
             }
 

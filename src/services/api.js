@@ -15,7 +15,7 @@ const api = axios.create({
     Accept: "application/json",
   },
 
-  timeout: 30000,
+  timeout: 120000,
 
   // Session cookies (Laravel Sanctum SPA flow) are required for auth.
   withCredentials: true,

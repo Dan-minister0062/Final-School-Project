@@ -830,7 +830,6 @@ const UsersManagement = () => {
         cin: userData.cin || '',
         dateOfBirth: userData.dateOfBirth || '',
         avatar: userData.avatar || userData.profilePhoto || '',
-        password: userData.password || 'password123',
         status: userData.status || 'active',
         emergencyContactName: userData.emergencyContactName || '',
         emergencyContactRelationship: userData.emergencyContactRelationship || '',
@@ -857,6 +856,18 @@ const UsersManagement = () => {
         className: userData.className || userData.class || '',
         classCode: userData.classCode || userData.class_code || userData.classId || '',
       };
+
+      // A new account gets a working default password. Editing an existing
+      // account must NEVER send a password unless the form provided a new one,
+      // otherwise a simple field update (e.g. date of birth) silently resets
+      // the account password and locks the user out.
+      if (serverId) {
+        if (userData.password) {
+          payload.password = userData.password;
+        }
+      } else {
+        payload.password = userData.password || 'password123';
+      }
 
       let result;
       if (serverId) {
