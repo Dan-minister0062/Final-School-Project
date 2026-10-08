@@ -5,7 +5,7 @@ import {FaSearch, FaEye, FaEnvelope, FaPhone, FaMapMarkerAlt, FaCheckCircle, FaS
 import { useLanguage } from '../../../context/LanguageContext';
 import { useNotification } from '../../../hooks/useNotification';
 import { syncGet } from '../../../services/apiSync';
-import { fetchServerClasses, toCatalogClasses } from '../../../services/classService';
+import { fetchServerClasses, toCatalogClasses, fetchServerSubjects, toCatalogSubjects } from '../../../services/classService';
 import { format, formatDistanceToNow, isValid } from 'date-fns';
 import { ar, enUS } from 'date-fns/locale';
 
@@ -51,36 +51,6 @@ const TeachersManagement = () => {
 
   const locale = isArabic ? ar : enUS;
 
-  // ===== COMPLETE CLASSES LIST =====
-  const completeClassesList = [
-    { id: 'kindergarten_intro', name: isArabic ? 'تمهيدي' : 'Introductory', level: 'kindergarten' },
-    { id: 'kindergarten_prep1a', name: isArabic ? 'تحضيري 1 -أ-' : 'Preparatory 1 -A-', level: 'kindergarten' },
-    { id: 'kindergarten_prep1b', name: isArabic ? 'تحضيري 1 -ب-' : 'Preparatory 1 -B-', level: 'kindergarten' },
-    { id: 'kindergarten_prep2a', name: isArabic ? 'تحضيري 2 -أ-' : 'Preparatory 2 -A-', level: 'kindergarten' },
-    { id: 'kindergarten_prep2b', name: isArabic ? 'تحضيري 2 -ب-' : 'Preparatory 2 -B-', level: 'kindergarten' },
-    { id: 'primary_1a', name: isArabic ? '1 -أ-' : '1 -A-', level: 'primary' },
-    { id: 'primary_1b', name: isArabic ? '1 -ب-' : '1 -B-', level: 'primary' },
-    { id: 'primary_2a', name: isArabic ? '2 -أ-' : '2 -A-', level: 'primary' },
-    { id: 'primary_2b', name: isArabic ? '2 -ب-' : '2 -B-', level: 'primary' },
-    { id: 'primary_3a', name: isArabic ? '3 -أ-' : '3 -A-', level: 'primary' },
-    { id: 'primary_3b', name: isArabic ? '3 -ب-' : '3 -B-', level: 'primary' },
-    { id: 'primary_4a', name: isArabic ? '4 -أ-' : '4 -A-', level: 'primary' },
-    { id: 'primary_4b', name: isArabic ? '4 -ب-' : '4 -B-', level: 'primary' },
-    { id: 'primary_5a', name: isArabic ? '5 -أ-' : '5 -A-', level: 'primary' },
-    { id: 'primary_5b', name: isArabic ? '5 -ب-' : '5 -B-', level: 'primary' },
-    { id: 'primary_6a', name: isArabic ? '6 -أ-' : '6 -A-', level: 'primary' },
-    { id: 'primary_6b', name: isArabic ? '6 -ب-' : '6 -B-', level: 'primary' },
-    { id: 'secondary_1a', name: isArabic ? 'إعدادي 1 -أ-' : 'Secondary 1 -A-', level: 'secondary' },
-    { id: 'secondary_1b', name: isArabic ? 'إعدادي 1 -ب-' : 'Secondary 1 -B-', level: 'secondary' },
-    { id: 'secondary_2a', name: isArabic ? 'إعدادي 2 -أ-' : 'Secondary 2 -A-', level: 'secondary' },
-    { id: 'secondary_2b', name: isArabic ? 'إعدادي 2 -ب-' : 'Secondary 2 -B-', level: 'secondary' },
-    { id: 'secondary_3a', name: isArabic ? 'إعدادي 3 -أ-' : 'Secondary 3 -A-', level: 'secondary' },
-    { id: 'secondary_3b', name: isArabic ? 'إعدادي 3 -ب-' : 'Secondary 3 -B-', level: 'secondary' },
-    { id: 'highschool_common_core', name: isArabic ? 'جذع مشترك علوم' : 'Common Core Science', level: 'high_school' },
-    { id: 'highschool_1st_bac_experimental', name: isArabic ? 'بكالوريا 1 علوم تجريبية' : '1st Baccalaureate Experimental Sciences', level: 'high_school' },
-    { id: 'highschool_2nd_bac_physical', name: isArabic ? 'بكالوريا 2 علوم فيزيائية' : '2nd Baccalaureate Physical Sciences', level: 'high_school' }
-  ];
-
   // ===== QUALIFICATIONS LIST =====
   const qualificationsList = [
     { value: 'baccalaureate', label: isArabic ? 'بكالوريا' : 'Baccalaureate' },
@@ -110,70 +80,24 @@ const TeachersManagement = () => {
     { value: 'part_time', label: isArabic ? 'دوام جزئي' : 'Part Time' }
   ];
 
-  // ===== SUBJECTS BY CATEGORY =====
-  const getSubjectsByCategory = () => {
-    const defaultSubjects = {
-      kindergarten: [
-        { value: 'islamic_education_k', label: isArabic ? 'تربية إسلامية' : 'Islamic Education' },
-        { value: 'arabic_k', label: isArabic ? 'لغة عربية' : 'Arabic Language' },
-        { value: 'mathematics_k', label: isArabic ? 'رياضيات' : 'Mathematics' },
-        { value: 'science_k', label: isArabic ? 'علوم' : 'Science' },
-        { value: 'art_k', label: isArabic ? 'فنون' : 'Art' }
-      ],
-      primary: [
-        { value: 'islamic_education_p', label: isArabic ? 'تربية إسلامية' : 'Islamic Education' },
-        { value: 'arabic_p', label: isArabic ? 'لغة عربية' : 'Arabic Language' },
-        { value: 'mathematics_p', label: isArabic ? 'رياضيات' : 'Mathematics' },
-        { value: 'science_p', label: isArabic ? 'علوم' : 'Science' },
-        { value: 'english_p', label: isArabic ? 'لغة إنجليزية' : 'English Language' },
-        { value: 'social_studies_p', label: isArabic ? 'دراسات اجتماعية' : 'Social Studies' },
-        { value: 'art_p', label: isArabic ? 'فنون' : 'Art' }
-      ],
-      secondary: [
-        { value: 'islamic_education_s', label: isArabic ? 'تربية إسلامية' : 'Islamic Education' },
-        { value: 'arabic_s', label: isArabic ? 'لغة عربية' : 'Arabic Language' },
-        { value: 'mathematics_s', label: isArabic ? 'رياضيات' : 'Mathematics' },
-        { value: 'physics_s', label: isArabic ? 'فيزياء' : 'Physics' },
-        { value: 'chemistry_s', label: isArabic ? 'كيمياء' : 'Chemistry' },
-        { value: 'biology_s', label: isArabic ? 'أحياء' : 'Biology' },
-        { value: 'english_s', label: isArabic ? 'لغة إنجليزية' : 'English Language' },
-        { value: 'french_s', label: isArabic ? 'لغة فرنسية' : 'French Language' },
-        { value: 'history_s', label: isArabic ? 'تاريخ' : 'History' },
-        { value: 'geography_s', label: isArabic ? 'جغرافيا' : 'Geography' }
-      ],
-      high_school: [
-        { value: 'islamic_education_h', label: isArabic ? 'تربية إسلامية' : 'Islamic Education' },
-        { value: 'arabic_h', label: isArabic ? 'لغة عربية' : 'Arabic Language' },
-        { value: 'mathematics_h', label: isArabic ? 'رياضيات' : 'Mathematics' },
-        { value: 'physics_h', label: isArabic ? 'فيزياء' : 'Physics' },
-        { value: 'chemistry_h', label: isArabic ? 'كيمياء' : 'Chemistry' },
-        { value: 'biology_h', label: isArabic ? 'أحياء' : 'Biology' },
-        { value: 'english_h', label: isArabic ? 'لغة إنجليزية' : 'English Language' },
-        { value: 'french_h', label: isArabic ? 'لغة فرنسية' : 'French Language' },
-        { value: 'philosophy_h', label: isArabic ? 'فلسفة' : 'Philosophy' },
-        { value: 'history_h', label: isArabic ? 'تاريخ' : 'History' },
-        { value: 'geography_h', label: isArabic ? 'جغرافيا' : 'Geography' }
-      ]
-    };
-    return defaultSubjects;
-  };
-
-  // ===== HELPER FUNCTIONS =====
+  // ===== HELPER FUNCTIONS (subjects + classes come from MySQL) =====
   const getSubjectDisplay = (subjectValue) => {
     if (!subjectValue) return 'N/A';
-    const subjectsData = getSubjectsByCategory();
-    for (const category of Object.values(subjectsData)) {
-      const found = category.find(s => s.value === subjectValue);
-      if (found) return found.label;
-    }
-    return subjectValue;
+    const found = (subjectCatalog || []).find(
+      s =>
+        s.value === subjectValue ||
+        s.code === subjectValue ||
+        s.label === subjectValue ||
+        s.nameEn === subjectValue ||
+        s.name === subjectValue
+    );
+    return found ? (isArabic ? (found.nameAr || found.label) : found.label) : subjectValue;
   };
 
   const getClassName = (classId) => {
     if (!classId) return 'N/A';
-    const found = dbClassCatalog.find(c => c.id === classId) ||
-      completeClassesList.find(c => c.id === classId);
-    return found ? found.name : classId;
+    const found = dbClassCatalog.find(c => c.id === classId);
+    return found ? (isArabic ? (found.nameAr || found.name) : found.name) : classId;
   };
 
   const getQualificationDisplay = (qual) => {
@@ -250,13 +174,16 @@ const TeachersManagement = () => {
     return () => observer.disconnect();
   }, []);
 
-  // ===== MySQL class catalog (same fields/shape as completeClassesList) =====
+  // ===== MySQL class catalog (same fields/shape as toCatalogClasses) =====
   const [dbClassCatalog, setDbClassCatalog] = useState([]);
+  const [subjectCatalog, setSubjectCatalog] = useState([]);
   useEffect(() => {
     fetchServerClasses().then((rows) => {
-      if (rows) setDbClassCatalog(toCatalogClasses(rows, completeClassesList));
+      if (rows) setDbClassCatalog(toCatalogClasses(rows));
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchServerSubjects().then((rows) => {
+      if (rows) setSubjectCatalog(toCatalogSubjects(rows));
+    });
   }, []);
 
   // Arabic font style

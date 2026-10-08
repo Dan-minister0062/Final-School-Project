@@ -7,7 +7,6 @@ class UserDataService {
     this.users = [];
     this.listeners = [];
     this.initialized = false;
-    this.subjects = this.getDefaultSubjects();
     // MySQL is the single source of truth: pull users from the API
     // whenever a real (non-demo) session exists.
     this.syncFromBackend();
@@ -472,7 +471,7 @@ class UserDataService {
     return `${prefix}/${year}/${formattedNumber}`;
   }
 
-  loadFromStorage() {
+  loadFromCache() {
     // Business data is never persisted in browser storage.
     // The users list lives in MySQL and is loaded via syncFromBackend().
     this.initialized = true;
@@ -621,7 +620,7 @@ class UserDataService {
     });
   }
 
-  saveToStorage() {
+  saveToCache() {
     // No-op: business data must live in MySQL only.
   }
 
@@ -839,7 +838,7 @@ class UserDataService {
     }
 
     this.users = [newUser, ...this.users];
-    this.saveToStorage();
+    this.saveToCache();
     this.notifyListeners("add", newUser);
     this.pushCreateUser(newUser);
     return newUser;
@@ -1103,93 +1102,10 @@ class UserDataService {
     }
 
     this.users[index] = updatedUser;
-    this.saveToStorage();
+    this.saveToCache();
     this.notifyListeners("update", this.users[index]);
     this.pushUpdateUser(updatedUser, updatedData);
     return this.users[index];
-  }
-
-  // ===== GET ALL SUBJECTS =====
-  getAllSubjects() {
-    return this.subjects || this.getDefaultSubjects();
-  }
-
-  // ===== GET SUBJECTS FOR LEVEL =====
-  getSubjectsForLevel(level) {
-    const allSubjects = this.getAllSubjects();
-    if (allSubjects && allSubjects[level]) {
-      return allSubjects[level];
-    }
-    return [];
-  }
-
-  // ===== GET DEFAULT SUBJECTS =====
-  getDefaultSubjects() {
-    return {
-      kindergarten: [
-        { value: "quran_k", label: "Qur'an", labelAr: "التربية الإسلامية والقرآن الكريم" },
-        { value: "english_k", label: "English", labelAr: "اللغة الإنجليزية" },
-        { value: "french_k", label: "French", labelAr: "اللغة الفرنسية" },
-        { value: "arabic_k", label: "Arabic", labelAr: "اللغة العربية" },
-      ],
-      primary: [
-        { value: "quran_p", label: "Qur'an", labelAr: "التربية الإسلامية والقرآن الكريم" },
-        { value: "arabic_p", label: "Arabic", labelAr: "اللغة العربية" },
-        { value: "english_p", label: "English", labelAr: "اللغة الإنجليزية" },
-        { value: "french_p", label: "French", labelAr: "اللغة الفرنسية" },
-        { value: "mathematics_p", label: "Mathematics", labelAr: "الرياضيات" },
-        { value: "science_p", label: "Science", labelAr: "النشاط العلمي" },
-        { value: "sports_p", label: "Sports", labelAr: "الرياضة" },
-        { value: "ict_p", label: "ICT", labelAr: " الإعلاميات" },
-        { value: "art_p", label: "Art & Plastic", labelAr: "التربية التشكيلية" },
-        { value: "geography_p", label: "Geography", labelAr: "الاجتماعيات" },
-      ],
-      secondary: [
-        { value: "quran_p", label: "Qur'an", labelAr: "التربية الإسلامية والقرآن الكريم" },
-        { value: "arabic_s", label: "Arabic", labelAr: "اللغة العربية" },
-        { value: "english_s", label: "English", labelAr: "اللغة الإنجليزية" },
-        { value: "french_s", label: "French", labelAr: "اللغة الفرنسية" },
-        { value: "mathematics_s", label: "Mathematics", labelAr: "الرياضيات" },
-        {
-          value: "svt_s",
-          label: "SVT (Biology)",
-          labelAr: "علوم الحياة والأرض",
-        },
-        { value: "physics_s", label: "Physics", labelAr: "الفيزياء" },
-        { value: "sports_s", label: "Sports", labelAr: "الرياضة" },
-        { value: "ict_p", label: "ICT", labelAr: " الإعلاميات" },
-        { value: "geography_s", label: "Geography", labelAr: "الاجتماعيات" },
-      ],
-      high_school: [
-        { value: "quran_p", label: "Qur'an", labelAr: "التربية الإسلامية والقرآن الكريم" },
-        { value: "arabic_h", label: "Arabic", labelAr: "اللغة العربية" },
-        { value: "english_h", label: "English", labelAr: "اللغة الإنجليزية" },
-        { value: "french_h", label: "French", labelAr: "اللغة الفرنسية" },
-        { value: "mathematics_h", label: "Mathematics", labelAr: "الرياضيات" },
-        {
-          value: "svt_h",
-          label: "SVT (Biology)",
-          labelAr: "علوم الحياة والأرض",
-        },
-        { value: "physics_h", label: "Physics", labelAr: "الفيزياء" },
-        { value: "sports_h", label: "Sports", labelAr: "الرياضة" },
-        { value: "ict_p", label: "ICT", labelAr: " الإعلاميات" },
-        { value: "geography_h", label: "Geography", labelAr: "الاجتماعيات" },
-        { value: "philosophy_h", label: "Philosophy", labelAr: "الفلسفة" },
-      ],
-    };
-  }
-
-  // ===== UPDATE SUBJECTS =====
-  updateSubjects(subjects) {
-    this.subjects = subjects;
-    this.notifyListeners("subjects_updated", subjects);
-  }
-
-  // ===== SAVE SUBJECTS =====
-  saveSubjects(subjects) {
-    this.subjects = subjects;
-    this.notifyListeners("subjects_updated", subjects);
   }
 
   // ===== UPDATE STUDENT ATTENDANCE =====
@@ -1238,7 +1154,7 @@ class UserDataService {
 
     const deleted = this.users[index];
     this.users = this.users.filter((user) => user.id !== id);
-    this.saveToStorage();
+    this.saveToCache();
     this.notifyListeners("delete", deleted);
     this.pushDeleteUser(deleted);
     return deleted;
@@ -1277,7 +1193,7 @@ class UserDataService {
         (res) => {
           if (res?.success && res?.data?.tempPassword && updatedUser) {
             updatedUser.tempPassword = res.data.tempPassword;
-            this.saveToStorage();
+            this.saveToCache();
           }
         },
       );
@@ -1447,7 +1363,7 @@ class UserDataService {
 
   // ===== FORCE REFRESH =====
   forceRefresh() {
-    this.loadFromStorage();
+    this.loadFromCache();
     this.syncFromBackend();
     this.notifyListeners("refresh", null, [...this.users]);
     return this.users;
@@ -1457,7 +1373,7 @@ class UserDataService {
   clearAllData() {
     if (window.confirm("Are you sure you want to delete all user data?")) {
       this.users = [];
-      this.saveToStorage();
+      this.saveToCache();
       this.notifyListeners("clear", null, []);
       console.log("🗑️ All user data cleared");
       return true;
@@ -1484,7 +1400,7 @@ class UserDataService {
 
     this.users = data.users;
     this.migrateData();
-    this.saveToStorage();
+    this.saveToCache();
     this.notifyListeners("import", data, [...this.users]);
     console.log("📥 Data imported:", this.users.length, "users");
     return true;

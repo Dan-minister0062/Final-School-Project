@@ -1,6 +1,6 @@
 // src/services/attendanceService.js
 import { teacherService } from './teacherService';
-import { STORAGE_KEYS } from '../utils/constants';
+import { CACHE_KEYS } from '../utils/constants';
 import { syncGet, syncSend } from './apiSync';
 
 // In-memory cache (no browser persistence).
@@ -52,7 +52,7 @@ class AttendanceService {
   }
 
   loadData() {
-    this.attendanceRecords = this._getData(STORAGE_KEYS.ATTENDANCE);
+    this.attendanceRecords = this._getData(CACHE_KEYS.ATTENDANCE);
   }
 
   // Sync flat server rows from /api/attendance into the record-per-class/date shape
@@ -99,7 +99,7 @@ class AttendanceService {
   }
 
   saveData() {
-    this._saveData(STORAGE_KEYS.ATTENDANCE, this.attendanceRecords);
+    this._saveData(CACHE_KEYS.ATTENDANCE, this.attendanceRecords);
     this._notifyListeners();
   }
 

@@ -353,14 +353,6 @@ const StudentResults = () => {
   useEffect(() => {
     loadResults();
 
-    const handleStorageChange = (e) => {
-      if (e.key === "school_assessments") {
-        console.log("🔄 Data changed, refreshing results");
-        loadResults();
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-
     const handleAssessmentChanged = () => {
       console.log("📝 Assessment changed, refreshing results");
       loadResults();
@@ -382,10 +374,9 @@ const StudentResults = () => {
     };
     const handleVisible = () => refreshFromServer();
     document.addEventListener("visibilitychange", handleVisible);
-    const pollTimer = setInterval(refreshFromServer, 30000);
+    const pollTimer = setInterval(refreshFromServer, 60000);
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("assessmentChanged", handleAssessmentChanged);
       window.removeEventListener("resultsUpdated", handleResultsUpdated);
       document.removeEventListener("visibilitychange", handleVisible);

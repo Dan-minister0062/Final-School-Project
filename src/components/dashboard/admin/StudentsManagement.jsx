@@ -135,7 +135,7 @@ const StudentsManagement = () => {
   // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
   // ===== SAVE USER TO STORAGE (for login) =====
   // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
-  const saveUserToStorage = async (userData) => {
+  const saveUserToServer = async (userData) => {
     try {
       const fullName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
       const payload = {
@@ -242,7 +242,7 @@ const StudentsManagement = () => {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  const loadClassesFromStorage = async () => {
+  const loadClassesFromServer = async () => {
     try {
       const res = await syncGet('/classes');
       const rows = Array.isArray(res?.data) ? res.data : (Array.isArray(res?.data?.data) ? res.data.data : []);
@@ -297,7 +297,7 @@ const StudentsManagement = () => {
   useEffect(() => {
     if (showAddModal) {
       console.log("🔓 Add modal opened, loading classes...");
-      loadClassesFromStorage();
+      loadClassesFromServer();
     }
   }, [showAddModal]);
 
@@ -419,7 +419,7 @@ const StudentsManagement = () => {
         updatedAt: new Date().toISOString(),
       };
 
-      const saved = await saveUserToStorage(studentData);
+      const saved = await saveUserToServer(studentData);
       
       if (saved) {
         const teacher = await findTeacherByClassId(formData.classId);
@@ -545,7 +545,7 @@ const StudentsManagement = () => {
         updatedStudent.password = editFormData.password;
       }
 
-      const saved = await saveUserToStorage(updatedStudent);
+      const saved = await saveUserToServer(updatedStudent);
       
       if (saved) {
         notify(

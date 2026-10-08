@@ -138,23 +138,14 @@ const RegistrationsManagement = () => {
       setTimeout(loadRegistrations, 300);
     };
 
-    const handleStorageChange = (event) => {
-      if (event.key === 'registrations' || event.key === 'registration_requests') {
-        console.log('🔔 Storage changed for:', event.key);
-        setTimeout(loadRegistrations, 300);
-      }
-    };
-
     window.addEventListener('newRegistration', handleNewRegistration);
     window.addEventListener('registrationSubmitted', handleNewRegistration);
     window.addEventListener('newNotification', handleNewRegistration);
-    window.addEventListener('storage', handleStorageChange);
-    
+
     return () => {
       window.removeEventListener('newRegistration', handleNewRegistration);
       window.removeEventListener('registrationSubmitted', handleNewRegistration);
       window.removeEventListener('newNotification', handleNewRegistration);
-      window.removeEventListener('storage', handleStorageChange);
     };
   }, [isArabic]);
 

@@ -110,21 +110,12 @@ const AdminNavbar = () => {
     };
 
     window.addEventListener('newNotification', handleNewNotification);
-    
-    // Also listen for storage changes from other tabs
-    const handleStorageChange = (e) => {
-      if (e.key === 'notifications') {
-        loadNotifications();
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
 
-    // Poll for changes every 5 seconds
-    const interval = setInterval(loadNotifications, 5000);
+    // Poll for changes periodically (30s keeps the cap clear of parallel pings)
+    const interval = setInterval(loadNotifications, 30000);
 
     return () => {
       window.removeEventListener('newNotification', handleNewNotification);
-      window.removeEventListener('storage', handleStorageChange);
       clearInterval(interval);
     };
   }, []);

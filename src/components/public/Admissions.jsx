@@ -1,5 +1,5 @@
 // src/components/public/Admissions.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Container,
   Row,
@@ -22,40 +22,9 @@ import {FaEnvelope, FaPhone, FaChild, FaCheckCircle, FaLock, FaUserPlus, FaSchoo
 import { useLanguage } from "../../context/LanguageContext";
 import { useNotification } from "../../hooks/useNotification";
 import { submitAdmission } from "../../services/admissionService";
+import { fetchServerClasses, toCatalogClasses, toCanonicalLevelKey } from "../../services/classService";
 
 // ===== ALWAYS use English numbers - NO Arabic numeral conversion =====
-
-// ===== Class options per education level =====
-const classOptions = {
-  kindergarden: [
-    'Introductory',
-    'Preparatory 1 -A-',
-    'Preparatory 1 -B-',
-    'Preparatory 2 -A-',
-    'Preparatory 2 -B-'
-  ],
-  primary: [
-    '1 -A-', '1 -B-',
-    '2 -A-', '2 -B-',
-    '3 -A-', '3 -B-',
-    '4 -A-', '4 -B-',
-    '5 -A-', '5 -B-',
-    '6 -A-', '6 -B-'
-  ],
-  secondary: [
-    'Secondary 1 -A-',
-    'Secondary 1 -B-',
-    'Secondary 2 -A-',
-    'Secondary 2 -B-',
-    'Secondary 3 -A-',
-    'Secondary 3 -B-'
-  ],
-  high_school: [
-    'Common Core Science',
-    '1st Baccalaureate Experimental Sciences',
-    '2nd Baccalaureate Physical Sciences'
-  ]
-};
 
 // ===== Extended Schema with all fields =====
 const admissionSchema = yup.object().shape({
@@ -136,6 +105,14 @@ const Admissions = () => {
   const [, setReportCardFile] = useState(null);
   const [, setSchoolCertificateFile] = useState(null);
 
+  // ===== CLASS CATALOG (MySQL GET /classes - public route) =====
+  const [classCatalog, setClassCatalog] = useState([]);
+  useEffect(() => {
+    fetchServerClasses().then((rows) => {
+      if (rows) setClassCatalog(toCatalogClasses(rows));
+    });
+  }, []);
+
   const {
     register,
     handleSubmit,
@@ -152,6 +129,9 @@ const Admissions = () => {
   });
 
   const selectedLevel = watch("level");
+  const levelClasses = selectedLevel
+    ? classCatalog.filter((c) => c.level === toCanonicalLevelKey(selectedLevel))
+    : [];
 
   // ===== ARABIC FONT STYLE =====
   const arabicFontStyle = {
@@ -1087,8 +1067,10 @@ const Admissions = () => {
                                   ? (isArabic ? "اختر الصف" : "Select class")
                                   : (isArabic ? "اختر المستوى أولاً" : "Select level first")}
                               </option>
-                              {selectedLevel && classOptions[selectedLevel]?.map((cls) => (
-                                <option key={cls} value={cls}>{cls}</option>
+                              {selectedLevel && levelClasses.map((cls) => (
+                                <option key={cls.id} value={cls.name}>
+                                  {isArabic && cls.nameAr ? cls.nameAr : cls.name}
+                                </option>
                               ))}
                             </Form.Select>
                             <Form.Control.Feedback type="invalid">

@@ -76,9 +76,13 @@ import { useLanguage } from "../../../context/LanguageContext";
 import { useAuth } from "../../../hooks/useAuth";
 import { useNotification } from "../../../hooks/useNotification";
 import notificationService from "../../../services/notificationService";
+import { fetchSections } from "../../../services/rbacService";
 import {
   fetchServerClasses,
   toCatalogClasses,
+  fetchServerSubjects,
+  toCatalogSubjects,
+  toCanonicalLevelKey,
 } from "../../../services/classService";
 import { format, formatDistanceToNow, isValid } from "date-fns";
 import { ar, enUS } from "date-fns/locale";
@@ -164,222 +168,6 @@ const UsersManagement = () => {
       : "clamp(0.8rem, 1vw, 1rem)",
   };
 
-  // ===== COMPLETE CLASSES LIST WITH ARABIC NAMES =====
-  const completeClassesList = [
-    // ===== KINDERGARTEN =====
-    { 
-      id: "kindergarten_intro", 
-      name: "Introductory", 
-      nameAr: "استئناس",
-      level: "kindergarten" 
-    },
-    { 
-      id: "kindergarten_prep1a", 
-      name: "Preparatory 1 -A-", 
-      nameAr: "التمهيدي الأول  -أ-",
-      level: "kindergarten" 
-    },
-    { 
-      id: "kindergarten_prep1b", 
-      name: "Preparatory 1 -B-", 
-      nameAr: "التمهيدي الأول  -ب-",
-      level: "kindergarten" 
-    },
-    { 
-      id: "kindergarten_prep2a", 
-      name: "Preparatory 2 -A-", 
-      nameAr: "التمهيدي الثاني  -أ-",
-      level: "kindergarten" 
-    },
-    { 
-      id: "kindergarten_prep2b", 
-      name: "Preparatory 2 -B-", 
-      nameAr: "التمهيدي الثاني  -ب-",
-      level: "kindergarten" 
-    },
-    
-    // ===== PRIMARY =====
-    { 
-      id: "primary_1a", 
-      name: "1 -A-", 
-      nameAr: "أول ابتدائي  -أ-",
-      level: "primary" 
-    },
-    { 
-      id: "primary_1b", 
-      name: "1 -B-", 
-      nameAr: "أول ابتدائي  -ب-",
-      level: "primary" 
-    },
-    { 
-      id: "primary_2a", 
-      name: "2 -A-", 
-      nameAr: "الثاني ابتدائي  -أ-",
-      level: "primary" 
-    },
-    { 
-      id: "primary_2b", 
-      name: "2 -B-", 
-      nameAr: "الثاني ابتدائي   -ب-",
-      level: "primary" 
-    },
-    { 
-      id: "primary_3a", 
-      name: "3 -A-", 
-      nameAr: "الثالث ابتدائي -أ-",
-      level: "primary" 
-    },
-    { 
-      id: "primary_3b", 
-      name: "3 -B-", 
-      nameAr: "الثالث ابتدائي  -ب-",
-      level: "primary" 
-    },
-    { 
-      id: "primary_4a", 
-      name: "4 -A-", 
-      nameAr: "الرابع ابتدائي  -أ-",
-      level: "primary" 
-    },
-    { 
-      id: "primary_4b", 
-      name: "4 -B-", 
-      nameAr: "الرابع ابتدائي  -ب-",
-      level: "primary" 
-    },
-    { 
-      id: "primary_5a", 
-      name: "5 -A-", 
-      nameAr: "الخامس ابتدائي  -أ-",
-      level: "primary" 
-    },
-    { 
-      id: "primary_5b", 
-      name: "5 -B-", 
-      nameAr: "الخامس ابتدائي  -ب-",
-      level: "primary" 
-    },
-    { 
-      id: "primary_6a", 
-      name: "6 -A-", 
-      nameAr: "السادس ابتدائي  -أ-",
-      level: "primary" 
-    },
-    { 
-      id: "primary_6b", 
-      name: "6 -B-", 
-      nameAr: "السادس ابتدائي  -ب-",
-      level: "primary" 
-    },
-    
-    // ===== SECONDARY =====
-    { 
-      id: "secondary_1a", 
-      name: "Secondary 1 -A-", 
-      nameAr: "أولى إعدادي  -أ-",
-      level: "secondary" 
-    },
-    { 
-      id: "secondary_1b", 
-      name: "Secondary 1 -B-", 
-      nameAr: "أولى إعدادي  -ب-",
-      level: "secondary" 
-    },
-    { 
-      id: "secondary_2a", 
-      name: "Secondary 2 -A-", 
-      nameAr: "الثانية إعدادي  -أ-",
-      level: "secondary" 
-    },
-    { 
-      id: "secondary_2b", 
-      name: "Secondary 2 -B-", 
-      nameAr: "الثانيةعدادي  -ب-",
-      level: "secondary" 
-    },
-    { 
-      id: "secondary_3a", 
-      name: "Secondary 3 -A-", 
-      nameAr: "الثالثة إعدادي  -أ-",
-      level: "secondary" 
-    },
-    { 
-      id: "secondary_3b", 
-      name: "Secondary 3 -B-", 
-      nameAr: "الثالثة إعدادي  -ب-",
-      level: "secondary" 
-    },
-    
-    // ===== HIGH SCHOOL =====
-    { 
-      id: "highschool_common_core", 
-      name: "Common Core Science", 
-      nameAr: "جذع مشترك علوم",
-      level: "high_school" 
-    },
-    { 
-      id: "highschool_1st_bac_experimental", 
-      name: "1st Baccalaureate Experimental Sciences", 
-      nameAr: "الأولى باك علوم تجريبية",
-      level: "high_school" 
-    },
-    { 
-      id: "highschool_2nd_bac_physical", 
-      name: "2nd Baccalaureate Physical Sciences", 
-      nameAr: "الثانية باك علوم فيزيائية",
-      level: "high_school" 
-    },
-  ];
-
-  // ===== COMPLETE SUBJECTS LIST WITH ARABIC NAMES =====
-  const completeSubjectsList = {
-    kindergarten: [
-      { value: 'quran_k', label: "Qur'an", labelAr: 'القرآن الكريم' },
-      { value: 'english_k', label: 'English', labelAr: 'اللغة الإنجليزية' },
-      { value: 'french_k', label: 'French', labelAr: 'اللغة الفرنسية' },
-      { value: 'arabic_k', label: 'Arabic', labelAr: 'اللغة العربية' },
-      { value: 'math_k', label: 'Mathematics', labelAr: 'الرياضيات' },
-      { value: 'art_k', label: 'Art', labelAr: 'الفنون' }
-    ],
-    primary: [
-      { value: 'quran_p', label: "Qur'an", labelAr: 'التربية الإسلامية والقرآن الكريم' },
-      { value: 'arabic_p', label: 'Arabic', labelAr: 'اللغة العربية' },
-      { value: 'english_p', label: 'English', labelAr: 'اللغة الإنجليزية' },
-      { value: 'french_p', label: 'French', labelAr: 'اللغة الفرنسية' },
-      { value: 'mathematics_p', label: 'Mathematics', labelAr: 'الرياضيات' },
-      { value: 'science_p', label: 'Science', labelAr: 'النشاط العلمي' },
-      { value: 'sports_p', label: 'Sports', labelAr: 'الرياضة' },
-      { value: 'ict_p', label: 'ICT', labelAr: ' الإعلاميات' },
-      { value: 'art_p', label: 'Art', labelAr: 'التربية التشكيلية' },
-      { value: 'geography_p', label: 'Geography', labelAr: 'الاجتماعيات' }
-    ],
-    secondary: [
-      { value: 'quran_s', label: "Qur'an", labelAr: 'التربية الإسلامية والقرآن الكريم' },
-      { value: 'arabic_s', label: 'Arabic', labelAr: 'اللغة العربية' },
-      { value: 'english_s', label: 'English', labelAr: 'اللغة الإنجليزية' },
-      { value: 'french_s', label: 'French', labelAr: 'اللغة الفرنسية' },
-      { value: 'mathematics_s', label: 'Mathematics', labelAr: 'الرياضيات' },
-      { value: 'svt_s', label: 'SVT (Biology)', labelAr: 'علوم الحياة والأرض' },
-      { value: 'physics_s', label: 'Physics', labelAr: 'الفيزياء' },
-      { value: 'sports_s', label: 'Sports', labelAr: 'الرياضة' },
-      { value: 'ict_s', label: 'ICT', labelAr: ' الاعلاميات' },
-      { value: 'geography_s', label: 'Geography', labelAr: 'الاجتماعيات' }
-    ],
-    high_school: [
-      { value: 'quran_h', label: "Qur'an", labelAr: 'التربية الإسلامية والقرآن الكريم' },
-      { value: 'arabic_h', label: 'Arabic', labelAr: 'اللغة العربية' },
-      { value: 'english_h', label: 'English', labelAr: 'اللغة الإنجليزية' },
-      { value: 'french_h', label: 'French', labelAr: 'اللغة الفرنسية' },
-      { value: 'mathematics_h', label: 'Mathematics', labelAr: 'الرياضيات' },
-      { value: 'svt_h', label: 'SVT (Biology)', labelAr: 'علوم الحياة والأرض' },
-      { value: 'physics_h', label: 'Physics', labelAr: 'الفيزياء' },
-      { value: 'sports_h', label: 'Sports', labelAr: 'الرياضة' },
-      { value: 'ict_h', label: 'ICT', labelAr: ' الإعلاميات' },
-      { value: 'geography_h', label: 'Geography', labelAr: 'الاجتماعيات' },
-      { value: 'philosophy_h', label: 'Philosophy', labelAr: 'الفلسفة' }
-    ]
-  };
-
   // ===== QUALIFICATIONS LIST =====
   const qualificationsList = [
     { value: "baccalaureate", label: isArabic ? "بكالوريا" : "Baccalaureate" },
@@ -443,72 +231,46 @@ const UsersManagement = () => {
     { value: "other", label: isArabic ? "أخرى" : "Other" },
   ];
 
-  // ===== GET SUBJECTS FOR LEVEL WITH ARABIC SUPPORT =====
+  // ===== GET SUBJECTS FOR LEVEL WITH ARABIC SUPPORT (from MySQL /subjects) =====
   const getSubjectsForLevel = (level) => {
-    try {
-      // Fallback to completeSubjectsList
-      const subjectsList = completeSubjectsList[level] || [];
-      return subjectsList.map((s) => ({
+    if (!level) return [];
+    const levelKey = toCanonicalLevelKey(level);
+    return (subjects || [])
+      .filter((s) => toCanonicalLevelKey(s.level || '') === levelKey)
+      .map((s) => ({
+        ...s,
         value: s.value,
-        label: isArabic ? (s.labelAr || s.label) : s.label,
+        label: isArabic ? s.nameAr || s.label : s.label,
       }));
-    } catch (e) {
-      console.error("Error getting subjects:", e);
-      // Fallback to completeSubjectsList
-      const subjectsList = completeSubjectsList[level] || [];
-      return subjectsList.map((s) => ({
-        value: s.value,
-        label: isArabic ? (s.labelAr || s.label) : s.label,
-      }));
-    }
   };
 
   // ===== GET SUBJECT LABEL WITH ARABIC SUPPORT =====
   const getSubjectDisplay = (subjectValue) => {
-    // Search in completeSubjectsList
-    for (const [level, subjects] of Object.entries(completeSubjectsList)) {
-      const found = subjects.find((s) => s.value === subjectValue);
-      if (found) {
-        return isArabic ? (found.labelAr || found.label) : found.label;
-      }
-    }
-    
-    return subjectValue;
+    if (!subjectValue) return subjectValue;
+    const found = (subjects || []).find(
+      (s) =>
+        s.value === subjectValue ||
+        s.code === subjectValue ||
+        s.label === subjectValue ||
+        s.nameEn === subjectValue ||
+        s.name === subjectValue
+    );
+    return found
+      ? isArabic
+        ? found.nameAr || found.label
+        : found.label
+      : subjectValue;
   };
 
   // ===== GET CLASS NAME WITH ARABIC SUPPORT =====
   const getClassName = (classId) => {
-    // First check in completeClassesList
-    const classFromList = completeClassesList.find((c) => c.id === classId);
-    if (classFromList) {
-      return isArabic ? (classFromList.nameAr || classFromList.name) : classFromList.name;
-    }
-    
-    // Try to get from classes state
+    if (!classId) return classId;
     const found = classes.find((c) => c.id === classId);
-    if (found) {
-      return isArabic ? (found.nameAr || found.name) : found.name;
-    }
-    
-    return classId;
-  };
-
-  // ===== GET CLASS NAME FOR DISPLAY IN TABLE =====
-  const getClassDisplayName = (classId) => {
-    const classInfo = completeClassesList.find(c => c.id === classId);
-    if (classInfo) {
-      return isArabic ? (classInfo.nameAr || classInfo.name) : classInfo.name;
-    }
-    return classId;
-  };
-
-  // ===== GET AVAILABLE CLASSES WITH ARABIC NAMES =====
-  const getAvailableClassesWithNames = (level) => {
-    const filtered = completeClassesList.filter((c) => c.level === level);
-    return filtered.map((c) => ({
-      ...c,
-      displayName: isArabic ? (c.nameAr || c.name) : c.name,
-    }));
+    return found
+      ? isArabic
+        ? found.nameAr || found.name
+        : found.name
+      : classId;
   };
 
   // ===== FORM DATA =====
@@ -543,6 +305,7 @@ const UsersManagement = () => {
     emergencyContactName: "",
     emergencyContactRelationship: "",
     emergencyContactPhone: "",
+    sectionId: "",
   });
 
   const [editFormData, setEditFormData] = useState({
@@ -573,9 +336,18 @@ const UsersManagement = () => {
     emergencyContactName: "",
     emergencyContactRelationship: "",
     emergencyContactPhone: "",
+    sectionId: "",
   });
 
   const locale = isArabic ? ar : enUS;
+
+  // Sections drive the Sub-Admin scoping picker shown for admin accounts.
+  const [sections, setSections] = useState([]);
+  useEffect(() => {
+    fetchSections()
+      .then((list) => setSections(Array.isArray(list) ? list : []))
+      .catch(() => setSections([]));
+  }, []);
 
   // ===== Check dark mode =====
   useEffect(() => {
@@ -700,21 +472,6 @@ const UsersManagement = () => {
     setTotalPages(Math.ceil(data.length / 10));
   };
 
-  // ===== GET CLASSES =====
-  const getClasses = () => {
-    return completeClassesList;
-  };
-
-  // ===== FETCH CLASSES =====
-  const fetchClasses = () => {
-    setClasses(completeClassesList);
-  };
-
-  // ===== FETCH SUBJECTS =====
-  const fetchSubjects = () => {
-    setSubjects([]);
-  };
-
   // ===== UPDATE AVAILABLE CLASSES BASED ON LEVEL =====
   useEffect(() => {
     if (formData.level) {
@@ -733,7 +490,7 @@ const UsersManagement = () => {
     } else {
       setAvailableSubjects([]);
     }
-  }, [formData.level]);
+  }, [formData.level, subjects]);
 
   // ===== HANDLE LEVEL CHANGE =====
   const handleLevelChange = (level) => {
@@ -745,26 +502,28 @@ const UsersManagement = () => {
     }));
   };
 
-  // ===== INITIAL LOAD =====
+  // ===== INITIAL LOAD (classes + subjects from MySQL) =====
   useEffect(() => {
-    fetchClasses();
-
     fetchServerClasses().then((rows) => {
-      if (rows) setClasses(toCatalogClasses(rows, completeClassesList));
+      if (rows) setClasses(toCatalogClasses(rows));
     });
 
-    fetchSubjects();
+    fetchServerSubjects().then((rows) => {
+      if (rows) setSubjects(toCatalogSubjects(rows));
+    });
   }, []);
 
   // ===== NORMALIZE SUBJECTS TO CATALOG CODES (labels -> codes) =====
   const toSubjectCodes = (level, list) => {
     if (!Array.isArray(list)) return [];
-    const options = level ? completeSubjectsList[level] || [] : [];
+    const options = getSubjectsForLevel(level);
     return list
       .map((s) => {
         const exact = options.find((o) => o.value === s);
         if (exact) return exact.value;
-        const byLabel = options.find((o) => o.label === s || o.labelAr === s);
+        const byLabel = options.find(
+          (o) => o.label === s || o.labelAr === s || o.nameEn === s || o.name === s
+        );
         if (byLabel) return byLabel.value;
         return s;
       })
@@ -793,7 +552,7 @@ const UsersManagement = () => {
     try {
       const mappedIds = assignedIds.map(assignedId => {
         // Try matching by name or Arabic name
-        const classMapping = completeClassesList.find(c => c.id === assignedId);
+        const classMapping = classes.find(c => c.id === assignedId);
         if (classMapping) {
           const nameMatch = classes.find(c => 
             c.name === classMapping.name || 
@@ -813,7 +572,7 @@ const UsersManagement = () => {
   };
 
   // ===== SAVE USER TO SERVER =====
-  const saveUserToStorage = async (userData) => {
+  const saveUserToServer = async (userData) => {
     try {
       const isEdit = Boolean(userData._serverId || (userData.id && /^\d+$/.test(String(userData.id))));
       const serverId = userData._serverId || (isEdit ? userData.id : null);
@@ -856,6 +615,14 @@ const UsersManagement = () => {
         className: userData.className || userData.class || '',
         classCode: userData.classCode || userData.class_code || userData.classId || '',
       };
+
+      // A section makes an admin account a Sub-Admin. Never send a null /
+      // empty section: the backend only re-tiers an admin when a section is
+      // actually present, so clearing the picker leaves the tier untouched.
+      const sectionValue = userData.sectionId ?? userData.section_id;
+      if (sectionValue !== undefined && sectionValue !== null && sectionValue !== '') {
+        payload.section_id = sectionValue;
+      }
 
       // A new account gets a working default password. Editing an existing
       // account must NEVER send a password unless the form provided a new one,
@@ -1072,6 +839,14 @@ const UsersManagement = () => {
         );
     }
 
+    if (formData.role === "admin" && !formData.sectionId) {
+      errors.push(
+        isArabic
+          ? "القسم مطلوب لحساب المدير (لإنشاء نائب مدير)"
+          : "Section is required for admin accounts (creates a Sub-Admin)",
+      );
+    }
+
     return errors;
   };
 
@@ -1111,6 +886,7 @@ const UsersManagement = () => {
         emergencyContactName: formData.emergencyContactName || "",
         emergencyContactRelationship: formData.emergencyContactRelationship || "",
         emergencyContactPhone: formData.emergencyContactPhone || "",
+        sectionId: formData.sectionId || "",
       };
 
       if (formData.role === "teacher") {
@@ -1156,7 +932,7 @@ const UsersManagement = () => {
         };
       }
 
-      const saved = await saveUserToStorage(userData);
+      const saved = await saveUserToServer(userData);
       
       if (saved) {
         notificationService.addNotification({
@@ -1230,6 +1006,7 @@ const UsersManagement = () => {
       emergencyContactName: "",
       emergencyContactRelationship: "",
       emergencyContactPhone: "",
+      sectionId: "",
     });
     setActiveTab("personal");
   };
@@ -1238,7 +1015,7 @@ const UsersManagement = () => {
   const handleEditUser = (user) => {
     const teacherLevel =
       user.role === "teacher"
-        ? deriveTeacherLevel(user, completeClassesList)
+        ? deriveTeacherLevel(user, classes)
         : user.level || "";
     setSelectedUser(user);
     setEditFormData({
@@ -1270,6 +1047,7 @@ const UsersManagement = () => {
       emergencyContactName: user.emergencyContactName || "",
       emergencyContactRelationship: user.emergencyContactRelationship || "",
       emergencyContactPhone: user.emergencyContactPhone || "",
+      sectionId: user.section_id || "",
     });
     setShowEditModal(true);
   };
@@ -1298,12 +1076,21 @@ const UsersManagement = () => {
         emergencyContactPhone: editFormData.emergencyContactPhone || selectedUser?.emergencyContactPhone || "",
         profilePhoto: editFormData.profilePhoto || "",
         avatar: editFormData.profilePhoto || selectedUser?.avatar || "",
+        // Only send the section when it actually changed: an unchanged (or
+        // empty) value is omitted, so edits never re-tier or re-scope an
+        // account by accident, and Sub-Admins are not blocked by the
+        // "cannot move between sections" guard.
+        sectionId:
+          editFormData.sectionId &&
+          String(editFormData.sectionId) !== String(selectedUser?.section_id ?? "")
+            ? editFormData.sectionId
+            : "",
       };
 
       if (editFormData.role === "teacher") {
         const mappedAssignedClasses = mapAssignedClassIds(editFormData.assignedClasses || []);
         const classLevels = mappedAssignedClasses
-          .map((id) => (completeClassesList.find((c) => c.id === id) || {}).level)
+          .map((id) => (classes.find((c) => c.id === id) || {}).level)
           .filter(Boolean);
         const effectiveLevel =
           classLevels.length > 0 ? classLevels[0] : editFormData.level;
@@ -1326,7 +1113,7 @@ const UsersManagement = () => {
         updatedUser.employer = editFormData.employer;
       }
 
-      const saved = await saveUserToStorage(updatedUser);
+      const saved = await saveUserToServer(updatedUser);
       
       if (saved) {
         notify(
@@ -3695,6 +3482,49 @@ const UsersManagement = () => {
               </div>
             </div>
 
+            {/* Admin accounts are scoped to a section: with one they become a
+                Sub-Admin managing only that section. */}
+            {formData.role === "admin" && (
+              <Form.Group className="mb-4">
+                <Form.Label
+                  className="fw-semibold d-block mb-2"
+                  style={{
+                    ...arabicFontStyle,
+                    color: darkMode ? "#e9ecef" : "#212529",
+                    fontSize: "clamp(0.75rem, 0.9vw, 0.9rem)",
+                  }}
+                >
+                  {isArabic
+                    ? "القسم (يُنشئ نائب مدير يدير هذا القسم فقط) *"
+                    : "Section (creates a Sub-Admin for this section only) *"}
+                </Form.Label>
+                <Form.Select
+                  value={formData.sectionId}
+                  onChange={(e) =>
+                    setFormData({ ...formData, sectionId: e.target.value })
+                  }
+                  style={{
+                    ...arabicFontStyle,
+                    background: darkMode ? "#2d2d44" : "white",
+                    color: darkMode ? "#e9ecef" : "#212529",
+                    borderRadius: "12px",
+                    fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                  }}
+                >
+                  <option value="">
+                    {isArabic ? "اختر القسم" : "Select section"}
+                  </option>
+                  {sections.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {isArabic
+                        ? s.name_ar || s.name
+                        : s.name_en || s.name}
+                    </option>
+                  ))}
+                </Form.Select>
+              </Form.Group>
+            )}
+
             {/* Tab Navigation */}
             <div className="form-tabs mb-4">
               <div
@@ -5488,6 +5318,55 @@ const UsersManagement = () => {
                 </Form.Group>
               </Col>
             </Row>
+
+            {/* Editing an admin account can re-scope it: picking a section
+                turns the account into a Sub-Admin of that section. */}
+            {editFormData.role === "admin" && (
+              <Row className="mt-2">
+                <Col md={12}>
+                  <Form.Group className="mb-3">
+                    <Form.Label
+                      style={{
+                        ...arabicFontStyle,
+                        color: darkMode ? "#e9ecef" : "#212529",
+                        fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
+                      }}
+                    >
+                      {isArabic
+                        ? "القسم (نائب مدير — اتركه فارغاً لعدم تغيير الصلاحية)"
+                        : "Section (Sub-Admin — leave empty to keep the current tier)"}
+                    </Form.Label>
+                    <Form.Select
+                      value={editFormData.sectionId}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          sectionId: e.target.value,
+                        })
+                      }
+                      style={{
+                        ...arabicFontStyle,
+                        background: darkMode ? "#2d2d44" : "white",
+                        color: darkMode ? "#e9ecef" : "#212529",
+                        borderRadius: "12px",
+                        fontSize: "clamp(0.75rem, 0.9vw, 1rem)",
+                      }}
+                    >
+                      <option value="">
+                        {isArabic ? "بدون تغيير" : "No change"}
+                      </option>
+                      {sections.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {isArabic
+                            ? s.name_ar || s.name
+                            : s.name_en || s.name}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+            )}
 
             {/* ===== EMERGENCY CONTACT (for all) ===== */}
             <div className="section-divider mt-3">

@@ -59,9 +59,9 @@ export async function fetchServerClasses() {
 
 /**
  * Normalize server rows into the catalog shape used by StudentsManagement,
- * UsersManagement and TeachersManagement: { id, name, level }.
- * `fallbackList` is the component's own hardcoded list — used to localize
- * names exactly as before and as identity for canonical rows.
+ * UsersManagement and TeachersManagement: { id, name, nameEn, nameAr, level }.
+ * Class rows come from MySQL (GET /classes), so names always come from the DB.
+ * `fallbackList` is optional and only used to fill gaps the DB does not have.
  */
 export function toCatalogClasses(rows, fallbackList) {
   return rows.map((row) => {
@@ -70,11 +70,54 @@ export function toCatalogClasses(rows, fallbackList) {
       ? fallbackList.find((f) => f.id === id)
       : null;
     const levelKey = toCanonicalLevelKey(row.level_key ?? row.levelKey ?? '');
+    const nameEn = row.nameEn ?? row.name_en ?? row.name ?? (fb ? fb.nameEn || fb.name : id);
+    const nameAr = row.nameAr ?? row.name_ar ?? (fb ? fb.nameAr || fb.name : nameEn);
     return {
       id,
-      name: fb ? fb.name : row.name,
-      nameEn: row.nameEn ?? row.name_en ?? (fb ? fb.nameEn || fb.name : null) ?? row.name,
-      nameAr: row.nameAr ?? row.name_ar ?? (fb ? fb.nameAr || fb.name : null) ?? row.name,
+      name: nameEn,
+      nameEn,
+      nameAr,
+      level: levelKey,
+      section_id: row.section_id ?? row.sectionId ?? (fb ? fb.section_id ?? null : null),
+    };
+  });
+}
+
+// Fetch raw subject rows from MySQL (GET /subjects). Returns null on failure/empty.
+export async function fetchServerSubjects() {
+  try {
+    const res = await syncGet('/subjects', { limit: 100 });
+    const list = Array.isArray(res?.allData)
+      ? res.allData
+      : Array.isArray(res?.data)
+        ? res.data
+        : null;
+    return list && list.length > 0 ? list : null;
+  } catch (err) {
+    console.warn('[classService] subjects load failed:', err?.message);
+    return null;
+  }
+}
+
+/**
+ * Normalize subject rows into the catalog shape used by admin/teacher screens:
+ * { value, code, label, labelAr, name, nameEn, nameAr, level }.
+ * Data comes from MySQL; level is canonicalized to a section key.
+ */
+export function toCatalogSubjects(rows) {
+  if (!Array.isArray(rows)) return [];
+  return rows.map((row) => {
+    const nameEn = row.nameEn ?? row.name_en ?? row.name ?? '';
+    const nameAr = row.nameAr ?? row.name_ar ?? '';
+    const levelKey = toCanonicalLevelKey(row.level ?? row.level_key ?? row.category ?? '');
+    return {
+      value: row.code ?? String(row.id),
+      code: row.code ?? String(row.id),
+      label: nameEn,
+      labelAr: nameAr || nameEn,
+      name: nameEn,
+      nameEn,
+      nameAr,
       level: levelKey,
     };
   });

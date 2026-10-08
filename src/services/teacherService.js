@@ -32,7 +32,7 @@ const notifyListeners = (data) => {
 // ===== HELPER FUNCTIONS =====
 // ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== ===== =====
 
-const getFromStorage = (key, defaultValue = []) => {
+const getFromCache = (key, defaultValue = []) => {
   try {
     return memoryCache.has(key) ? memoryCache.get(key) : defaultValue;
   } catch (error) {
@@ -41,7 +41,7 @@ const getFromStorage = (key, defaultValue = []) => {
   }
 };
 
-const saveToStorage = (key, data) => {
+const saveToCache = (key, data) => {
   try {
     memoryCache.set(key, data);
     return true;
@@ -191,7 +191,7 @@ const getCurrentTeacher = () => {
     }
 
     // Fall back to any teacher held in the in-memory cache.
-    const users = getFromStorage('school_users');
+    const users = getFromCache('school_users');
     const teacher = users.find(u => u.role === 'teacher');
     if (teacher) {
       console.log('✅ Teacher found in school_users:', teacher.id);
@@ -217,7 +217,7 @@ const setCurrentTeacher = (teacher) => {
       return false;
     }
 
-    saveToStorage('currentUser', teacher);
+    saveToCache('currentUser', teacher);
     console.log('✅ Current teacher set:', teacher.id);
 
     // Notify listeners
@@ -274,10 +274,10 @@ const getAssignedClasses = (teacherId, allClasses = null, language = null) => {
       const current = getCurrentTeacher();
       if (current) teacherId = current.id;
     }
-    const users = getFromStorage('school_users');
+    const users = getFromCache('school_users');
     let teacher = users.find(u => u.id === teacherId || String(u._serverId) === String(teacherId));
     if (!teacher && teacherId != null) {
-      const authUser = getFromStorage('user');
+      const authUser = getFromCache('user');
       if (authUser && authUser.role === 'teacher' && String(authUser.id) === String(teacherId)) {
         teacher = authUser;
       }
@@ -293,7 +293,7 @@ const getAssignedClasses = (teacherId, allClasses = null, language = null) => {
     
     // If assignedClassIds is empty, try to get from school_teachers
     if (!assignedClassIds || assignedClassIds.length === 0) {
-      const teachers = getFromStorage('school_teachers');
+      const teachers = getFromCache('school_teachers');
       const teacherFromTeachers = teachers.find(t => t.id === teacherId);
       if (teacherFromTeachers) {
         assignedClassIds = teacherFromTeachers.assignedClasses || teacherFromTeachers.classes || [];
@@ -309,7 +309,7 @@ const getAssignedClasses = (teacherId, allClasses = null, language = null) => {
     }
     
     // Get all classes
-    const classes = allClasses || getFromStorage('school_classes');
+    const classes = allClasses || getFromCache('school_classes');
     console.log(`📚 All classes count: ${classes.length}`);
     console.log(`📚 All class IDs:`, classes.map(c => c.id));
     console.log(`📚 All class names:`, classes.map(c => c.name));
@@ -364,8 +364,8 @@ const getAssignedStudents = (teacherId, assignedClasses = null) => {
     // Get all students (MySQL-backed roster seeded from /students; fall back to
     // the users-derived store, deduped by id).
     const allStudents = [
-      ...getFromStorage('students_roster'),
-      ...getFromStorage('school_students'),
+      ...getFromCache('students_roster'),
+      ...getFromCache('school_students'),
     ];
     const seen = new Set();
     const students = allStudents.filter((s) => {
@@ -419,10 +419,10 @@ const getTeacherWithData = (teacherId, language = null) => {
     
     // Get the teacher from users (fall back to the authenticated teacher
     // payload which carries assigned_classes/subjects straight from MySQL).
-    const users = getFromStorage('school_users');
+    const users = getFromCache('school_users');
     let teacher = users.find(u => u.id === teacherId || String(u._serverId) === String(teacherId));
     if (!teacher && teacherId != null) {
-      const authUser = getFromStorage('user');
+      const authUser = getFromCache('user');
       if (authUser && authUser.role === 'teacher' && String(authUser.id) === String(teacherId)) {
         teacher = authUser;
       }
@@ -563,7 +563,7 @@ const getDashboardStats = (teacherId, language = null) => {
  */
 const getTeacherAssessments = (teacherId) => {
   try {
-    const assessments = getFromStorage('school_assessments');
+    const assessments = getFromCache('school_assessments');
     
     // If no teacherId, get current teacher
     if (!teacherId) {
@@ -596,7 +596,7 @@ const getTeacherAssessments = (teacherId) => {
  */
 const getTeacherNotifications = (teacherId) => {
   try {
-    const notifications = getFromStorage('school_notifications');
+    const notifications = getFromCache('school_notifications');
     
     // If no teacherId, get current teacher
     if (!teacherId) {
@@ -633,7 +633,7 @@ const getTeacherNotifications = (teacherId) => {
  */
 const getTodayAttendance = (teacherId) => {
   try {
-    const attendance = getFromStorage('school_attendance');
+    const attendance = getFromCache('school_attendance');
     const today = new Date().toISOString().split('T')[0];
     
     // If no teacherId, get current teacher
@@ -681,7 +681,7 @@ const getTodayAttendance = (teacherId) => {
  */
 const notifyTeacherAboutNewClass = (teacherId, className, classId) => {
   try {
-    const notifications = getFromStorage('school_notifications');
+    const notifications = getFromCache('school_notifications');
     const notification = {
       id: `NOT${String(notifications.length + 1).padStart(3, '0')}`,
       title: '📚 New Class Assigned',
@@ -695,7 +695,7 @@ const notifyTeacherAboutNewClass = (teacherId, className, classId) => {
       link: `/dashboard/teacher/classes/${classId}`,
     };
     notifications.push(notification);
-    saveToStorage('school_notifications', notifications);
+    saveToCache('school_notifications', notifications);
     console.log(`🔔 Notification sent to teacher about new class: ${className}`);
     
     // Dispatch event
@@ -725,7 +725,7 @@ const updateTeacherClasses = (teacherId, classIds) => {
     console.log(`📚 Updating teacher ${teacherId} classes:`, classIds);
     
     // Update in school_users
-    const users = getFromStorage('school_users');
+    const users = getFromCache('school_users');
     const userIndex = users.findIndex(u => u.id === teacherId);
     
     if (userIndex === -1) {
@@ -735,20 +735,20 @@ const updateTeacherClasses = (teacherId, classIds) => {
     
     users[userIndex].assignedClasses = classIds;
     users[userIndex].classes = classIds;
-    saveToStorage('school_users', users);
+    saveToCache('school_users', users);
     
     // Update in school_teachers
-    const teachers = getFromStorage('school_teachers');
+    const teachers = getFromCache('school_teachers');
     const teacherIndex = teachers.findIndex(t => t.id === teacherId);
     
     if (teacherIndex !== -1) {
       teachers[teacherIndex].assignedClasses = classIds;
       teachers[teacherIndex].classes = classIds;
-      saveToStorage('school_teachers', teachers);
+      saveToCache('school_teachers', teachers);
     }
     
     // Update classes to include teacher ID
-    const classes = getFromStorage('school_classes');
+    const classes = getFromCache('school_classes');
     const updatedClasses = classes.map(cls => {
       if (classIds.includes(cls.id)) {
         const existingTeachers = cls.assignedTeachers || [];
@@ -767,7 +767,7 @@ const updateTeacherClasses = (teacherId, classIds) => {
       }
       return cls;
     });
-    saveToStorage('school_classes', updatedClasses);
+    saveToCache('school_classes', updatedClasses);
     
     console.log(`✅ Teacher ${teacherId} classes updated successfully`);
     
@@ -895,8 +895,8 @@ const getStudentsByClass = (classId) => {
   try {
     if (classId == null) return [];
     const allStudents = [
-      ...getFromStorage('students_roster'),
-      ...getFromStorage('school_students'),
+      ...getFromCache('students_roster'),
+      ...getFromCache('school_students'),
     ];
     const seen = new Set();
     const unique = allStudents.filter((s) => {
@@ -932,7 +932,7 @@ const saveTeacher = (teacherData) => {
     if (!teacherData) return null;
     const teacherPayload = { ...teacherData, role: 'teacher' };
 
-    const users = getFromStorage('school_users');
+    const users = getFromCache('school_users');
     const existingIdx = users.findIndex(
       (u) =>
         u.id === teacherData.id ||
@@ -944,9 +944,9 @@ const saveTeacher = (teacherData) => {
     } else {
       users.push(teacherPayload);
     }
-    saveToStorage('school_users', users);
+    saveToCache('school_users', users);
 
-    const teachers = getFromStorage('school_teachers');
+    const teachers = getFromCache('school_teachers');
     const tIdx = teachers.findIndex(
       (t) => t.id === teacherData.id || t.email === teacherData.email
     );
@@ -955,7 +955,7 @@ const saveTeacher = (teacherData) => {
     } else {
       teachers.push(teacherPayload);
     }
-    saveToStorage('school_teachers', teachers);
+    saveToCache('school_teachers', teachers);
 
     notifyListeners(teacherPayload);
     return teacherPayload;
@@ -996,12 +996,12 @@ export const teacherService = {
   
   // Utility functions
   getTeacher: (teacherId) => {
-    const users = getFromStorage('school_users');
+    const users = getFromCache('school_users');
     return users.find(u => u.id === teacherId) || null;
   },
   
   getAllTeachers: () => {
-    const users = getFromStorage('school_users');
+    const users = getFromCache('school_users');
     return users.filter(u => u.role === 'teacher');
   },
   

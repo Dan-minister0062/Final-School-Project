@@ -18,6 +18,7 @@ import { useNotification } from '../../../hooks/useNotification';
 import { syncGet, syncSend } from '../../../services/apiSync';
 import { useAuth } from '../../../hooks/useAuth';
 import notificationService from '../../../services/notificationService';
+import { fetchServerSubjects, toCatalogSubjects, toCanonicalLevelKey } from '../../../services/classService';
 
 // ===== ALWAYS use English numbers =====
 const formatNumber = (num) => {
@@ -217,6 +218,7 @@ const TeacherAssessments = () => {
   const [submitting, setSubmitting] = useState(false);
   const [availableSubjects, setAvailableSubjects] = useState([]);
   const [selectedClassLevel, setSelectedClassLevel] = useState('');
+  const [subjectCatalog, setSubjectCatalog] = useState([]);
   const [showSubmissionViewModal, setShowSubmissionViewModal] = useState(false);
   const [viewingSubmission, setViewingSubmission] = useState(null);
   const [, setAttachmentFileName] = useState('');
@@ -259,6 +261,13 @@ const TeacherAssessments = () => {
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // ===== LOAD SUBJECT CATALOG FROM MySQL /subjects =====
+  useEffect(() => {
+    fetchServerSubjects().then((rows) => {
+      if (rows) setSubjectCatalog(toCatalogSubjects(rows));
+    });
   }, []);
 
   // ===== FORM DATA =====
@@ -345,113 +354,27 @@ const TeacherAssessments = () => {
     return filteredSubjects;
   };
 
-  // ===== GET DEFAULT SUBJECTS FOR LEVEL =====
+  // ===== GET DEFAULT SUBJECTS FOR LEVEL (from MySQL /subjects) =====
   const getDefaultSubjectsForLevel = (level) => {
-    const defaultSubjectsByCategory = {
-      kindergarten: [
-        { value: 'quran_k', label: "Qur'an", labelAr: 'القرآن الكريم' },
-        { value: 'english_k', label: 'English', labelAr: 'اللغة الإنجليزية' },
-        { value: 'french_k', label: 'French', labelAr: 'اللغة الفرنسية' },
-        { value: 'arabic_k', label: 'Arabic', labelAr: 'اللغة العربية' }
-      ],
-      primary: [
-        { value: 'quran_p', label: "Qur'an", labelAr: 'القرآن الكريم' },
-        { value: 'arabic_p', label: 'Arabic', labelAr: 'اللغة العربية' },
-        { value: 'english_p', label: 'English', labelAr: 'اللغة الإنجليزية' },
-        { value: 'french_p', label: 'French', labelAr: 'اللغة الفرنسية' },
-        { value: 'mathematics_p', label: 'Mathematics', labelAr: 'الرياضيات' },
-        { value: 'science_p', label: 'Science', labelAr: 'العلوم' },
-        { value: 'sports_p', label: 'Sports', labelAr: 'الرياضة' },
-        { value: 'ict_p', label: 'ICT', labelAr: 'تكنولوجيا المعلومات' },
-        { value: 'art_p', label: 'Art & Plastic', labelAr: 'الفنون التشكيلية' },
-        { value: 'geography_p', label: 'Geography', labelAr: 'الجغرافيا' }
-      ],
-      secondary: [
-        { value: 'quran_s', label: "Qur'an", labelAr: 'القرآن الكريم' },
-        { value: 'arabic_s', label: 'Arabic', labelAr: 'اللغة العربية' },
-        { value: 'english_s', label: 'English', labelAr: 'اللغة الإنجليزية' },
-        { value: 'french_s', label: 'French', labelAr: 'اللغة الفرنسية' },
-        { value: 'mathematics_s', label: 'Mathematics', labelAr: 'الرياضيات' },
-        { value: 'svt_s', label: 'SVT (Biology)', labelAr: 'علوم الحياة والأرض' },
-        { value: 'physics_s', label: 'Physics', labelAr: 'الفيزياء' },
-        { value: 'sports_s', label: 'Sports', labelAr: 'الرياضة' },
-        { value: 'ict_s', label: 'ICT', labelAr: 'تكنولوجيا المعلومات' },
-        { value: 'geography_s', label: 'Geography', labelAr: 'الجغرافيا' }
-      ],
-      high_school: [
-        { value: 'quran_h', label: "Qur'an", labelAr: 'القرآن الكريم' },
-        { value: 'arabic_h', label: 'Arabic', labelAr: 'اللغة العربية' },
-        { value: 'english_h', label: 'English', labelAr: 'اللغة الإنجليزية' },
-        { value: 'french_h', label: 'French', labelAr: 'اللغة الفرنسية' },
-        { value: 'mathematics_h', label: 'Mathematics', labelAr: 'الرياضيات' },
-        { value: 'svt_h', label: 'SVT (Biology)', labelAr: 'علوم الحياة والأرض' },
-        { value: 'physics_h', label: 'Physics', labelAr: 'الفيزياء' },
-        { value: 'sports_h', label: 'Sports', labelAr: 'الرياضة' },
-        { value: 'ict_h', label: 'ICT', labelAr: 'تكنولوجيا المعلومات' },
-        { value: 'geography_h', label: 'Geography', labelAr: 'الجغرافيا' },
-        { value: 'philosophy_h', label: 'Philosophy', labelAr: 'الفلسفة' }
-      ]
-    };
-    
-    return defaultSubjectsByCategory[level] || [];
+    if (!level) return [];
+    const levelKey = toCanonicalLevelKey(level);
+    return (subjectCatalog || []).filter(
+      (s) => toCanonicalLevelKey(s.level || '') === levelKey
+    );
   };
 
   // ===== GET SUBJECT LABEL WITH ARABIC =====
   const getSubjectLabel = (subjectLabel) => {
     if (!subjectLabel) return '';
-    const defaultSubjectsByCategory = {
-      kindergarten: [
-        { value: 'quran_k', label: "Qur'an", labelAr: 'القرآن الكريم' },
-        { value: 'english_k', label: 'English', labelAr: 'اللغة الإنجليزية' },
-        { value: 'french_k', label: 'French', labelAr: 'اللغة الفرنسية' },
-        { value: 'arabic_k', label: 'Arabic', labelAr: 'اللغة العربية' }
-      ],
-      primary: [
-        { value: 'quran_p', label: "Qur'an", labelAr: 'القرآن الكريم' },
-        { value: 'arabic_p', label: 'Arabic', labelAr: 'اللغة العربية' },
-        { value: 'english_p', label: 'English', labelAr: 'اللغة الإنجليزية' },
-        { value: 'french_p', label: 'French', labelAr: 'اللغة الفرنسية' },
-        { value: 'mathematics_p', label: 'Mathematics', labelAr: 'الرياضيات' },
-        { value: 'science_p', label: 'Science', labelAr: 'العلوم' },
-        { value: 'sports_p', label: 'Sports', labelAr: 'الرياضة' },
-        { value: 'ict_p', label: 'ICT', labelAr: 'تكنولوجيا المعلومات' },
-        { value: 'art_p', label: 'Art & Plastic', labelAr: 'الفنون التشكيلية' },
-        { value: 'geography_p', label: 'Geography', labelAr: 'الجغرافيا' }
-      ],
-      secondary: [
-        { value: 'quran_s', label: "Qur'an", labelAr: 'القرآن الكريم' },
-        { value: 'arabic_s', label: 'Arabic', labelAr: 'اللغة العربية' },
-        { value: 'english_s', label: 'English', labelAr: 'اللغة الإنجليزية' },
-        { value: 'french_s', label: 'French', labelAr: 'اللغة الفرنسية' },
-        { value: 'mathematics_s', label: 'Mathematics', labelAr: 'الرياضيات' },
-        { value: 'svt_s', label: 'SVT (Biology)', labelAr: 'علوم الحياة والأرض' },
-        { value: 'physics_s', label: 'Physics', labelAr: 'الفيزياء' },
-        { value: 'sports_s', label: 'Sports', labelAr: 'الرياضة' },
-        { value: 'ict_s', label: 'ICT', labelAr: 'تكنولوجيا المعلومات' },
-        { value: 'geography_s', label: 'Geography', labelAr: 'الجغرافيا' }
-      ],
-      high_school: [
-        { value: 'quran_h', label: "Qur'an", labelAr: 'القرآن الكريم' },
-        { value: 'arabic_h', label: 'Arabic', labelAr: 'اللغة العربية' },
-        { value: 'english_h', label: 'English', labelAr: 'اللغة الإنجليزية' },
-        { value: 'french_h', label: 'French', labelAr: 'اللغة الفرنسية' },
-        { value: 'mathematics_h', label: 'Mathematics', labelAr: 'الرياضيات' },
-        { value: 'svt_h', label: 'SVT (Biology)', labelAr: 'علوم الحياة والأرض' },
-        { value: 'physics_h', label: 'Physics', labelAr: 'الفيزياء' },
-        { value: 'sports_h', label: 'Sports', labelAr: 'الرياضة' },
-        { value: 'ict_h', label: 'ICT', labelAr: 'تكنولوجيا المعلومات' },
-        { value: 'geography_h', label: 'Geography', labelAr: 'الجغرافيا' },
-        { value: 'philosophy_h', label: 'Philosophy', labelAr: 'الفلسفة' }
-      ]
-    };
-    
-    for (const level of Object.keys(defaultSubjectsByCategory)) {
-      const found = defaultSubjectsByCategory[level].find(s => s.label === subjectLabel);
-      if (found) {
-        return isArabic ? found.labelAr : found.label;
-      }
-    }
-    return subjectLabel;
+    const found = (subjectCatalog || []).find(
+      (s) =>
+        s.label === subjectLabel ||
+        s.nameEn === subjectLabel ||
+        s.name === subjectLabel ||
+        s.value === subjectLabel ||
+        s.code === subjectLabel
+    );
+    return found ? (isArabic ? (found.labelAr || found.label) : found.label) : subjectLabel;
   };
 
   // ===== GET LEVEL LABEL =====

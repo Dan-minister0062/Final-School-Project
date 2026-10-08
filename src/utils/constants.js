@@ -1,7 +1,7 @@
 // src/utils/constants.js
 
-// Persistence keys used by in-memory service caches (data itself lives in MySQL)
-export const STORAGE_KEYS = {
+// Cache keys used by in-memory service caches (data itself lives in MySQL)
+export const CACHE_KEYS = {
   USERS: 'school_users',
   STUDENTS: 'school_students',
   CLASSES: 'school_classes',
@@ -192,14 +192,6 @@ export const ASSESSMENT_STATUS = {
   CLOSED: 'closed'
 };
 
-// Default Subjects by Level
-export const SUBJECTS = {
-  FREE_SCHOOL: ['Islamic Studies', 'Language Arts', 'Math', 'Science', 'Art & Craft', 'Physical Education'],
-  NURSERY: ['Islamic Studies', 'Language Arts', 'Math', 'Science', 'Art & Craft', 'Physical Education'],
-  PRIMARY: ['Islamic Studies', 'English', 'Mathematics', 'Science', 'Social Studies', 'ICT', 'Arabic'],
-  SECONDARY: ['Islamic Studies', 'English', 'Mathematics', 'Physics', 'Chemistry', 'Biology', 'ICT', 'Arabic']
-};
-
 // School Programs
 export const SCHOOL_PROGRAMS = {
   FREE_SCHOOL: 'free_school',
@@ -267,7 +259,7 @@ export const getSchoolLevelLabel = (levelId, isArabic = false) => {
 
 // Export all as default for convenience
 export default {
-  STORAGE_KEYS,
+  CACHE_KEYS,
   ASSESSMENT_TYPES,
   ATTENDANCE_STATUSES,
   NOTIFICATION_TYPES,
@@ -280,7 +272,6 @@ export default {
   GENDER,
   STATUS,
   ASSESSMENT_STATUS,
-  SUBJECTS,
   SCHOOL_PROGRAMS,
   getGradeFromPercentage,
   getGradeDescription,

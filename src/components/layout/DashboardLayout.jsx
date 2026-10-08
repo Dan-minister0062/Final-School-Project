@@ -2,10 +2,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Container, Nav, Navbar, NavDropdown, Button, Badge, Offcanvas } from 'react-bootstrap';
 import { Link, useNavigate, useLocation, Outlet } from 'react-router-dom';
-import {FaUserGraduate, FaChalkboardTeacher, FaBuilding, FaBullhorn, FaCalendarCheck, FaUserPlus, FaFileAlt, FaCog, FaUser, FaSignOutAlt, FaBars, FaBell, FaMoon, FaSun, FaSchool, FaTachometerAlt, FaAward, FaClock, FaChevronDown, FaLanguage, FaCheckDouble, FaTimes, FaUsers, FaUserCog, FaBook, FaBookOpen, FaClipboardList, FaEnvelope} from 'react-icons/fa';
+import {FaUserGraduate, FaChalkboardTeacher, FaBuilding, FaBullhorn, FaCalendarCheck, FaUserPlus, FaFileAlt, FaCog, FaUser, FaSignOutAlt, FaBars, FaBell, FaMoon, FaSun, FaSchool, FaTachometerAlt, FaAward, FaClock, FaChevronDown, FaLanguage, FaCheckDouble, FaTimes, FaUsers, FaUserCog, FaBook, FaBookOpen, FaClipboardList, FaEnvelope, FaUserShield} from 'react-icons/fa';
 import { useAuth } from '../../hooks/useAuth';
 import { useLanguage } from '../../context/LanguageContext';
 import { useNotification } from '../../hooks/useNotification';
+import { useRbac } from '../../context/RbacContext';
 import notificationService from '../../services/notificationService';
 import logo from "../../assets/images/school logo.jpeg";
 
@@ -22,6 +23,7 @@ const DashboardLayout = () => {
   const { user, logout } = useAuth();
   const {  toggleLanguage, isArabic } = useLanguage();
   const { notify } = useNotification();
+  const { isSuperAdmin } = useRbac();
 
   // ===== Get user role =====
   const getUserRole = () => {
@@ -110,7 +112,7 @@ const DashboardLayout = () => {
     };
     const handleVisible = () => refreshFromServer();
     document.addEventListener("visibilitychange", handleVisible);
-    const pollTimer = setInterval(refreshFromServer, 45000);
+    const pollTimer = setInterval(refreshFromServer, 60000);
 
     return () => {
       if (unsubscribe) unsubscribe();
@@ -195,6 +197,9 @@ const DashboardLayout = () => {
       return [
         ...baseItems,
         { path: '/dashboard/admin/users', icon: <FaUserCog />, label: isArabic ? 'المستخدمين' : 'Users' },
+        ...(isSuperAdmin ? [
+          { path: '/dashboard/admin/subadmins', icon: <FaUserShield />, label: isArabic ? 'نائبو المدير' : 'Sub Admins' },
+        ] : []),
         { path: '/dashboard/admin/teachers', icon: <FaChalkboardTeacher />, label: isArabic ? 'المعلمون' : 'Teachers' },
         { path: '/dashboard/admin/parents', icon: <FaUsers />, label: isArabic ? 'أولياء الأمور' : 'Parents' },
         { path: '/dashboard/admin/students', icon: <FaUserGraduate />, label: isArabic ? 'الطلاب' : 'Students' },

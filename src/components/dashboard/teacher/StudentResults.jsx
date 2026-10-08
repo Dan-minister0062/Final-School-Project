@@ -259,15 +259,6 @@ const StudentResults = () => {
   useEffect(() => {
     loadData();
 
-    // Listen for storage changes
-    const handleStorageChange = (e) => {
-      if (e.key === "school_assessments") {
-        console.log("🔄 Assessments changed, refreshing results");
-        loadData();
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-
     // Listen for custom events
     const handleAssessmentChanged = () => {
       console.log("📝 Assessment changed, refreshing results");
@@ -276,7 +267,6 @@ const StudentResults = () => {
     window.addEventListener("assessmentChanged", handleAssessmentChanged);
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("assessmentChanged", handleAssessmentChanged);
     };
   }, []);

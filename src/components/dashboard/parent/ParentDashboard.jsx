@@ -238,11 +238,14 @@ const ParentDashboard = () => {
       if (parentChildren.length > 0) {
         let enrichedChildren;
         try {
-          const [classesRes, assessmentsRes, submissionsRes, attendanceRes, announcementsRes, subjectsRes] =
+          const [classesRes, assessmentsRes, submissionsRes] =
             await Promise.all([
               syncGet("/classes"),
               syncGet("/assessments"),
               syncGet("/submissions"),
+            ]);
+          const [attendanceRes, announcementsRes, subjectsRes] =
+            await Promise.all([
               syncGet("/attendance"),
               syncGet("/announcements/published"),
               syncGet("/subjects", { limit: 100 }),

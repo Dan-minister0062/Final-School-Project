@@ -313,15 +313,6 @@ const getStudentId = () => {
   useEffect(() => {
     loadData();
 
-    const handleStorageChange = (e) => {
-      if (e.key === "student_assessments" || 
-          e.key === "school_submissions" ||
-          e.key === "school_assessments") {
-        loadData();
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-
     const handleAssessmentSent = () => {
       loadData();
     };
@@ -338,7 +329,6 @@ const getStudentId = () => {
     window.addEventListener("submissionChanged", handleSubmissionChanged);
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("assessmentSent", handleAssessmentSent);
       window.removeEventListener("studentAssessmentsUpdated", handleStudentAssessmentsUpdated);
       window.removeEventListener("submissionChanged", handleSubmissionChanged);

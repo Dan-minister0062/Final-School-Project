@@ -208,11 +208,14 @@ const ChildResults = () => {
       console.log("👨‍👩‍👦 Children found for parent:", parentChildren.length);
 
       if (parentChildren.length > 0) {
-        const [classesRes, assessmentsRes, submissionsRes, attendanceRes, subjectsRes] =
+        const [classesRes, assessmentsRes, submissionsRes] =
           await Promise.all([
             syncGet("/classes"),
             syncGet("/assessments"),
             syncGet("/submissions"),
+          ]);
+        const [attendanceRes, subjectsRes] =
+          await Promise.all([
             syncGet("/attendance"),
             syncGet("/subjects", { limit: 100 }),
           ]);
@@ -622,21 +625,6 @@ const ChildResults = () => {
   useEffect(() => {
     loadChildrenData();
 
-    // Listen for storage changes
-    const handleStorageChange = (e) => {
-      if (
-        e.key === "school_assessments" ||
-        e.key === "school_submissions" ||
-        e.key === "school_students" ||
-        e.key === "school_classes" ||
-        e.key === "school_attendance"
-      ) {
-        console.log("🔄 Storage changed, refreshing child results");
-        loadChildrenData();
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-
     // Listen for assessment changes
     const handleAssessmentChanged = () => {
       console.log("📝 Assessment changed, refreshing child results");
@@ -652,7 +640,6 @@ const ChildResults = () => {
     window.addEventListener("submissionChanged", handleSubmissionChanged);
 
     return () => {
-      window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("assessmentChanged", handleAssessmentChanged);
       window.removeEventListener("submissionChanged", handleSubmissionChanged);
     };

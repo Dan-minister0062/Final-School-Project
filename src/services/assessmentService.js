@@ -1,6 +1,6 @@
 // src/services/assessmentService.js
 import { teacherService } from './teacherService';
-import { STORAGE_KEYS } from '../utils/constants';
+import { CACHE_KEYS } from '../utils/constants';
 import { syncGet, syncSend } from './apiSync';
 
 // In-memory cache (no browser persistence).
@@ -54,15 +54,15 @@ class AssessmentService {
   }
 
   loadData() {
-    this.assessments = this._getData(STORAGE_KEYS.ASSESSMENTS);
-    this.grades = this._getData(STORAGE_KEYS.GRADES);
-    this.submissions = this._getData(STORAGE_KEYS.SUBMISSIONS);
+    this.assessments = this._getData(CACHE_KEYS.ASSESSMENTS);
+    this.grades = this._getData(CACHE_KEYS.GRADES);
+    this.submissions = this._getData(CACHE_KEYS.SUBMISSIONS);
   }
 
   saveData() {
-    this._saveData(STORAGE_KEYS.ASSESSMENTS, this.assessments);
-    this._saveData(STORAGE_KEYS.GRADES, this.grades);
-    this._saveData(STORAGE_KEYS.SUBMISSIONS, this.submissions);
+    this._saveData(CACHE_KEYS.ASSESSMENTS, this.assessments);
+    this._saveData(CACHE_KEYS.GRADES, this.grades);
+    this._saveData(CACHE_KEYS.SUBMISSIONS, this.submissions);
     this._notifyListeners();
   }
 
@@ -207,8 +207,8 @@ class AssessmentService {
     }
 
     // Get class name for display
-    const classes = memoryCache.has(STORAGE_KEYS.CLASSES)
-      ? memoryCache.get(STORAGE_KEYS.CLASSES)
+    const classes = memoryCache.has(CACHE_KEYS.CLASSES)
+      ? memoryCache.get(CACHE_KEYS.CLASSES)
       : [];
     const classObj = classes.find(c => c.id === assessmentData.classId);
     const className = classObj ? classObj.name : '';

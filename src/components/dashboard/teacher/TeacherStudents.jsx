@@ -289,11 +289,14 @@ const TeacherStudents = () => {
       
       // Fetch classes, student roster, attendance, assessments and
       // submissions straight from MySQL so each student's results record can
-      // be shown (one row per assessment with its type + score).
-      const [classesRes, studentsRes, attendanceRes, assessmentsRes, submissionsRes] = await Promise.all([
+      // be shown (one row per assessment with its type + score). Runs in two
+      // small batches so we never open 5 connections in the same instant.
+      const [classesRes, studentsRes, attendanceRes] = await Promise.all([
         syncGet('/classes'),
         syncGet('/students'),
         syncGet('/attendance'),
+      ]);
+      const [assessmentsRes, submissionsRes] = await Promise.all([
         syncGet('/assessments'),
         syncGet('/submissions'),
       ]);
@@ -391,21 +394,6 @@ const TeacherStudents = () => {
       loadData();
     });
 
-    // Listen for storage changes
-    const handleStorageChange = (e) => {
-      if (
-        e.key === "school_students" ||
-        e.key === "students_roster" ||
-        e.key === "school_classes" ||
-        e.key === "school_users" ||
-        e.key === "school_attendance"
-      ) {
-        console.log("🔄 Storage changed, refreshing students");
-        loadData();
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-
     // Listen for student added events
     const handleStudentAdded = () => {
       console.log("👨‍🎓 Student added event, refreshing students");
@@ -428,7 +416,6 @@ const TeacherStudents = () => {
 
     return () => {
       if (unsubscribeTeacher) unsubscribeTeacher();
-      window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("studentAdded", handleStudentAdded);
       window.removeEventListener("attendanceUpdated", handleAttendanceUpdated);
       window.removeEventListener("usersUpdated", handleUsersUpdated);

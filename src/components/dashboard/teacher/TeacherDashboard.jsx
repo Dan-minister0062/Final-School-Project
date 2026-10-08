@@ -100,12 +100,15 @@ const TeacherDashboard = () => {
           : (Array.isArray(teacher.classes) ? teacher.classes : []);
 
       // Fetch everything straight from MySQL (endpoints are role-scoped).
-      const [classesRes, studentsRes, assessmentsRes, , attendanceRes] = await Promise.all([
+      // Two smaller batches keep peak connections well under the host cap.
+      const [classesRes, studentsRes, attendanceRes] = await Promise.all([
         syncGet('/classes'),
         syncGet('/students'),
+        syncGet('/attendance'),
+      ]);
+      const [assessmentsRes] = await Promise.all([
         syncGet('/assessments'),
         syncGet('/submissions'),
-        syncGet('/attendance'),
         notificationService.pull(),
       ]);
       const allClasses = classesRes?.data || (Array.isArray(classesRes) ? classesRes : []);
@@ -294,20 +297,6 @@ const TeacherDashboard = () => {
       console.warn('Could not subscribe to assessment service:', err);
     }
 
-    // Listen for storage changes (from other tabs)
-    const handleStorageChange = (e) => {
-      if (
-        e.key === "school_students" ||
-        e.key === "school_classes" ||
-        e.key === "school_notifications" ||
-        e.key === "school_users"
-      ) {
-        console.log("🔄 Storage changed, refreshing dashboard");
-        loadDashboardData();
-      }
-    };
-    window.addEventListener("storage", handleStorageChange);
-
     // Listen for custom events
     const handleStudentAdded = () => {
       console.log("👨‍🎓 Student added, refreshing dashboard");
@@ -338,7 +327,6 @@ const TeacherDashboard = () => {
       if (unsubscribeNotification) unsubscribeNotification();
       if (unsubscribeTeacher) unsubscribeTeacher();
       if (unsubscribeAssessment) unsubscribeAssessment();
-      window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener("studentAdded", handleStudentAdded);
       window.removeEventListener("classAssigned", handleClassAssigned);
       window.removeEventListener("notificationAdded", handleNotificationAdded);
