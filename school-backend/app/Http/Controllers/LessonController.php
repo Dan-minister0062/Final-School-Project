@@ -163,7 +163,7 @@ class LessonController extends Controller
         $user = $request->user();
         abort_unless($user, 401);
 
-        $query = Lesson::with(['section:id,key,name', 'schoolClass:id,code,name', 'author:id,name'])
+        $query = Lesson::with(['section:id,key,name', 'schoolClass:id,code,name,name_en,name_ar', 'author:id,name'])
             ->withCount(['contentBlocks', 'attachments', 'assignments', 'submissions']);
 
         // ---- students: only published lessons for their own class/section
@@ -314,7 +314,7 @@ class LessonController extends Controller
 
         $lesson->load([
             'section:id,key,name',
-            'schoolClass:id,code,name,level_key',
+            'schoolClass:id,code,name,name_en,name_ar,level_key',
             'author:id,name,email',
             'contentBlocks',
             'attachments',
@@ -659,6 +659,11 @@ class LessonController extends Controller
         ])."\n");
 
         $storedName = Str::random(40).'.'.$extension;
+
+        // Read the size before move(): after it the uploaded temp file is gone
+        // and getSize() would stat a path that no longer exists.
+        $fileSize = $file->getSize();
+
         $file->move($directory, $storedName);
 
         $title = $request->input('title') ?: $file->getClientOriginalName();
@@ -668,7 +673,7 @@ class LessonController extends Controller
             'external_url' => null,
             'file_name' => $file->getClientOriginalName(),
             'file_type' => $file->getClientMimeType(),
-            'file_size' => $file->getSize(),
+            'file_size' => $fileSize,
             'title' => $title,
         ], 201);
     }

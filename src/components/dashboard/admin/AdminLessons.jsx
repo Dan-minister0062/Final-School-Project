@@ -225,7 +225,11 @@ const AdminLessons = () => {
                     )}
                   </td>
                   <td className="small">
-                    {lesson.school_class?.code ?? "—"}
+                    {lesson.school_class
+                      ? isArabic
+                        ? lesson.school_class.name_ar || lesson.school_class.name
+                        : lesson.school_class.name_en || lesson.school_class.name
+                      : "—"}
                   </td>
                   <td className="small">{lesson.author?.name ?? "—"}</td>
                   <td>

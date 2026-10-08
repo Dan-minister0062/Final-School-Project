@@ -178,6 +178,7 @@ class ClassController extends Controller
         return [
             'id' => $class->code,
             'code' => $class->code,
+            'db_id' => $class->id,
             'name' => $class->name,
             'nameEn' => $class->name_en ?? $class->name,
             'nameAr' => $class->name_ar ?? $class->name,

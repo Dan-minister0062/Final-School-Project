@@ -175,6 +175,8 @@ const LessonEditor = () => {
   const t = useCallback((key) => getTranslation(key, language), [language]);
   const localSectionName = (section) =>
     isArabic ? section?.name_ar || section?.name : section?.name_en || section?.name;
+  const localClassName = (row) =>
+    isArabic ? row?.name_ar || row?.name : row?.name_en || row?.name;
 
   const [form, setForm] = useState(emptyForm());
   const [blocks, setBlocks] = useState([emptyBlock()]);
@@ -213,9 +215,13 @@ const LessonEditor = () => {
     fetchServerClasses().then((rows) => {
       setClasses(
         (rows ?? []).map((row) => ({
-          id: row.id,
+          // The API exposes id/code as the class code; lessons attach by the
+          // integer classes.id, so prefer db_id when present.
+          id: row.db_id ?? row.id,
           code: row.code,
           name: row.name,
+          name_en: row.name_en ?? row.nameEn ?? row.name,
+          name_ar: row.name_ar ?? row.nameAr ?? row.name,
           section_id: row.section_id ?? null,
           level_key: row.level_key ?? row.level ?? null,
         })),
@@ -487,12 +493,11 @@ const LessonEditor = () => {
                   <Form.Select
                     value={form.class_id}
                     onChange={set("class_id")}
-                    disabled={isSubAdmin}
                   >
                     <option value="">{t("allClassesInSection")}</option>
                     {visibleClasses.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name} ({c.code})
+                        {localClassName(c)} ({c.code})
                       </option>
                     ))}
                   </Form.Select>
