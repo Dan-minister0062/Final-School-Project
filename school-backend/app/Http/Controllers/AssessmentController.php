@@ -98,6 +98,10 @@ class AssessmentController extends Controller
             } else {
                 $query->whereRaw('1 = 0');
             }
+        } elseif ($user && $user->isSubAdmin()) {
+            // Sub-Admins manage the assessments of the classes in their
+            // section; class-less (global) assessments stay Super Admin only.
+            $query->whereIn('class_code', $user->allowedClassValues());
         }
 
         if ($request->has('class_code') && $req = $request->input('class_code')) {
@@ -157,6 +161,17 @@ class AssessmentController extends Controller
         $data['created_by'] = $request->user()?->id;
         $data['teacher_id'] = $request->user()?->id;
 
+        $caller = $request->user();
+        if ($caller?->isSubAdmin()) {
+            $classRef = $data['class_code'] ?? $data['class_name'] ?? null;
+
+            abort_unless(
+                $classRef !== null && in_array((string) $classRef, $caller->allowedClassValues(), true),
+                403,
+                'The assessment must belong to a class in your section.'
+            );
+        }
+
         $assessment = Assessment::create($data);
 
         return response()->json([
@@ -205,6 +220,19 @@ class AssessmentController extends Controller
             $data['description_ar'] = $request->input('descriptionAr');
         }
 
+        $caller = $request->user();
+        if ($caller?->isSubAdmin() && (array_key_exists('class_code', $data) || array_key_exists('class_name', $data))) {
+            // Retargeting the assessment (including making it class-less)
+            // must stay inside the Sub-Admin's section.
+            $classRef = $data['class_code'] ?? $data['class_name'] ?? null;
+
+            abort_unless(
+                $classRef !== null && in_array((string) $classRef, $caller->allowedClassValues(), true),
+                403,
+                'The assessment must belong to a class in your section.'
+            );
+        }
+
         $assessment->update($data);
 
         return response()->json([
@@ -234,6 +262,7 @@ class AssessmentController extends Controller
         }
 
         $assessment = Assessment::findOrFail($id);
+        $this->authorizeManage($assessment, $user);
         $assessment->update([
             'status' => 'approved',
             'approved_by' => $user->id,
@@ -256,6 +285,7 @@ class AssessmentController extends Controller
         }
 
         $assessment = Assessment::findOrFail($id);
+        $this->authorizeManage($assessment, $user);
         $assessment->update([
             'status' => 'rejected',
             'rejected_by' => $user->id,
@@ -294,6 +324,10 @@ class AssessmentController extends Controller
                 $query->where('student_id', $user->id);
             } elseif ($user->role === 'parent') {
                 $query->whereIn('student_id', $this->linkedChildrenIds($user));
+            } elseif ($user->isSubAdmin()) {
+                $query->whereHas('assessment', function ($q) use ($user) {
+                    $q->whereIn('class_code', $user->allowedClassValues());
+                });
             }
         }
 
@@ -454,7 +488,13 @@ class AssessmentController extends Controller
                 || in_array($submission->status, ['graded', 'approved', 'rejected'], true)) {
                 return response()->json(['message' => 'Forbidden.'], 403);
             }
-        } elseif ($user->role !== 'admin') {
+        } elseif ($user->role === 'admin') {
+            if ($user->isSubAdmin()) {
+                $assessment = Assessment::find($submission->assessment_id);
+                abort_unless($assessment, 403, 'Forbidden.');
+                $this->authorizeManage($assessment, $user);
+            }
+        } else {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
@@ -501,7 +541,13 @@ class AssessmentController extends Controller
                 || in_array($submission->status, ['graded', 'approved', 'rejected'], true)) {
                 return response()->json(['message' => 'Forbidden.'], 403);
             }
-        } elseif ($user->role !== 'admin') {
+        } elseif ($user->role === 'admin') {
+            if ($user->isSubAdmin()) {
+                $assessment = Assessment::find($submission->assessment_id);
+                abort_unless($assessment, 403, 'Forbidden.');
+                $this->authorizeManage($assessment, $user);
+            }
+        } else {
             return response()->json(['message' => 'Forbidden.'], 403);
         }
 
@@ -512,11 +558,26 @@ class AssessmentController extends Controller
 
     protected function authorizeManage(Assessment $assessment, ?\App\Models\User $user): void
     {
-        $allowed = $user && (
-            $user->role === 'admin'
+        if (! $user) {
+            abort(403, 'Forbidden.');
+        }
+
+        if ($user->isSubAdmin()) {
+            // A Sub-Admin manages only the assessments whose class sits in
+            // its section; class-less (global) assessments are Super Admin
+            // territory.
+            $values = $user->allowedClassValues();
+            $inScope = ($assessment->class_code !== null && in_array($assessment->class_code, $values, true))
+                || ($assessment->class_name !== null && in_array($assessment->class_name, $values, true));
+
+            abort_unless($inScope, 403, 'That assessment belongs to another section.');
+
+            return;
+        }
+
+        $allowed = $user->role === 'admin'
             || ($user->role === 'teacher'
-                && ($assessment->created_by === $user->id || $assessment->teacher_id === $user->id))
-        );
+                && ($assessment->created_by === $user->id || $assessment->teacher_id === $user->id));
 
         if (! $allowed) {
             abort(403, 'Forbidden.');

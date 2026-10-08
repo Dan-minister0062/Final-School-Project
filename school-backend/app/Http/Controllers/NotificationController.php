@@ -16,6 +16,15 @@ class NotificationController extends Controller
         $query = Notification::orderBy('id', 'desc')
             ->where($this->visibilityScope($user));
 
+        if ($user?->isSubAdmin()) {
+            // A Sub-Admin manages its section's notifications plus the global
+            // broadcasts (NULL section) its dashboard bell must keep showing.
+            $query->where(function ($q) use ($user) {
+                $q->where('section_id', $user->section_id)
+                    ->orWhereNull('section_id');
+            });
+        }
+
         return response()->json($query->get()->map(fn (Notification $n) => $this->mapVue($n)));
     }
 
@@ -26,7 +35,10 @@ class NotificationController extends Controller
             'message' => 'required|string',
             'audience' => 'sometimes|string|nullable|max:60',
             'user_id' => 'sometimes|integer|nullable',
+            'section_id' => 'sometimes|integer|nullable|exists:sections,id',
         ]);
+
+        $caller = $request->user();
 
         $n = new Notification([
             'title' => $request->input('title'),
@@ -40,7 +52,10 @@ class NotificationController extends Controller
             'priority' => $request->input('priority', 'low'),
             'metadata' => $request->input('metadata'),
             'audience' => $request->input('audience', 'all'),
-            'user_id' => $request->has('user_id') ? $request->input('user_id') : $request->user()?->id,
+            'user_id' => $request->has('user_id') ? $request->input('user_id') : $caller?->id,
+            'section_id' => $caller?->isSubAdmin()
+                ? $caller->section_id
+                : ($request->filled('section_id') ? $request->integer('section_id') : null),
         ]);
         $n->save();
 
@@ -87,6 +102,18 @@ class NotificationController extends Controller
         }
 
         if ($user && $user->role === 'admin') {
+            // A Sub-Admin only deletes inside its own section; the global
+            // (NULL section) broadcasts belong to the Super Admin.
+            if ($user->isSubAdmin()) {
+                $inScope = $user->section_id !== null
+                    && $notification->section_id !== null
+                    && (int) $notification->section_id === (int) $user->section_id;
+
+                if (! $inScope) {
+                    return response()->json(['message' => 'Forbidden.'], 403);
+                }
+            }
+
             $notification->delete();
 
             return response()->json(['success' => true]);
@@ -118,6 +145,7 @@ class NotificationController extends Controller
             'metadata' => $n->metadata ?? [],
             'audience' => $n->audience ?? 'all',
             'read' => (bool) $n->is_read,
+            'section_id' => $n->section_id,
             'createdAt' => $n->created_at?->toIso8601String(),
             'created_at' => $n->created_at?->toIso8601String(),
         ];

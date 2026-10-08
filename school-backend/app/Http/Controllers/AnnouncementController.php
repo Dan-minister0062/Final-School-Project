@@ -8,9 +8,21 @@ use Illuminate\Http\Request;
 
 class AnnouncementController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $announcements = Announcement::orderBy('id', 'desc')->get();
+        $query = Announcement::orderBy('id', 'desc');
+        $caller = $request->user();
+
+        if ($caller?->isSubAdmin()) {
+            // A Sub-Admin manages the announcements of its own section only.
+            if ($caller->section_id === null) {
+                return response()->json(['data' => []]);
+            }
+
+            $query->where('section_id', $caller->section_id);
+        }
+
+        $announcements = $query->get();
 
         return response()->json(['data' => $announcements->map(fn (Announcement $a) => $this->mapVue($a))]);
     }
@@ -29,10 +41,21 @@ class AnnouncementController extends Controller
         $request->validate([
             'title' => 'required|string|max:190',
             'content' => 'nullable|string',
+            'section_id' => 'nullable|integer|exists:sections,id',
         ]);
 
+        $caller = $request->user();
+
         $a = new Announcement($this->mapStore($request));
-        $a->published_by = $request->user()?->id;
+        $a->published_by = $caller?->id;
+
+        if ($caller?->isSubAdmin()) {
+            // Pinned to the caller's section regardless of payload.
+            $a->section_id = $caller->section_id;
+        } elseif ($request->filled('section_id')) {
+            $a->section_id = $request->integer('section_id');
+        }
+
         $a->save();
 
         return response()->json([
@@ -44,6 +67,8 @@ class AnnouncementController extends Controller
     public function update(Request $request, int $id): JsonResponse
     {
         $a = Announcement::findOrFail($id);
+        $this->assertInScope($request, $a);
+
         $fill = $this->mapUpdate($request);
         if (!empty($fill)) {
             $a->fill($fill);
@@ -56,11 +81,35 @@ class AnnouncementController extends Controller
         ]);
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        Announcement::destroy($id);
+        $a = Announcement::findOrFail($id);
+        $this->assertInScope($request, $a);
+
+        $a->delete();
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * A Sub-Admin may only touch announcements inside its own section;
+     * global (section-less) announcements belong to the Super Admin.
+     */
+    protected function assertInScope(Request $request, Announcement $announcement): void
+    {
+        $caller = $request->user();
+
+        if (! $caller || ! $caller->isSubAdmin()) {
+            return;
+        }
+
+        abort_if(
+            $caller->section_id === null
+                || $announcement->section_id === null
+                || (int) $announcement->section_id !== (int) $caller->section_id,
+            403,
+            'That announcement belongs to another section.'
+        );
     }
 
     protected function mapStore(Request $request): array
@@ -171,6 +220,7 @@ class AnnouncementController extends Controller
             'comments' => (int) ($a->comments ?? 0),
             'date' => $a->date,
             'time' => $a->time,
+            'section_id' => $a->section_id,
             'createdAt' => $a->created_at?->toIso8601String(),
             'updatedAt' => $a->updated_at?->toIso8601String(),
         ];

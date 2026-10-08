@@ -15,6 +15,7 @@ class Announcement extends Model
         'end_date', 'published_by', 'status',
         'type', 'priority', 'author', 'target_audience', 'image', 'video',
         'media_type', 'views', 'likes', 'comments', 'date', 'time',
+        'section_id',
     ];
 
     protected $casts = [

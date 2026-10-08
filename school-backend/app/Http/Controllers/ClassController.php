@@ -3,19 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Models\SchoolClass;
+use App\Services\SectionScope;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ClassController extends Controller
 {
-    public function index(): JsonResponse
+    public function __construct(private SectionScope $scope) {}
+
+    public function index(Request $request): JsonResponse
     {
-        return response()->json(['data' => $this->rows()]);
+        return response()->json(['data' => $this->rows($request->user())]);
     }
 
-    public function adminIndex(): JsonResponse
+    public function adminIndex(Request $request): JsonResponse
     {
-        $rows = collect($this->rows())->map(fn ($row) => [
+        $rows = collect($this->rows($request->user()))->map(fn ($row) => [
             'id' => $row['code'],
             'code' => $row['code'],
             'name' => $row['name'],
@@ -23,6 +26,7 @@ class ClassController extends Controller
             'nameAr' => $row['nameAr'] ?? $row['name'],
             'level' => $row['level'],
             'level_key' => $row['level_key'],
+            'section_id' => $row['section_id'],
             'status' => $row['status'],
             'students_count' => $row['students_count'],
         ]);
@@ -32,7 +36,23 @@ class ClassController extends Controller
 
     public function store(Request $request): JsonResponse
     {
-        $class = SchoolClass::create($this->validatedData($request, creating: true));
+        $data = $this->validatedData($request, creating: true);
+        $caller = $request->user();
+
+        if ($caller?->isSubAdmin()) {
+            // A Sub-Admin only ever creates classes inside its own section,
+            // at its own level.
+            $data['section_id'] = $caller->section_id;
+            if ($caller->scopeKey() !== null) {
+                $data['level_key'] = $caller->scopeKey();
+            }
+        } elseif (! array_key_exists('section_id', $data)) {
+            // No explicit section in the payload: a class belongs to the
+            // section its level describes.
+            $data['section_id'] = $this->sectionIdForLevel($data['level_key'] ?? null);
+        }
+
+        $class = SchoolClass::create($data);
 
         return response()->json([
             'success' => true,
@@ -48,7 +68,25 @@ class ClassController extends Controller
             return response()->json(['message' => 'Class not found.'], 404);
         }
 
-        $class->update($this->validatedData($request, code: $code));
+        $caller = $request->user();
+        if ($caller?->isSubAdmin()) {
+            $this->scope->assertClassInScope($request, $class);
+        }
+
+        $data = $this->validatedData($request, code: $code);
+
+        if ($caller?->isSubAdmin()) {
+            $data['section_id'] = $caller->section_id;
+            if ($caller->scopeKey() !== null) {
+                $data['level_key'] = $caller->scopeKey();
+            }
+        } elseif ($request->hasAny(['level_key', 'level', 'educationLevel']) && ! $request->has('section_id')) {
+            // The level changed, so the class follows its section, unless an
+            // explicit section was sent in the same payload.
+            $data['section_id'] = $this->sectionIdForLevel($data['level_key'] ?? null) ?? $class->section_id;
+        }
+
+        $class->update($data);
 
         return response()->json([
             'success' => true,
@@ -63,6 +101,8 @@ class ClassController extends Controller
         if (! $class) {
             return response()->json(['message' => 'Class not found.'], 404);
         }
+
+        $this->scope->assertClassInScope($request, $class);
 
         $class->delete();
 
@@ -81,6 +121,7 @@ class ClassController extends Controller
             'room' => 'nullable|string|max:60',
             'teacher_name' => 'nullable|string|max:120',
             'status' => 'sometimes|in:active,inactive',
+            'section_id' => 'nullable|integer|exists:sections,id',
         ];
 
         if ($creating) {
@@ -120,9 +161,16 @@ class ClassController extends Controller
         return $data;
     }
 
-    protected function rows(): array
+    protected function rows(?\App\Models\User $caller = null): array
     {
-        return SchoolClass::orderBy('id')->get()->map(fn ($class) => $this->row($class))->all();
+        $query = SchoolClass::orderBy('id');
+
+        if ($caller?->isSubAdmin()) {
+            // A Sub-Admin only sees the classes of its own section.
+            $caller->allowedClassQuery($query);
+        }
+
+        return $query->get()->map(fn ($class) => $this->row($class))->all();
     }
 
     protected function row(SchoolClass $class): array
@@ -135,6 +183,7 @@ class ClassController extends Controller
             'nameAr' => $class->name_ar ?? $class->name,
             'level_key' => $class->level_key,
             'level' => $class->level_key,
+            'section_id' => $class->section_id,
             'capacity' => $class->capacity,
             'academic_year' => $class->academic_year,
             'room' => $class->room,
@@ -142,6 +191,20 @@ class ClassController extends Controller
             'status' => $class->status,
             'students_count' => $class->students()->count(),
         ];
+    }
+
+    /** Resolve a level (e.g. "primary", "High School") to its section id. */
+    protected function sectionIdForLevel(?string $levelKey): ?int
+    {
+        $key = \App\Models\Section::keyForClassLevel($levelKey);
+
+        if ($key === null) {
+            return null;
+        }
+
+        $id = \App\Models\Section::where('key', $key)->value('id');
+
+        return $id !== null ? (int) $id : null;
     }
 
     public function show(string $code): JsonResponse

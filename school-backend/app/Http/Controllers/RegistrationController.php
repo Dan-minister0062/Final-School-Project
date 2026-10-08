@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Mail\AdmissionStatusUpdate;
 use App\Models\Registration;
+use App\Models\Section;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -12,7 +14,8 @@ class RegistrationController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $registrations = Registration::orderBy('id', 'desc');
+        $registrations = Registration::forSectionAdmin($request->user())
+            ->orderBy('id', 'desc');
 
         if ($request->has('status') && in_array($request->input('status'), ['pending', 'approved', 'rejected'], true)) {
             $registrations->where('status', $request->input('status'));
@@ -32,6 +35,7 @@ class RegistrationController extends Controller
     public function show(Request $request, int $id): JsonResponse
     {
         $registration = Registration::findOrFail($id);
+        $this->assertInScope($request->user(), $registration);
 
         return response()->json(['data' => $this->map($registration)]);
     }
@@ -39,6 +43,7 @@ class RegistrationController extends Controller
     public function update(Request $request, int $id): JsonResponse
     {
         $registration = Registration::findOrFail($id);
+        $this->assertInScope($request->user(), $registration);
 
         $request->validate([
             'first_name' => 'sometimes|string|max:80',
@@ -90,6 +95,7 @@ class RegistrationController extends Controller
         ]);
 
         $registration = Registration::findOrFail($id);
+        $this->assertInScope($request->user(), $registration);
 
         $data = [];
         if ($request->has('status')) {
@@ -113,9 +119,29 @@ class RegistrationController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        Registration::findOrFail($id)->delete();
+        $registration = Registration::findOrFail($id);
+        $this->assertInScope($request->user(), $registration);
+        $registration->delete();
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * A Sub-Admin may only review registrations of its own section, decided
+     * by the registration's level (mapped to a section key) or by the class
+     * that was requested.
+     */
+    protected function assertInScope(?User $caller, Registration $registration): void
+    {
+        if (! $caller || ! $caller->isSubAdmin()) {
+            return;
+        }
+
+        $inScope = ($registration->level !== null && Section::keyForClassLevel($registration->level) === $caller->scopeKey())
+            || ($registration->requested_class !== null
+                && in_array($registration->requested_class, $caller->allowedClassValues(), true));
+
+        abort_unless($inScope, 403, 'That registration belongs to another section.');
     }
 
     protected function notifyStatusChange(Registration $registration): void

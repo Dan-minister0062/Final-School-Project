@@ -168,4 +168,25 @@ trait HasAdminTiers
             }
         });
     }
+
+    /**
+     * Class codes and names this account may act on, for WHERE-IN filters on
+     * tables that reference a class by code (assessments, attendance, ...).
+     *
+     * Intended for Sub-Admin checks: a Super Admin is unrestricted everywhere
+     * else, so callers only invoke this behind an isSubAdmin() guard.
+     *
+     * @return array<int, string>
+     */
+    public function allowedClassValues(): array
+    {
+        $query = $this->allowedClassQuery(\App\Models\SchoolClass::query());
+
+        return $query->get(['code', 'name'])
+            ->flatMap(fn ($class) => [$class->code, $class->name])
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
 }

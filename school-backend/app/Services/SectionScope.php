@@ -64,13 +64,19 @@ class SectionScope
     {
         $user = $request->user();
 
-        if (! $user || $user->isSuperAdmin() || ! $class) {
+        if (! $user || $user->isSuperAdmin() || ! $user->isSubAdmin()) {
             return;
         }
 
-        if ($class->section_id !== null) {
-            abort_if((int) $class->section_id !== (int) $user->section_id, 403, 'That class belongs to another section.');
-        }
+        // Strict: a class outside the caller's section (including a
+        // section-less one) is never manageable by a Sub-Admin.
+        abort_if(
+            $class === null
+                || $class->section_id === null
+                || (int) $class->section_id !== (int) $user->section_id,
+            403,
+            'That class belongs to another section.'
+        );
     }
 
     public function assertSection(Request $request, Section $section): void

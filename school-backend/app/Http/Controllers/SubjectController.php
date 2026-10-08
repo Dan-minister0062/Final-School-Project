@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Section;
 use App\Models\Subject;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -32,6 +34,20 @@ class SubjectController extends Controller
             });
         }
 
+        // A Sub-Admin may only be handed the subjects of its own section.
+        $caller = $request->user();
+        if ($caller?->isSubAdmin()) {
+            $key = $this->sectionKeyForCaller($caller);
+            if ($key === null) {
+                $query->whereRaw('1 = 0');
+            } else {
+                $query->where(function ($q) use ($key) {
+                    $q->where('category', $key)
+                        ->orWhere('level_key', $key);
+                });
+            }
+        }
+
         $page = max(1, (int) $request->input('page', 1));
         $limit = max(1, (int) $request->input('limit', $request->input('per_page', 10)));
 
@@ -56,7 +72,17 @@ class SubjectController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $this->mapStore($request);
-        $data['code'] = $this->makeUniqueCode($request);
+
+        $caller = $request->user();
+        if ($caller?->isSubAdmin()) {
+            $key = $this->sectionKeyForCaller($caller);
+            abort_if($key === null, 403, 'Your account is not assigned to a section.');
+            // A Sub-Admin only ever creates subjects inside its own section.
+            $data['category'] = $key;
+            $data['level_key'] = $key;
+        }
+
+        $data['code'] = $this->makeUniqueCode($request, $data['category'] ?? null);
 
         Subject::create($data);
 
@@ -66,7 +92,18 @@ class SubjectController extends Controller
     public function update(Request $request, int $id): JsonResponse
     {
         $subject = Subject::findOrFail($id);
-        $subject->fill($this->mapStore($request));
+        $this->assertSubjectInScope($request, $subject);
+
+        $data = $this->mapStore($request);
+
+        $caller = $request->user();
+        if ($caller?->isSubAdmin()) {
+            $key = $this->sectionKeyForCaller($caller);
+            $data['category'] = $key;
+            $data['level_key'] = $key;
+        }
+
+        $subject->fill($data);
         $subject->save();
 
         return response()->json(['success' => true]);
@@ -75,14 +112,19 @@ class SubjectController extends Controller
     public function toggleStatus(Request $request, int $id): JsonResponse
     {
         $subject = Subject::findOrFail($id);
+        $this->assertSubjectInScope($request, $subject);
+
         $subject->status = $request->input('isActive', true) ? 'active' : 'inactive';
         $subject->save();
 
         return response()->json(['success' => true]);
     }
 
-    public function destroy(int $id): JsonResponse
+    public function destroy(Request $request, int $id): JsonResponse
     {
+        $subject = Subject::findOrFail($id);
+        $this->assertSubjectInScope($request, $subject);
+
         Subject::destroy($id);
 
         return response()->json(['success' => true]);
@@ -102,9 +144,10 @@ class SubjectController extends Controller
         ];
     }
 
-    protected function makeUniqueCode(Request $request): string
+    protected function makeUniqueCode(Request $request, ?string $category = null): string
     {
-        $base = Str::slug(trim(($request->input('category') ? $request->category.' ' : '').$request->input('name')), '_');
+        $category = $category ?? $request->input('category');
+        $base = Str::slug(trim(($category ? $category.' ' : '').$request->input('name')), '_');
         if ($base === '') {
             $base = 'subject';
         }
@@ -134,5 +177,43 @@ class SubjectController extends Controller
             'coefficient' => $s->coefficient,
             'isActive' => $s->status === 'active',
         ];
+    }
+
+    /**
+     * The section key this caller is confined to. Null for Super Admins and
+     * for Sub-Admins that have no section configured (they may manage nothing).
+     */
+    protected function sectionKeyForCaller(?User $caller): ?string
+    {
+        $key = $caller?->scopeKey();
+
+        if (is_string($key) && $key !== '') {
+            return $key;
+        }
+
+        if ($caller?->section_id !== null) {
+            return Section::find($caller->section_id)?->key;
+        }
+
+        return null;
+    }
+
+    /** Strict: a subject outside the caller's section is never manageable. */
+    protected function assertSubjectInScope(Request $request, Subject $subject): void
+    {
+        $caller = $request->user();
+
+        if (! $caller || ! $caller->isSubAdmin()) {
+            return;
+        }
+
+        $key = $this->sectionKeyForCaller($caller);
+        $subjectKey = Section::keyForClassLevel($subject->category ?? $subject->level_key);
+
+        abort_if(
+            $key === null || $subjectKey === null || $subjectKey !== $key,
+            403,
+            'That subject belongs to another section.'
+        );
     }
 }

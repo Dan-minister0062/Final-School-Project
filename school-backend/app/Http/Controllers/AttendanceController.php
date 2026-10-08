@@ -29,6 +29,10 @@ class AttendanceController extends Controller
                         $q->orWhereIn('class_code', $assigned);
                     }
                 });
+            } elseif ($user->isSubAdmin()) {
+                // Sub-Admins take and review attendance for their section's
+                // classes only.
+                $query->whereIn('class_code', $user->allowedClassValues());
             }
         }
 
@@ -77,6 +81,10 @@ class AttendanceController extends Controller
             }
         }
 
+        if ($user?->isSubAdmin() && ! in_array($classCode, $user->allowedClassValues(), true)) {
+            return response()->json(['message' => 'That class belongs to another section.'], 403);
+        }
+
         Attendance::where('class_code', $classCode)->where('date', $date)->delete();
 
         $teacherId = $request->user()?->id;
@@ -112,6 +120,7 @@ class AttendanceController extends Controller
         ]);
 
         $attendance = Attendance::findOrFail($id);
+        $this->assertInScope($request->user(), $attendance);
         $attendance->update($request->only(['status', 'remarks', 'student_name']));
 
         return response()->json([
@@ -122,9 +131,28 @@ class AttendanceController extends Controller
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        Attendance::findOrFail($id)->delete();
+        $attendance = Attendance::findOrFail($id);
+        $this->assertInScope($request->user(), $attendance);
+        $attendance->delete();
 
         return response()->json(['success' => true]);
+    }
+
+    /**
+     * A Sub-Admin only edits attendance of the classes in its section.
+     */
+    protected function assertInScope(?\App\Models\User $user, Attendance $attendance): void
+    {
+        if (! $user || ! $user->isSubAdmin()) {
+            return;
+        }
+
+        abort_unless(
+            $attendance->class_code !== null
+                && in_array($attendance->class_code, $user->allowedClassValues(), true),
+            403,
+            'That attendance record belongs to another section.'
+        );
     }
 
     /**

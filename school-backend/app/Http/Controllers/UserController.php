@@ -114,6 +114,12 @@ class UserController extends Controller
             }
         }
 
+        // A Sub-Admin may only place staff into classes it governs, so a
+        // created account can never reference another section's class.
+        if ($caller->isSubAdmin()) {
+            $this->assertProfileClassesInScope($caller, $request, $role);
+        }
+
         $data = $this->normalizeStoreData($request);
 
         if (empty($data['name'])) {
@@ -129,6 +135,19 @@ class UserController extends Controller
             $section = Section::find($request->integer('section_id'));
             $data['section_id'] = $section?->id;
             $data['section_scope'] = $section?->key;
+
+            // An admin account scoped to a section is a Sub-Admin: without
+            // the tier flag a section-bound admin would still resolve to
+            // the Super tier and ignore the section entirely.
+            if ($role === 'admin') {
+                $data['is_super_admin'] = false;
+                $data['is_sub_admin'] = true;
+                $data['permissions'] = Rbac::defaults();
+            }
+        } elseif ($caller->isSuperAdmin()) {
+            // No section in the payload: place staff accounts in the section
+            // of the class they belong to, so a Sub-Admin can see them.
+            $this->applyDerivedSection($data, $request, $role);
         }
 
         $user = User::create($data);
@@ -138,6 +157,11 @@ class UserController extends Controller
 
         \App\Support\ChildLinker::link($user->fresh(['student', 'parent']));
         \App\Support\ChildLinker::linkAll();
+
+        // A parent's section is the section of the children it is linked to.
+        if ($caller->isSuperAdmin() && $user->section_id === null) {
+            $this->deriveParentSection($user);
+        }
 
         $this->syncClassTeacher($user->fresh());
 
@@ -180,7 +204,9 @@ class UserController extends Controller
         ]);
 
         // ---- privilege escalation guards ---------------------------------
-        if ($request->has('role')) {
+        // The frontend always echoes the current role back, so only a role
+        // that actually differs from the stored one is a change to guard.
+        if ($request->has('role') && (string) $request->input('role') !== (string) $user->role) {
             if (! $caller->isSuperAdmin()) {
                 $this->audit->denied('user.role_change_blocked', $caller, [
                     'target_user_id' => $user->id,
@@ -197,6 +223,11 @@ class UserController extends Controller
 
         if ($request->has('section_id') && $caller->isSubAdmin()) {
             abort(403, 'Only the Super Admin can move an account between sections.');
+        }
+
+        // A Sub-Admin may only re-point staff at classes it governs.
+        if ($caller->isSubAdmin()) {
+            $this->assertProfileClassesInScope($caller, $request, $user->role);
         }
 
         // A Super Admin's own tier flags may only be changed by another
@@ -300,6 +331,11 @@ class UserController extends Controller
         // which live outside $map; ensure they are persisted too.
         $this->applyRoleData($user, $request, true);
 
+        if ($caller->isSuperAdmin()) {
+            $this->syncTierFromSectionPayload($user, $request);
+            $this->syncSectionFromProfile($user, $request);
+        }
+
         if ($user->isDirty()) {
             $user->save();
         }
@@ -316,6 +352,13 @@ class UserController extends Controller
 
         if ($user->role === 'teacher') {
             $this->syncTeacherProfile($user);
+        }
+
+        // Linked children decide a parent's section: heal a section-less
+        // parent account from them (the explicit section_id payload above
+        // always wins for Super Admins).
+        if ($caller->isSuperAdmin() && ! $request->has('section_id') && $user->role === 'parent') {
+            $this->deriveParentSection($user);
         }
 
         if ($request->has('email') && $user->role === 'student' && $user->student) {
@@ -513,6 +556,216 @@ class UserController extends Controller
         }
 
         return $data;
+    }
+
+    /**
+     * Derive users.section_id from the class signal a staff payload carries:
+     * students follow their class, teachers their first assigned class. An
+     * unresolvable class leaves the account section-less (Super Admin's
+     * cross-section view only), never wrongly sectioned.
+     */
+    protected function applyDerivedSection(array &$data, Request $request, string $role): void
+    {
+        $section = null;
+
+        if ($role === 'student') {
+            $section = $this->sectionForClassRef($this->classRefForStudent($request));
+        } elseif ($role === 'teacher') {
+            $refs = $this->classRefForTeacher($request);
+            $section = $refs !== [] ? $this->sectionForClassRef($refs[0]) : null;
+        }
+
+        if ($section !== null) {
+            $data['section_id'] = $section->id;
+            $data['section_scope'] = $section->key;
+        }
+    }
+
+    /** The student's class as carried by the request (code or display name). */
+    protected function classRefForStudent(Request $request, ?User $user = null): ?string
+    {
+        $ref = $request->input('classCode')
+            ?: $request->input('class_code')
+            ?: $request->input('className')
+            ?: $request->input('class_name');
+
+        if ($ref === null && $user !== null) {
+            $ref = $user->class_name;
+        }
+
+        return $ref !== null && $ref !== '' ? (string) $ref : null;
+    }
+
+    /** The teacher's assigned class codes, request first, profile as fallback. */
+    protected function classRefForTeacher(Request $request, ?User $user = null): array
+    {
+        $assigned = $request->input('assignedClasses') ?? $request->input('assigned_classes');
+
+        if ($assigned === null && $user !== null) {
+            $assigned = $user->assigned_classes;
+        }
+
+        if (is_string($assigned)) {
+            $decoded = json_decode($assigned, true);
+            $assigned = is_array($decoded) ? $decoded : explode(',', $assigned);
+        }
+
+        return is_array($assigned)
+            ? array_values(array_filter($assigned, fn ($code) => $code !== null && $code !== ''))
+            : [];
+    }
+
+    /** Resolve a class reference (code or name) to its section row. */
+    protected function sectionForClassRef(?string $classRef): ?Section
+    {
+        if ($classRef === null) {
+            return null;
+        }
+
+        $class = \App\Models\SchoolClass::where('code', $classRef)
+            ->orWhere('name', $classRef)
+            ->first();
+
+        if (! $class) {
+            return null;
+        }
+
+        if ($class->section_id !== null) {
+            return Section::find($class->section_id);
+        }
+
+        $key = Section::keyForClassLevel($class->level_key);
+
+        return $key !== null ? Section::where('key', $key)->first() : null;
+    }
+
+    /**
+     * A Sub-Admin may only place staff into classes it governs. Only classes
+     * the payload itself names are checked, so editing unrelated fields of
+     * an account is never blocked by its stored class.
+     */
+    protected function assertProfileClassesInScope(User $caller, Request $request, string $role): void
+    {
+        $refs = [];
+
+        if ($role === 'student') {
+            $ref = $request->input('classCode')
+                ?: $request->input('class_code')
+                ?: $request->input('className')
+                ?: $request->input('class_name');
+
+            if ($ref !== null && $ref !== '') {
+                $refs[] = (string) $ref;
+            }
+        } elseif ($role === 'teacher') {
+            $refs = $this->classRefForTeacher($request);
+        }
+
+        if ($refs === []) {
+            return;
+        }
+
+        $allowed = $caller->allowedClassValues();
+
+        foreach ($refs as $ref) {
+            abort_unless(
+                in_array($ref, $allowed, true),
+                403,
+                'That class belongs to another section.'
+            );
+        }
+    }
+
+    /**
+     * A parent's section is the section of the children it is linked to.
+     * Section-less parent accounts only: an explicit section always wins.
+     */
+    protected function deriveParentSection(User $user): void
+    {
+        if ($user->section_id !== null || $user->parent_id === null) {
+            return;
+        }
+
+        $classRefs = \App\Models\Student::where('parent_id', $user->parent_id)
+            ->pluck('class_code')
+            ->filter()
+            ->unique()
+            ->values();
+
+        foreach ($classRefs as $ref) {
+            $section = $this->sectionForClassRef((string) $ref);
+
+            if ($section !== null) {
+                $user->forceFill([
+                    'section_id' => $section->id,
+                    'section_scope' => $section->key,
+                ])->save();
+
+                break;
+            }
+        }
+    }
+
+    /**
+     * Mirrors an admin account's tier onto its section payload: a section
+     * turns a plain admin into a Sub-Admin. Explicit Super Admins and
+     * self-edits never change tier here - that stays the exclusive job of
+     * the dedicated /admins/{id} lifecycle endpoints with their guards.
+     */
+    protected function syncTierFromSectionPayload(User $user, Request $request): void
+    {
+        if ($user->role !== 'admin' || ! $request->filled('section_id')) {
+            return;
+        }
+
+        if ($user->id === $request->user()?->id || (bool) $user->is_super_admin) {
+            return;
+        }
+
+        $user->is_super_admin = false;
+        $user->is_sub_admin = true;
+
+        if (empty($user->permissions)) {
+            $user->permissions = Rbac::defaults();
+        }
+    }
+
+    /**
+     * Keeps section membership aligned with the class a staff account
+     * belongs to: heals section-less rows and follows a class change, but
+     * never overrides an explicit section payload or touches a section that
+     * nothing in this request pointed away from.
+     */
+    protected function syncSectionFromProfile(User $user, Request $request): void
+    {
+        if ($request->has('section_id')) {
+            return;
+        }
+
+        $classSignalPresent = $request->hasAny([
+            'classCode', 'class_code', 'className', 'class_name',
+            'assignedClasses', 'assigned_classes',
+        ]);
+
+        if ($user->section_id !== null && ! $classSignalPresent) {
+            return;
+        }
+
+        if ($user->role === 'student') {
+            $section = $this->sectionForClassRef($this->classRefForStudent($request, $user));
+        } elseif ($user->role === 'teacher') {
+            $refs = $this->classRefForTeacher($request, $user);
+            $section = $refs !== [] ? $this->sectionForClassRef($refs[0]) : null;
+        } else {
+            return;
+        }
+
+        if ($section !== null && (int) $user->section_id !== (int) $section->id) {
+            $user->forceFill([
+                'section_id' => $section->id,
+                'section_scope' => $section->key,
+            ]);
+        }
     }
 
     protected function applyRoleData(User $user, Request $request, bool $updateOnly = false): void
