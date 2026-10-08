@@ -15,11 +15,11 @@ class RbacController extends Controller
 {
     public function __construct(private AuditLogger $audit) {}
 
-    /** Sections catalogue: read by admins, used to scope everything else. */
+    /** Sections catalogue: read by admins and teachers (lesson authoring), used to scope everything else. */
     public function sections(Request $request)
     {
         $user = $request->user();
-        abort_unless($user && $user->isAnyAdmin(), 403);
+        abort_unless($user && ($user->isAnyAdmin() || $user->role === 'teacher'), 403);
 
         $query = Section::orderBy('sort_order')->orderBy('id');
 
