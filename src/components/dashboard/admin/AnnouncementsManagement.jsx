@@ -89,7 +89,7 @@ const AnnouncementsManagement = () => {
     { value: 'meeting', label: isArabic ? 'اجتماع' : 'Meeting', icon: <FaUsers />, color: '#f39c12' },
     { value: 'exam', label: isArabic ? 'امتحان' : 'Exam', icon: <FaCheckCircle />, color: '#e74c3c' },
     { value: 'news', label: isArabic ? 'خبر' : 'News', icon: <FaTag />, color: '#9b59b6' },
-    { value: 'registration', label: isArabic ? 'تسجيل' : 'Registration', icon: <FaUserPlus />, color: '#4a9eff' }
+    { value: 'registration', label: 'Registration', icon: <FaUserPlus />, color: '#4a9eff' }
   ];
 
   const priorityOptions = [
@@ -105,7 +105,7 @@ const AnnouncementsManagement = () => {
   ];
 
   const audienceOptions = [
-    { value: 'students', label: isArabic ? 'الطلاب' : 'Students', icon: <FaUserGraduate /> },
+    { value: 'students', label: isArabic ? 'التلاميذ' : 'Students', icon: <FaUserGraduate /> },
     { value: 'parents', label: isArabic ? 'أولياء الأمور' : 'Parents', icon: <FaUsers /> },
     { value: 'teachers', label: isArabic ? 'المعلمين' : 'Teachers', icon: <FaChalkboardTeacher /> },
     { value: 'all', label: isArabic ? 'الجميع' : 'All', icon: <FaUsers /> }

@@ -43,7 +43,7 @@ const NotificationBell = () => {
       admin: isArabic ? 'لا توجد إشعارات إدارية' : 'No admin notifications',
       teacher: isArabic ? 'لا توجد إشعارات للمعلم' : 'No teacher notifications',
       parent: isArabic ? 'لا توجد إشعارات لولي الأمر' : 'No parent notifications',
-      student: isArabic ? 'لا توجد إشعارات للطالب' : 'No student notifications'
+      student: isArabic ? 'لا توجد إشعارات للتلميذ' : 'No student notifications'
     };
     return messages[userRole] || messages.admin;
   };

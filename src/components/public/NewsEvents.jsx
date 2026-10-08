@@ -292,7 +292,7 @@ const NewsEvents = () => {
   // Get translation for audience
   const getAudienceLabel = (audience) => {
     const labels = {
-      students: isArabic ? 'طلاب' : 'Students',
+      students: isArabic ? 'تلاميذ' : 'Students',
       parents: isArabic ? 'أولياء الأمور' : 'Parents',
       teachers: isArabic ? 'معلمون' : 'Teachers',
       all: isArabic ? 'الجميع' : 'All',

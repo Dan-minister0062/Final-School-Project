@@ -101,7 +101,7 @@ const Contact = () => {
     {
       icon: <FaRegClock size={18} />,
       title: t('officeHours'),
-      info: isArabic ? 'الإثنين - الجمعة: 8:00 ص - 6:00 م' : 'Monday - Friday: 8:00 AM - 6:00 PM',
+      info: isArabic ? 'الإثنين - الجمعة: 8:00 ص - 3:00 م' : 'Monday - Friday: 8:00 AM - 3:00 PM',
       sub: isArabic ? 'السبت: 9:00 ص - 1:00 م' : 'Saturday: 9:00 AM - 1:00 PM',
       color: '#d4a373',
       gradient: 'linear-gradient(135deg, #d4a373 0%, #f0d5a8 100%)'
@@ -465,7 +465,7 @@ const Contact = () => {
                   <div className="working-hours flex-grow-1">
                     <div className="d-flex justify-content-between py-2 border-bottom">
                       <span style={arabicFontStyle}>{isArabic ? 'الإثنين - الجمعة' : 'Monday - Friday'}</span>
-                      <span className="fw-bold" style={{ color: '#2d6a4f' }}>{isArabic ? '8:00 ص - 6:00 م' : '8:00 AM - 6:00 PM'}</span>
+                      <span className="fw-bold" style={{ color: '#2d6a4f' }}>{isArabic ? '8:00 ص - 3:00 م' : '8:00 AM - 3:00 PM'}</span>
                     </div>
                     <div className="d-flex justify-content-between py-2 border-bottom">
                       <span style={arabicFontStyle}>{isArabic ? 'السبت' : 'Saturday'}</span>

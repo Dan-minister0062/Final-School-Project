@@ -291,7 +291,7 @@ const TeacherProfile = () => {
                   <span>{assignedClasses.length}</span>
                 </div>
                 <div className="d-flex justify-content-between py-1">
-                  <span className="text-muted">{isArabic ? 'الطلاب' : 'Students'}</span>
+                  <span className="text-muted">{isArabic ? 'التلاميذ' : 'Students'}</span>
                   <span>{studentCount}</span>
                 </div>
               </div>
@@ -499,7 +499,7 @@ const TeacherProfile = () => {
                 </Col>
                 <Col md={4}>
                   <h3 className="text-success">{studentCount}</h3>
-                  <p className="text-muted small">{isArabic ? 'الطلاب' : 'Students'}</p>
+                  <p className="text-muted small">{isArabic ? 'التلاميذ' : 'Students'}</p>
                 </Col>
                 <Col md={4}>
                   <h3 className="text-warning">{assignedSubjects.length}</h3>

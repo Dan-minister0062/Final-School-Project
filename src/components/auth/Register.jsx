@@ -199,7 +199,7 @@ const Register = () => {
       label: isArabic ? 'ولي أمر' : 'Parent', 
       icon: <FaUserFriends />, 
       color: '#2d6a4f',
-      desc: isArabic ? 'متابعة أطفالك' : 'Track your children',
+      desc: isArabic ? 'متابعة تلاميذك' : 'Track your children',
       bg: '#e8f5e9'
     },
     { 
@@ -207,12 +207,12 @@ const Register = () => {
       label: isArabic ? 'معلم' : 'Teacher', 
       icon: <FaChalkboardTeacher />, 
       color: '#c49a6c',
-      desc: isArabic ? 'إدارة الطلاب' : 'Manage students',
+      desc: isArabic ? 'إدارة التلاميذ' : 'Manage students',
       bg: '#fdf5e6'
     },
     { 
       value: 'student', 
-      label: isArabic ? 'طالب' : 'Student', 
+      label: isArabic ? 'تلميذ' : 'Student', 
       icon: <FaGraduationCap />, 
       color: '#1a5f7a',
       desc: isArabic ? 'متابعة تعليمك' : 'Track your education',
@@ -561,7 +561,7 @@ const Register = () => {
                       <>
                         <hr className="my-2 opacity-25" />
                         <h6 className="fw-bold small text-primary" style={arabicFontStyle}>
-                          <FaGraduationCap className="me-2" /> {isArabic ? 'معلومات الطالب' : 'Student Information'}
+                          <FaGraduationCap className="me-2" /> {isArabic ? 'معلومات التلميذ' : 'Student Information'}
                         </h6>
                         <Row>
                           <Col md={6}>

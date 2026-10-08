@@ -199,7 +199,7 @@ let icon = <FaInfoCircle />;
           ) {
             icon = <FaUserPlus />;
             color = "#f39c12";
-            label = isArabic ? "تسجيل" : "Registration";
+            label = "Registration";
             link = "/dashboard/admin/registrations";
           } else if (n.type === "registration_approved") {
             icon = <FaCheckCircle />;
@@ -496,7 +496,7 @@ let icon = <FaInfoCircle />;
 
         notify(
           isArabic
-            ? `تم قبول تسجيل ${reg.student_name} وتم إضافته كطالب`
+            ? `تم قبول تسجيل ${reg.student_name} وتم إضافته كتلميذ`
             : `Registration approved for ${reg.student_name} and added as student`,
           "success",
         );
@@ -648,7 +648,7 @@ let icon = <FaInfoCircle />;
         pointHoverRadius: 8,
       },
       {
-        label: isArabic ? "الطلاب المقبولين" : "Approved Students",
+        label: isArabic ? "التلاميذ المقبولين" : "Approved Students",
         data: monthlyTrend.length > 0 ? monthlyTrend.map((d) => d.approved) : [8, 12, 16, 20, 24, 28],
         borderColor: "#2ecc71",
         backgroundColor: "rgba(46, 204, 113, 0.15)",
@@ -1379,7 +1379,7 @@ let icon = <FaInfoCircle />;
         <Modal.Body style={{ background: darkMode ? "#0d1117" : "white" }}>
           <p style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529", fontSize: isArabic ? "clamp(0.9rem, 1.1vw, 1.05rem)" : "clamp(0.85rem, 1vw, 1rem)" }}>
             {isArabic
-              ? "هل أنت متأكد من قبول هذا التسجيل؟ سيتم إنشاء حساب الطالب وإرسال بيانات الدخول إلى البريد الإلكتروني."
+              ? "هل أنت متأكد من قبول هذا التسجيل؟ سيتم إنشاء حساب التلميذ وإرسال بيانات الدخول إلى البريد الإلكتروني."
               : "Are you sure you want to approve this registration? A student account will be created and login credentials will be sent to the email."}
           </p>
           {showApproveConfirm && pendingRegistrations.find((r) => r.id === showApproveConfirm) && (

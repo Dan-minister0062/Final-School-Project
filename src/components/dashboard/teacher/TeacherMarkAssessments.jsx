@@ -211,14 +211,14 @@ const TeacherMarkAssessments = () => {
       } else {
         setSubmissionContent(null);
         notify(
-          isArabic ? 'لا يوجد تقديم لهذا الطالب' : 'No submission found for this student',
+          isArabic ? 'لا يوجد تقديم لهذا التلميذ' : 'No submission found for this student',
           'warning'
         );
       }
     } catch {
       setSubmissionContent(null);
       notify(
-        isArabic ? 'لا يوجد تقديم لهذا الطالب' : 'No submission found for this student',
+        isArabic ? 'لا يوجد تقديم لهذا التلميذ' : 'No submission found for this student',
         'warning'
       );
     }
@@ -462,7 +462,7 @@ const TeacherMarkAssessments = () => {
             {isArabic ? 'تصحيح التقييمات' : 'Mark Assessments'}
           </h4>
           <p className="text-muted mb-0" style={arabicFontStyle}>
-            {isArabic ? 'تصحيح وتقييم أعمال الطلاب' : 'Grade and evaluate student work'}
+            {isArabic ? 'تصحيح وتقييم أعمال التلاميذ' : 'Grade and evaluate student work'}
           </p>
         </div>
         <div className="d-flex gap-2 flex-wrap">
@@ -630,7 +630,7 @@ const TeacherMarkAssessments = () => {
                   </InputGroup.Text>
                   <Form.Control
                     type="text"
-                    placeholder={isArabic ? 'بحث عن طالب...' : 'Search student...'}
+                    placeholder={isArabic ? 'بحث عن تلميذ...' : 'Search student...'}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     style={{ ...arabicFontStyle, background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529' }}
@@ -644,7 +644,7 @@ const TeacherMarkAssessments = () => {
                   size="sm"
                   style={{ ...arabicFontStyle, background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529', borderRadius: '12px' }}
                 >
-                  <option value="all">{isArabic ? 'جميع الطلاب' : 'All Students'}</option>
+                  <option value="all">{isArabic ? 'جميع التلاميذ' : 'All Students'}</option>
                   <option value="submitted">{isArabic ? 'مقدم' : 'Submitted'}</option>
                   <option value="pending">{isArabic ? 'بانتظار التصحيح' : 'Pending Grading'}</option>
                   <option value="graded">{isArabic ? 'مصحح' : 'Graded'}</option>
@@ -653,7 +653,7 @@ const TeacherMarkAssessments = () => {
               </Col>
               <Col xs={6} sm={4} md={3}>
                 <span className="text-muted" style={{ ...arabicFontStyle, fontSize: '0.85rem' }}>
-                  {formatNumber(filteredStudents.length)} {isArabic ? 'طالب' : 'students'}
+                  {formatNumber(filteredStudents.length)} {isArabic ? 'تلميذ' : 'students'}
                 </span>
               </Col>
             </Row>
@@ -673,7 +673,7 @@ const TeacherMarkAssessments = () => {
                 <thead style={{ background: darkMode ? '#0d1117' : '#f8f9fa' }}>
                   <tr>
                     <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>#</th>
-                    <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'الطالب' : 'Student'}</th>
+                    <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'التلميذ' : 'Student'}</th>
                     <th style={{ color: darkMode ? '#e9ecef' : '#212529' }} className="d-none d-sm-table-cell">{isArabic ? 'المعرف' : 'ID'}</th>
                     <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'الحالة' : 'Status'}</th>
                     <th style={{ color: darkMode ? '#e9ecef' : '#212529' }} className="d-none d-md-table-cell">{isArabic ? 'التقديم' : 'Submission'}</th>
@@ -821,7 +821,7 @@ const TeacherMarkAssessments = () => {
           <Card.Footer className="d-flex justify-content-between align-items-center py-2 flex-wrap gap-2" style={{ borderColor: darkMode ? '#2d2d44' : '#e9ecef' }}>
             <span className="text-muted small" style={arabicFontStyle}>
               {isArabic 
-                ? `عرض ${formatNumber(filteredStudents.length)} من ${formatNumber(students.length)} طالب`
+                ? `عرض ${formatNumber(filteredStudents.length)} من ${formatNumber(students.length)} تلميذ`
                 : `Showing ${formatNumber(filteredStudents.length)} of ${formatNumber(students.length)} students`}
             </span>
             <div className="d-flex gap-3">
@@ -845,9 +845,9 @@ const TeacherMarkAssessments = () => {
         }}>
           <Card.Body>
             <FaUserGraduate size={48} className="text-muted opacity-25 mb-3" />
-            <h5 style={arabicFontStyle}>{isArabic ? 'لا يوجد طلاب' : 'No Students'}</h5>
+            <h5 style={arabicFontStyle}>{isArabic ? 'لا يوجد تلاميذ' : 'No Students'}</h5>
             <p className="text-muted" style={arabicFontStyle}>
-              {isArabic ? 'لا يوجد طلاب مسجلين في هذا الفصل' : 'No students are registered in this class'}
+              {isArabic ? 'لا يوجد تلاميذ مسجلين في هذا الفصل' : 'No students are registered in this class'}
             </p>
           </Card.Body>
         </Card>
@@ -886,7 +886,7 @@ const TeacherMarkAssessments = () => {
         <Modal.Header closeButton className="border-0" style={{ background: darkMode ? '#1a1a2e' : 'white' }}>
           <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
             <FaEye className="me-2 text-primary" />
-            {isArabic ? 'تقديم الطالب' : 'Student Submission'}
+            {isArabic ? 'تقديم التلميذ' : 'Student Submission'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ background: darkMode ? '#0d1117' : 'white' }}>
@@ -1023,7 +1023,7 @@ const TeacherMarkAssessments = () => {
                 <div className="text-center py-4">
                   <FaExclamationTriangle size={48} className="text-warning mb-3" />
                   <p style={arabicFontStyle}>
-                    {isArabic ? 'لا يوجد تقديم لهذا الطالب' : 'No submission found for this student'}
+                    {isArabic ? 'لا يوجد تقديم لهذا التلميذ' : 'No submission found for this student'}
                   </p>
                 </div>
               )}

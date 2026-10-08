@@ -23,7 +23,7 @@ const TeacherSidebar = () => {
     {
       path: "/dashboard/teacher/my-students",
       icon: <FaUserGraduate />,
-      label: isArabic ? "طلابي" : "My Students",
+      label: isArabic ? "تلاميذي" : "My Students",
     },
     {
       path: "/dashboard/teacher/assessments",

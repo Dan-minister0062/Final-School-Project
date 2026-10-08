@@ -94,7 +94,7 @@ const Academics = () => {
       title: isArabic ? 'أولي' : 'Kindergarden',
       age: isArabic ? '6-3 سنوات' : '3-6 years',
       description: isArabic
-        ? 'مرحلة أساسية لتنمية مهارات الطفل وغرس القيم لديه في بيئة تعليمية محفزة، استعدادًا للنجاح في التعليم الابتدائي'
+        ? 'مرحلة أساسية لتنمية مهارات التلميذ وغرس القيم لديه في بيئة تعليمية محفزة، استعدادًا للنجاح في التعليم الابتدائي'
         : 'Kindergarten is a key stage that develops children’s skills and values in a stimulating environment, preparing them for primary education.',
       icon: <FaChild />,
       color: '#f39c12',
@@ -107,7 +107,7 @@ const Academics = () => {
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الإنجليزية' : 'English',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الفرنسية' : 'French', },
       ],
-      schedule: '9:00صباحاً  16:00مساءً',
+      schedule: '8:00صباحاً  15:00مساءً',
       features: [
         isArabic ? 'التعلم القائم على اللعب' : 'Play-Based Learning',
         isArabic ? 'القيم الإسلامية' : 'Islamic Values',
@@ -138,7 +138,7 @@ const Academics = () => {
         { icon: <FaPalette />, name: isArabic ? 'التربية التشكيلية' : 'Art & Plastic',},
         { icon: <FaGlobeAsia />, name: isArabic ? 'الإجتماعيات' : 'Geography',},
       ],
-      schedule: '9:00صباحاً  16:00مساءً',
+      schedule: '8:00صباحاً  15:00مساءً',
       features: [
         isArabic ? 'التميز الأكاديمي' : 'Academic Excellence',
         isArabic ? 'بناء الشخصية' : 'Character Building',
@@ -169,7 +169,7 @@ const Academics = () => {
         { icon: <FaLaptop />, name: isArabic ? 'الإعلاميات' : 'ICT',},
         { icon: <FaGlobeAsia />, name: isArabic ? 'الإجتماعيات' : 'Geography',},
       ],
-      schedule: '9:00صباحاً  16:00مساءً',
+      schedule: '8:00صباحاً  15:00مساءً',
       features: [
         isArabic ? 'التميز الأكاديمي' : 'Academic Excellence',
         isArabic ? 'الإعداد المهني' : 'Career Preparation',
@@ -201,7 +201,7 @@ const Academics = () => {
         { icon: <FaGlobeAsia />, name: isArabic ? 'الإجتماعيات' : 'Geography',},
         { icon: <FaBrain />, name: isArabic ? 'الفلسفة' : 'Philosophy',},
       ],
-      schedule: '9:00صباحاً  16:00مساءً',
+      schedule: '8:00صباحاً  15:00مساءً',
       features: [
         isArabic ? 'التميز الأكاديمي' : 'Academic Excellence',
         isArabic ? 'الإعداد الجامعي' : 'School Preparation',
@@ -413,6 +413,12 @@ const Academics = () => {
                     <Badge bg="light" className="text-dark" style={{ padding: '6px 14px', borderRadius: '50px' }}>
                       <FaBookOpen className="me-1" /> {formatNumber(currentLevel.subjects.length)} {isArabic ? 'مواد' : 'Subjects'}
                     </Badge>
+                  </div>
+
+                  <div className="text-center mb-4 p-3 rounded-4" style={{ background: currentLevel.gradient, color: '#ffffff' }}>
+                    <h5 className="fw-bold mb-0" style={arabicFontStyle}>
+                      {isArabic ? 'التربية الإسلامية والقرآن الكريم' : 'Islamic Education and the Holy Quran'}
+                    </h5>
                   </div>
 
                   <Row className="g-3">

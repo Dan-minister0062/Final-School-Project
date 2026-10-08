@@ -770,7 +770,7 @@ const handleReject = async () => {
               <thead style={{ background: darkMode ? '#0d1117' : '#f8f9fa' }}>
                 <tr>
                   <th style={{ color: darkMode ? '#e9ecef' : '#212529', fontSize: 'clamp(0.6rem, 0.8vw, 0.85rem)' }}>
-                    {isArabic ? 'الطالب' : 'Student'}
+                    {isArabic ? 'التلميذ' : 'Student'}
                   </th>
                   <th 
                     onClick={() => handleSort('parentName')}
@@ -982,7 +982,7 @@ const handleReject = async () => {
           {selectedRegistration && (
             <div style={arabicFontStyle}>
               <h6 className="fw-bold text-primary" style={{ fontSize: 'clamp(0.8rem, 1vw, 1rem)' }}>
-                {isArabic ? 'معلومات الطالب' : 'Student Information'}
+                {isArabic ? 'معلومات التلميذ' : 'Student Information'}
               </h6>
               <Row className="mb-2"><Col md={4}><strong className="text-muted">{isArabic ? 'الاسم الكامل' : 'Full Name'}</strong></Col><Col md={8}><span className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{selectedRegistration.studentName}</span></Col></Row>
               <Row className="mb-2"><Col md={4}><strong className="text-muted">{isArabic ? 'تاريخ الميلاد' : 'Date of Birth'}</strong></Col><Col md={8}><span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{selectedRegistration.studentDob ? new Date(selectedRegistration.studentDob).toLocaleDateString() : '-'}</span></Col></Row>
@@ -1083,7 +1083,7 @@ const handleReject = async () => {
               <Row className="g-3 mb-3">
                 <Col md={6}>
                   <div className="detail-item">
-                    <label className="text-muted small" style={arabicFontStyle}>{isArabic ? 'الطالب' : 'Student'}</label>
+                    <label className="text-muted small" style={arabicFontStyle}>{isArabic ? 'التلميذ' : 'Student'}</label>
                     <p className="fw-semibold mb-0" style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>{selectedRegistration.studentName}</p>
                   </div>
                 </Col>

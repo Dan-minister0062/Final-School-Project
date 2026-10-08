@@ -191,7 +191,7 @@ const NavbarComponent = () => {
               fontSize: '1.2rem',
               ...arabicFontStyle
             }}>
-              {isArabic ? 'المدرسة الخاصة مدرسة الفتح' : 'Madrassat Al Fath Private'}
+              {isArabic ?'مدرسة الفتح الخاصة' : 'Madrassat Al Fath Private'}
             </span>
             <span
               className="d-block"
@@ -205,7 +205,7 @@ const NavbarComponent = () => {
                 ...arabicFontStyle
               }}
             >
-              {isArabic ? 'الخاصة' : 'Private'}
+              {/*{isArabic ? 'الخاصة' : 'Private'}*/}
             </span>
             <small>
             {/*   className="d-block"

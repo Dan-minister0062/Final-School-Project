@@ -314,8 +314,8 @@ const Admissions = () => {
   const steps = [
     {
       icon: <FaChild />,
-      title: isArabic ? "معلومات الطفل" : "Child Info",
-      desc: isArabic ? "أدخل بيانات طفلك" : "Enter child details",
+      title: isArabic ? "معلومات التلميذ" : "Child Info",
+      desc: isArabic ? "أدخل بيانات تلميذك" : "Enter child details",
     },
     {
       icon: <FaUserPlus />,
@@ -359,7 +359,7 @@ const Admissions = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label style={arabicFontStyle}>
-                    {isArabic ? "هل التحق الطفل بمدرسة من قبل؟" : "Has the child attended school before?"}
+                    {isArabic ? "هل التحق التلميذ بمدرسة من قبل؟" : "Has the child attended school before?"}
                   </Form.Label>
                   <Form.Select
                     {...register("hasAttendedBefore")}
@@ -377,7 +377,7 @@ const Admissions = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label style={arabicFontStyle}>
-                    {isArabic ? "هل يحتاج الطفل إلى مساعدة خاصة؟" : "Does the child require special assistance?"}
+                    {isArabic ? "هل يحتاج التلميذ إلى مساعدة خاصة؟" : "Does the child require special assistance?"}
                   </Form.Label>
                   <Form.Select
                     {...register("specialAssistance")}
@@ -516,7 +516,7 @@ const Admissions = () => {
             style={arabicFontStyle}
           >
             {isArabic
-              ? "سجل طفلك اليوم وابدأ رحلته التعليمية معنا"
+              ? "سجل تلميذك اليوم وابدأ رحلته التعليمية معنا"
               : "Enroll your child today and start their educational journey with us"}
           </p>
         </Container>
@@ -651,7 +651,7 @@ const Admissions = () => {
                   <Card.Body className="p-4">
                     <div className="d-flex justify-content-between mb-3">
                       <span style={arabicFontStyle}>
-                        {isArabic ? "طلاب مسجلين" : "Students Enrolled"}
+                        {isArabic ? "تلاميذ مسجلين" : "Students Enrolled"}
                       </span>
                       <span className="fw-bold" style={{ color: "#1a5f7a" }}>
                         520+
@@ -707,7 +707,7 @@ const Admissions = () => {
                     <div className="flex-grow-1">
                       <h4 className="fw-bold mb-0" style={arabicFontStyle}>
                         {isArabic
-                          ? "تسجيل طالب جديد"
+                          ? "تسجيل تلميذ جديد"
                           : "New Student Registration"}
                       </h4>
                       <p className="text-muted mb-0" style={arabicFontStyle}>
@@ -762,7 +762,7 @@ const Admissions = () => {
                         style={arabicFontStyle}
                       >
                         {isArabic
-                          ? "تسجيل طالب آخر"
+                          ? "تسجيل تلميذ آخر"
                           : "Register Another Student"}
                       </Button>
                     </Alert>
@@ -793,7 +793,7 @@ const Admissions = () => {
                               className="me-2"
                               style={{ color: "#1a5f7a" }}
                             />
-                            {isArabic ? "معلومات الطفل" : "Student Information"}
+                            {isArabic ? "معلومات التلميذ" : "Student Information"}
                           </h5>
                         </div>
                         <div
@@ -1090,7 +1090,7 @@ const Admissions = () => {
                               style={arabicFontStyle}
                             >
                               <option value="">{isArabic ? "اختر" : "Select"}</option>
-                              <option value="new">{isArabic ? "طالب جديد" : "New Student"}</option>
+                              <option value="new">{isArabic ? "تلميذ جديد" : "New Student"}</option>
                               <option value="transfer">{isArabic ? "تحويل" : "Transfer"}</option>
                             </Form.Select>
                             <Form.Control.Feedback type="invalid">
@@ -1180,7 +1180,7 @@ const Admissions = () => {
                         <Col md={6}>
                           <Form.Group className="mb-3">
                             <Form.Label style={arabicFontStyle}>
-                              {isArabic ? "العلاقة بالطالب" : "Relationship"} *
+                              {isArabic ? "العلاقة بالتلميذ" : "Relationship"} *
                             </Form.Label>
                             <Form.Select
                               {...register("relationship")}

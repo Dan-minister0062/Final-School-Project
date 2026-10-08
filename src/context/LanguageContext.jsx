@@ -130,7 +130,7 @@ const toggleLanguage = () => {
     ar: {
       welcome: 'مرحباً',
       dashboard: 'لوحة التحكم',
-      students: 'الطلاب',
+      students: 'التلاميذ',
       teachers: 'المعلمون',
       classes: 'الفصول',
       parents: 'أولياء الأمور',
@@ -156,7 +156,7 @@ const toggleLanguage = () => {
       print: 'طباعة',
       overview: 'نظرة عامة',
       myClasses: 'فصولي',
-      myStudents: 'طلابي',
+      myStudents: 'تلاميذي',
       attendance: 'الحضور',
       assignments: 'الواجبات',
       timetable: 'الجدول',

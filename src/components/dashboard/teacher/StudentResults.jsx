@@ -88,7 +88,7 @@ const StudentResults = () => {
       console.log('👨‍🎓 Current user:', currentUser);
 
       if (currentUser.role !== 'student') {
-        setError(isArabic ? 'هذه الصفحة مخصصة للطلاب فقط' : 'This page is for students only');
+        setError(isArabic ? 'هذه الصفحة مخصصة للتلاميذ فقط' : 'This page is for students only');
         setLoading(false);
         return;
       }

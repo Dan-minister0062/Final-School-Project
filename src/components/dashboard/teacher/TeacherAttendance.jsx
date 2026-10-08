@@ -364,7 +364,7 @@ const TeacherAttendance = () => {
       setError(null);
       
       if (attendanceData.length === 0) {
-        setError(isArabic ? 'لا يوجد طلاب لتسجيل الحضور' : 'No students to mark attendance');
+        setError(isArabic ? 'لا يوجد تلاميذ لتسجيل الحضور' : 'No students to mark attendance');
         setSaving(false);
         return;
       }
@@ -400,7 +400,7 @@ const TeacherAttendance = () => {
       
       setSuccess(
         isArabic 
-          ? `✅ تم تسجيل الحضور بنجاح (${presentCount}/${totalCount} طالب)`
+          ? `✅ تم تسجيل الحضور بنجاح (${presentCount}/${totalCount} تلميذ)`
           : `✅ Attendance saved successfully (${presentCount}/${totalCount} students)`
       );
       
@@ -446,7 +446,7 @@ const TeacherAttendance = () => {
       notificationService.addNotification({
         title: isArabic ? '📊 تم تسجيل الحضور' : '📊 Attendance Recorded',
         message: isArabic
-          ? `تم تسجيل حضور ${className} في ${selectedDate}: ${present}/${total} طالب`
+          ? `تم تسجيل حضور ${className} في ${selectedDate}: ${present}/${total} تلميذ`
           : `Attendance for ${className} on ${selectedDate}: ${present}/${total} students present`,
         type: 'attendance',
         link: '/dashboard/teacher/attendance',
@@ -461,7 +461,7 @@ const TeacherAttendance = () => {
         notificationService.addNotification({
           title: '📊 Student Attendance Alert',
           message: isArabic
-            ? `طفلك ${student.name || student.firstName || 'Unknown'} كان ${getStatusLabel(status)} في ${selectedDate}`
+            ? `تلميذك ${student.name || student.firstName || 'Unknown'} كان ${getStatusLabel(status)} في ${selectedDate}`
             : `Your child ${student.name || student.firstName || 'Unknown'} was ${getStatusLabel(status)} on ${selectedDate}`,
           type: 'attendance',
           link: '/dashboard/parent/child-results',
@@ -573,7 +573,7 @@ const TeacherAttendance = () => {
             fontSize: isArabic ? 'clamp(0.8rem, 1vw, 0.95rem)' : 'clamp(0.75rem, 0.9vw, 0.9rem)' 
           }}>
             {isArabic 
-              ? `تسجيل ومتابعة حضور الطلاب (${formatNumber(classes.length)} فصول)`
+              ? `تسجيل ومتابعة حضور التلاميذ (${formatNumber(classes.length)} فصول)`
               : `Record and track student attendance (${formatNumber(classes.length)} classes)`}
           </p>
         </div>
@@ -878,7 +878,7 @@ const TeacherAttendance = () => {
               </Button>
               <span className="text-muted d-flex align-items-center" style={arabicFontStyle}>
                 <FaUserGraduate className="me-1" />
-                {isArabic ? 'إجمالي الطلاب: ' : 'Total Students: '}
+                {isArabic ? 'إجمالي التلاميذ: ' : 'Total Students: '}
                 <strong className="ms-1">{formatNumber(students.length)}</strong>
               </span>
               <span className="text-success d-flex align-items-center" style={arabicFontStyle}>
@@ -911,7 +911,7 @@ const TeacherAttendance = () => {
                 <thead style={{ background: darkMode ? '#0d1117' : '#f8f9fa' }}>
                   <tr>
                     <th style={{ color: darkMode ? '#e9ecef' : '#212529', width: '50px' }}>#</th>
-                    <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'اسم الطالب' : 'Student Name'}</th>
+                    <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'اسم التلميذ' : 'Student Name'}</th>
                     <th style={{ color: darkMode ? '#e9ecef' : '#212529' }} className="d-none d-sm-table-cell">{isArabic ? 'المعرف' : 'Student ID'}</th>
                     <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'الحالة' : 'Status'}</th>
                     <th style={{ color: darkMode ? '#e9ecef' : '#212529' }} className="text-center">{isArabic ? 'الإجراءات' : 'Actions'}</th>
@@ -995,7 +995,7 @@ const TeacherAttendance = () => {
             <div className="text-center py-4">
               <FaUserGraduate size={48} className="text-muted opacity-25 mb-3" />
               <p className="text-muted" style={arabicFontStyle}>
-                {isArabic ? 'لا يوجد طلاب في هذا الفصل' : 'No students in this class'}
+                {isArabic ? 'لا يوجد تلاميذ في هذا الفصل' : 'No students in this class'}
               </p>
               <Button 
                 variant="outline-primary" 
@@ -1004,7 +1004,7 @@ const TeacherAttendance = () => {
                 style={{ ...arabicFontStyle, borderRadius: '12px' }}
               >
                 <FaArrowRight className="me-2" />
-                {isArabic ? 'عرض طلابي' : 'View My Students'}
+                {isArabic ? 'عرض تلاميذي' : 'View My Students'}
               </Button>
             </div>
           )}
@@ -1013,7 +1013,7 @@ const TeacherAttendance = () => {
             <div className="text-center py-4">
               <FaUsers size={48} className="text-muted opacity-25 mb-3" />
               <p className="text-muted" style={arabicFontStyle}>
-                {isArabic ? 'الرجاء اختيار فصل لعرض الطلاب' : 'Please select a class to view students'}
+                {isArabic ? 'الرجاء اختيار فصل لعرض التلاميذ' : 'Please select a class to view students'}
               </p>
               {classes.length === 0 && (
                 <p className="text-muted small" style={arabicFontStyle}>
@@ -1042,7 +1042,7 @@ const TeacherAttendance = () => {
                     <tr>
                       <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'التاريخ' : 'Date'}</th>
                       <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'الفصل' : 'Class'}</th>
-                      <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'الطالب' : 'Student'}</th>
+                      <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'التلميذ' : 'Student'}</th>
                       <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'الحالة' : 'Status'}</th>
                     </tr>
                   </thead>

@@ -732,7 +732,7 @@ const ParentDashboard = () => {
                   <Spinner animation="border" variant="primary" />
                   <h4 className="mb-0" style={arabicFontStyle}>
                     {isArabic
-                      ? "جارٍ تحميل بيانات أطفالك..."
+                      ? "جارٍ تحميل بيانات تلاميذك..."
                       : "Loading your children..."}
                   </h4>
                 </div>
@@ -787,11 +787,11 @@ const ParentDashboard = () => {
                 <FaChildIcon className="text-muted opacity-25" />
               </div>
               <h4 style={arabicFontStyle}>
-                {isArabic ? "لا يوجد أطفال" : "No Children Found"}
+                {isArabic ? "لا يوجد تلاميذ" : "No Children Found"}
               </h4>
               <p className="text-muted" style={arabicFontStyle}>
                 {isArabic
-                  ? "لا يوجد أطفال مسجلين في النظام حتى الآن."
+                  ? "لا يوجد تلاميذ مسجلين في النظام حتى الآن."
                   : "You don't have any children registered in the system yet."}
               </p>
               <Button
@@ -971,7 +971,7 @@ const ParentDashboard = () => {
                 }}
               >
                 <FaChildIcon className="me-2" style={{ color: "#1a5f7a" }} />
-                {isArabic ? "اختر الطفل:" : "Select Child:"}
+                {isArabic ? "اختر التلميذ:" : "Select Child:"}
               </span>
               <div className="d-flex flex-wrap gap-2">
                 {children.map((child) => (
@@ -2124,7 +2124,7 @@ const ParentDashboard = () => {
                   >
                     <FaChildIcon style={{ fontSize: "0.65rem" }} />
                     <span style={{ fontWeight: 600 }}>
-                      {isArabic ? "الطالب:" : "Student:"}
+                      {isArabic ? "التلميذ:" : "Student:"}
                     </span>
                     <span
                       style={{

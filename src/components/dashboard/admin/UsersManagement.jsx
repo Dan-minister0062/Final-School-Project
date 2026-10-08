@@ -835,7 +835,7 @@ const UsersManagement = () => {
     if (formData.role === "parent") {
       if (!formData.childrenNames)
         errors.push(
-          isArabic ? "أسماء الأطفال مطلوبة" : "Children names are required",
+          isArabic ? "أسماء التلاميذ مطلوبة" : "Children names are required",
         );
     }
 
@@ -1817,7 +1817,7 @@ const UsersManagement = () => {
             <div className="section-divider">
               <span className="section-divider-label">
                 <FaGraduationCap className="me-2" />{" "}
-                {isArabic ? "تفاصيل الطالب" : "Student Details"}
+                {isArabic ? "تفاصيل التلميذ" : "Student Details"}
               </span>
             </div>
 
@@ -2040,7 +2040,7 @@ const UsersManagement = () => {
                 }}
               >
                 <FaChild className="me-2" />{" "}
-                {isArabic ? "أسماء الأطفال" : "Children Names"} *
+                {isArabic ? "أسماء التلاميذ" : "Children Names"} *
               </Form.Label>
               <Form.Control
                 type="text"
@@ -2050,7 +2050,7 @@ const UsersManagement = () => {
                 }
                 placeholder={
                   isArabic
-                    ? "أدخل أسماء الأطفال مفصولة بفواصل"
+                    ? "أدخل أسماء التلاميذ مفصولة بفواصل"
                     : "Enter children names separated by commas"
                 }
                 className="form-control-lg"
@@ -2074,7 +2074,7 @@ const UsersManagement = () => {
               >
                 <FaGraduationCap className="me-2" />{" "}
                 {isArabic
-                  ? "اختيار الأبناء من قائمة الطلاب"
+                  ? "اختيار الأبناء من قائمة التلاميذ"
                   : "Pick children from the students list"}
               </Form.Label>
               <div
@@ -2093,7 +2093,7 @@ const UsersManagement = () => {
                 {studentOptions.length === 0 ? (
                   <Form.Text className="text-muted" style={arabicFontStyle}>
                     {isArabic
-                      ? "لا يوجد طلاب غير مرتبطين — أضف طالباً جديداً أولاً"
+                      ? "لا يوجد تلاميذ غير مرتبطين — أضف تلميذاً جديداً أولاً"
                       : "No unlinked students available — add a new student first"}
                   </Form.Text>
                 ) : (
@@ -4650,7 +4650,7 @@ const UsersManagement = () => {
                         <Col md={4}>
                           <strong className="text-muted">
                             <FaChild className="me-1" />{" "}
-                            {isArabic ? "الأطفال" : "Children"}
+                            {isArabic ? "التلاميذ" : "Children"}
                           </strong>
                         </Col>
                         <Col md={8}>
@@ -5859,7 +5859,7 @@ const UsersManagement = () => {
                     }}
                   >
                     <FaChild className="me-1" />{" "}
-                    {isArabic ? "أسماء الأطفال" : "Children Names"}
+                    {isArabic ? "أسماء التلاميذ" : "Children Names"}
                   </Form.Label>
                   <Form.Control
                     type="text"
@@ -5870,7 +5870,7 @@ const UsersManagement = () => {
                         childrenNames: e.target.value,
                       })
                     }
-                    placeholder={isArabic ? "أسماء الأطفال مفصولة بفواصل" : "Children names separated by commas"}
+                    placeholder={isArabic ? "أسماء التلاميذ مفصولة بفواصل" : "Children names separated by commas"}
                     style={{
                       ...arabicFontStyle,
                       background: darkMode ? "#2d2d44" : "white",

@@ -107,7 +107,7 @@ const AcceptInvite = () => {
       admin: isArabic ? 'مدير' : 'Admin',
       teacher: isArabic ? 'معلم' : 'Teacher',
       parent: isArabic ? 'ولي أمر' : 'Parent',
-      student: isArabic ? 'طالب' : 'Student'
+      student: isArabic ? 'تلميذ' : 'Student'
     };
     return roles[role] || role;
   };

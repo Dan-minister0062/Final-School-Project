@@ -49,7 +49,7 @@ const DashboardLayout = () => {
       admin: isArabic ? 'مدير' : 'Admin',
       teacher: isArabic ? 'أستاذ' : 'Teacher',
       parent: isArabic ? 'ولي أمر' : 'Parent',
-      student: isArabic ? 'طالب' : 'Student'
+      student: isArabic ? 'تلميذ' : 'Student'
     };
     return roleMap[role] || 'Admin';
   };
@@ -202,7 +202,7 @@ const DashboardLayout = () => {
         ] : []),
         { path: '/dashboard/admin/teachers', icon: <FaChalkboardTeacher />, label: isArabic ? 'المعلمون' : 'Teachers' },
         { path: '/dashboard/admin/parents', icon: <FaUsers />, label: isArabic ? 'أولياء الأمور' : 'Parents' },
-        { path: '/dashboard/admin/students', icon: <FaUserGraduate />, label: isArabic ? 'الطلاب' : 'Students' },
+        { path: '/dashboard/admin/students', icon: <FaUserGraduate />, label: isArabic ? 'التلاميذ' : 'Students' },
         { path: '/dashboard/admin/classes', icon: <FaBuilding />, label: isArabic ? 'الفصول' : 'Classes' },
         { path: '/dashboard/admin/announcements', icon: <FaBullhorn />, label: isArabic ? 'الإعلانات' : 'Announcements' },
         { path: '/dashboard/admin/assessments', icon: <FaClipboardList />, label: isArabic ? 'لوحة التقييمات' : 'Assessments Dashboard' },
@@ -219,7 +219,7 @@ const DashboardLayout = () => {
     if (role === 'teacher') {
       return [
         ...baseItems,
-        { path: '/dashboard/teacher/my-students', icon: <FaUserGraduate />, label: isArabic ? 'طلابي' : 'My Students' },
+        { path: '/dashboard/teacher/my-students', icon: <FaUserGraduate />, label: isArabic ? 'تلاميذي' : 'My Students' },
         { path: '/dashboard/teacher/classes', icon: <FaBuilding />, label: isArabic ? 'فصولي' : 'My Classes' },
         { path: '/dashboard/teacher/assessments', icon: <FaFileAlt />, label: isArabic ? 'التقييمات' : 'Assessments' },
         { path: '/dashboard/teacher/attendance', icon: <FaClock />, label: isArabic ? 'الحضور' : 'Attendance' },
@@ -231,7 +231,7 @@ const DashboardLayout = () => {
     if (role === 'parent') {
       return [
         ...baseItems,
-        { path: '/dashboard/parent/child-results', icon: <FaAward />, label: isArabic ? 'نتائج طفلي' : 'Child Results' },
+        { path: '/dashboard/parent/child-results', icon: <FaAward />, label: isArabic ? 'نتائج تلميذي' : 'Child Results' },
         { path: '/dashboard/parent/announcements', icon: <FaBullhorn />, label: isArabic ? 'الإعلانات' : 'Announcements' },
       ];
     }

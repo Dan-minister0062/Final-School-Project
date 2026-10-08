@@ -78,7 +78,7 @@ const StudentSidebar = () => {
       <div className="sidebar-header p-3">
         <h5 className="mb-0">
           <FaGraduationCap className="me-2" />
-          {isArabic ? "بوابة الطالب" : "Student Portal"}
+          {isArabic ? "بوابة التلميذ" : "Student Portal"}
         </h5>
         <small className="text-muted">
           {user?.name || user?.firstName || "Student"}
@@ -143,7 +143,7 @@ const StudentSidebar = () => {
               {user?.name || user?.firstName || "Student"}
             </small>
             <small className="text-muted">
-              {isArabic ? "طالب" : "Student"}
+              {isArabic ? "تلميذ" : "Student"}
             </small>
           </div>
         </div>

@@ -255,7 +255,7 @@ const StudentDashboard = () => {
       }
 
       if (!student) {
-        setError(isArabic ? 'لم يتم العثور على بيانات الطالب' : 'Student data not found');
+        setError(isArabic ? 'لم يتم العثور على بيانات التلميذ' : 'Student data not found');
         setLoading(false);
         return;
       }
@@ -465,7 +465,7 @@ const StudentDashboard = () => {
       <div className="text-center py-5">
         <FaUserGraduate size={48} className="text-muted opacity-25 mb-3" />
         <p className="text-muted" style={arabicFontStyle}>
-          {isArabic ? 'لا توجد بيانات للطالب' : 'No student data found'}
+          {isArabic ? 'لا توجد بيانات للتلميذ' : 'No student data found'}
         </p>
         <Button variant="primary" onClick={() => navigate('/login')} style={{ ...arabicFontStyle, borderRadius: '12px' }}>
           {isArabic ? 'تسجيل الدخول' : 'Login'}
@@ -524,7 +524,7 @@ const StudentDashboard = () => {
           <div>
             <h4 className="fw-bold mb-1" style={{ ...arabicFontStyle, color: '#1a5f7a' }}>
               <FaGraduationCap className="me-2" />
-              {isArabic ? 'لوحة تحكم الطالب' : 'Student Dashboard'}
+              {isArabic ? 'لوحة تحكم التلميذ' : 'Student Dashboard'}
             </h4>
             <p className="text-muted mb-0" style={arabicFontStyle}>
               {isArabic ? 'مرحباً بعودتك،' : 'Welcome back,'} {studentData.name || studentData.firstName || 'Student'} 👋

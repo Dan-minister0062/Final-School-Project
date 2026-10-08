@@ -161,7 +161,7 @@ const Home = () => {
       name: isArabic ? 'عبد الله إبراهيم' : 'Abdullah Ibrahim',
       role: t('parent'),
       text: isArabic
-        ? 'لقد نما طفلي بشكل كبير منذ انضمامه إلى مدرسة الفتح. المعلمون رائعون والقيم الإسلامية تُغرس بشكل جميل.'
+        ? 'لقد نما تلميذي بشكل كبير منذ انضمامه إلى مدرسة الفتح. المعلمون رائعون والقيم الإسلامية تُغرس بشكل جميل.'
         : 'My child has grown tremendously since joining Madrassat Al Fath. The teachers are amazing and the Islamic values are instilled beautifully.',
       rating: 5,
       child: isArabic ? 'أحمد عبد الله (الصف الخامس الابتدائي)' : 'Ahmad Abdullah (Primary 5)'
@@ -170,7 +170,7 @@ const Home = () => {
       name: isArabic ? 'فاطمة يوسف' : 'Fatimah Yusuf',
       role: t('parent'),
       text: isArabic
-        ? 'التعليم الذي يتلقاه أطفالي في مدرسة الفتح استثنائي. أحب كيفية موازنتهم بين التعليم الأكاديمي والتعليم الإسلامي.'
+        ? 'التعليم الذي يتلقاه تلاميذي في مدرسة الفتح استثنائي. أحب كيفية موازنتهم بين التعليم الأكاديمي والتعليم الإسلامي.'
         : 'The education my children receive at Madrassat Al Fath is exceptional. I love how they balance academics with Islamic education.',
       rating: 5,
       child: isArabic ? 'محمد علي (الصف الثاني الإعدادي)' : 'Muhammad Ali (Secondary 2)'
@@ -237,7 +237,7 @@ const Home = () => {
                       fontSize: isArabic ? 'clamp(1.2rem, 2vw, 1.5rem)' : 'clamp(1rem, 1.5vw, 1.2rem)',
                       color: '#ffffff'
                     }}>
-                      {isArabic ? 'يدنا في يد أطفالنا علماً وأدباً' : 'Hand in hand with our children in knowledge and manners'}
+                      {isArabic ? 'يدنا في يد تلاميذنا علماً وأدباً' : 'Hand in hand with our children in knowledge and manners'}
                     </p>
                     <div className="d-flex gap-3 flex-wrap">
                       <Button variant="dark" size="lg" as={Link} to="/admissions" className="px-4">
@@ -658,7 +658,7 @@ const Home = () => {
                       <h6 className="fw-bold mb-0" style={arabicFontStyle}>{testimonial.name}</h6>
                       <small className="text-muted" style={arabicFontStyle}>{testimonial.role}</small>
                       <br />
-                      <small className="text-muted" style={arabicFontStyle}>{isArabic ? 'الطفل' : 'Child'}: {testimonial.child}</small>
+                      <small className="text-muted" style={arabicFontStyle}>{isArabic ? 'التلميذ' : 'Child'}: {testimonial.child}</small>
                     </div>
                   </Card.Body>
                 </Card>

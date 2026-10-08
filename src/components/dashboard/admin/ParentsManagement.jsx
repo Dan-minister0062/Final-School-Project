@@ -665,7 +665,7 @@ const ParentsManagement = () => {
                           <td>
                             <div>
                               <Badge style={{ background: "#c49a6c", color: "white", fontSize: "clamp(0.45rem, 0.55vw, 0.65rem)", padding: "3px 10px", borderRadius: "8px" }}>
-                                {formatNumber(childrenCount)} {isArabic ? "طفل" : "child"}{childrenCount !== 1 ? (isArabic ? "أطفال" : "ren") : ""}
+                                {formatNumber(childrenCount)} {isArabic ? "تلميذ" : "child"}{childrenCount !== 1 ? (isArabic ? "تلاميذ" : "ren") : ""}
                               </Badge>
                               {children.length > 0 && (
                                 <div className="mt-1">

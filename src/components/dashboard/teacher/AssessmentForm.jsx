@@ -663,7 +663,7 @@ const AssessmentForm = ({
             }}
           >
             <FaUsers className="me-2" />
-            {isArabic ? "تحديد الطلاب المستهدفين" : "Select Target Students"}
+            {isArabic ? "تحديد التلاميذ المستهدفين" : "Select Target Students"}
           </Form.Label>
           <div
             className="student-selection p-3 rounded-3"
@@ -716,14 +716,14 @@ const AssessmentForm = ({
                 style={arabicFontStyle}
               >
                 {isArabic
-                  ? "لا يوجد طلاب في هذا الفصل"
+                  ? "لا يوجد تلاميذ في هذا الفصل"
                   : "No students in this class"}
               </p>
             )}
           </div>
           <Form.Text className="text-muted" style={arabicFontStyle}>
             {isArabic
-              ? `تم اختيار ${formData.assignedStudents?.length || 0} طالب من ${getClassStudents(formData.classId).length}`
+              ? `تم اختيار ${formData.assignedStudents?.length || 0} تلميذ من ${getClassStudents(formData.classId).length}`
               : `${formData.assignedStudents?.length || 0} students selected out of ${getClassStudents(formData.classId).length}`}
           </Form.Text>
         </Form.Group>

@@ -60,7 +60,7 @@ const Notifications = () => {
       admin: isArabic ? 'المسؤول' : 'Admin',
       teacher: isArabic ? 'المعلم' : 'Teacher',
       parent: isArabic ? 'ولي الأمر' : 'Parent',
-      student: isArabic ? 'الطالب' : 'Student'
+      student: isArabic ? 'التلميذ' : 'Student'
     };
     return labels[userRole] || 'User';
   };
@@ -68,7 +68,7 @@ const Notifications = () => {
   // Get type label
   const getTypeLabel = (type) => {
     const labels = {
-      registration: isArabic ? 'تسجيل' : 'Registration',
+      registration: 'Registration',
       contact: isArabic ? 'رسالة تواصل' : 'Contact',
       announcement: isArabic ? 'إعلان' : 'Announcement',
       assignment: isArabic ? 'واجب' : 'Assignment',
@@ -122,7 +122,7 @@ const Notifications = () => {
   // Get type options for filter
   const getTypeOptions = () => {
     const allTypes = {
-      registration: isArabic ? 'تسجيل' : 'Registration',
+      registration: 'Registration',
       contact: isArabic ? 'رسالة تواصل' : 'Contact',
       announcement: isArabic ? 'إعلان' : 'Announcement',
       assignment: isArabic ? 'واجب' : 'Assignment',
@@ -229,7 +229,7 @@ const Notifications = () => {
       admin: isArabic ? 'لا توجد إشعارات إدارية' : 'No admin notifications',
       teacher: isArabic ? 'لا توجد إشعارات للمعلم' : 'No teacher notifications',
       parent: isArabic ? 'لا توجد إشعارات لولي الأمر' : 'No parent notifications',
-      student: isArabic ? 'لا توجد إشعارات للطالب' : 'No student notifications'
+      student: isArabic ? 'لا توجد إشعارات للتلميذ' : 'No student notifications'
     };
     return messages[userRole] || messages.admin;
   };

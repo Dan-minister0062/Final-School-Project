@@ -36,7 +36,7 @@ const Profile = () => {
       admin: isArabic ? 'مدير' : 'Admin',
       teacher: isArabic ? 'أستاذ' : 'Teacher',
       parent: isArabic ? 'ولي أمر' : 'Parent',
-      student: isArabic ? 'طالب' : 'Student'
+      student: isArabic ? 'تلميذ' : 'Student'
     };
     return roleMap[role] || 'Admin';
   };

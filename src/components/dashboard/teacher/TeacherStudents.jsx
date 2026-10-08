@@ -549,7 +549,7 @@ const TeacherStudents = () => {
           <span className="visually-hidden">Loading...</span>
         </div>
         <p className="mt-3 text-muted" style={arabicFontStyle}>
-          {isArabic ? 'جاري تحميل الطلاب...' : 'Loading students...'}
+          {isArabic ? 'جاري تحميل التلاميذ...' : 'Loading students...'}
         </p>
       </div>
     );
@@ -574,10 +574,10 @@ const TeacherStudents = () => {
           <div>
             <h4 className="fw-bold mb-0" style={{ ...arabicFontStyle, color: '#4a9eff' }}>
               <FaUserGraduate className="me-2" />
-              {isArabic ? 'طلابي' : 'My Students'}
+              {isArabic ? 'تلاميذي' : 'My Students'}
             </h4>
             <p className="text-muted mb-0" style={arabicFontStyle}>
-              {isArabic ? 'عرض وإدارة الطلاب في فصولك' : 'View and manage students in your classes'}
+              {isArabic ? 'عرض وإدارة التلاميذ في فصولك' : 'View and manage students in your classes'}
             </p>
           </div>
           <Button 
@@ -600,11 +600,11 @@ const TeacherStudents = () => {
           <Card.Body>
             <FaUserGraduate size={48} className="text-muted opacity-25 mb-3" />
             <h5 style={arabicFontStyle}>
-              {isArabic ? 'لا يوجد طلاب مكلفين' : 'No students assigned'}
+              {isArabic ? 'لا يوجد تلاميذ مكلفين' : 'No students assigned'}
             </h5>
             <p className="text-muted" style={arabicFontStyle}>
               {isArabic 
-                ? 'سيظهر طلاب الفصول المخصصة لك هنا' 
+                ? 'سيظهر تلاميذ الفصول المخصصة لك هنا' 
                 : 'Students from your assigned classes will appear here'}
             </p>
             {teacher && (
@@ -634,14 +634,14 @@ const TeacherStudents = () => {
             fontSize: isArabic ? 'clamp(1rem, 2vw, 1.5rem)' : 'clamp(0.95rem, 1.8vw, 1.4rem)' 
           }}>
             <FaUserGraduate className="me-2" /> 
-            {isArabic ? 'طلابي' : 'My Students'}
+            {isArabic ? 'تلاميذي' : 'My Students'}
           </h4>
           <p className="text-muted mb-0 d-none d-sm-block" style={{ 
             ...arabicFontStyle, 
             fontSize: isArabic ? 'clamp(0.8rem, 1vw, 0.95rem)' : 'clamp(0.75rem, 0.9vw, 0.9rem)' 
           }}>
             {isArabic 
-              ? `عرض وإدارة الطلاب في فصولك (${formatNumber(students.length)})`
+              ? `عرض وإدارة التلاميذ في فصولك (${formatNumber(students.length)})`
               : `View and manage students in your classes (${formatNumber(students.length)})`}
           </p>
         </div>
@@ -678,7 +678,7 @@ const TeacherStudents = () => {
               {formatNumber(students.length)}
             </div>
             <div className="stat-label-mini" style={{ fontSize: '0.7rem', color: '#6c757d' }}>
-              {isArabic ? 'إجمالي الطلاب' : 'Total Students'}
+              {isArabic ? 'إجمالي التلاميذ' : 'Total Students'}
             </div>
           </div>
         </Col>
@@ -711,7 +711,7 @@ const TeacherStudents = () => {
             </div>
             <div className="stat-label-mini" style={{ fontSize: '0.7rem', color: '#6c757d' }}>
               <FaUser className="me-1" size={12} />
-              {isArabic ? 'طلاب (ذكور)' : 'Male Students'}
+              {isArabic ? 'تلاميذ (ذكور)' : 'Male Students'}
             </div>
           </div>
         </Col>
@@ -728,7 +728,7 @@ const TeacherStudents = () => {
             </div>
             <div className="stat-label-mini" style={{ fontSize: '0.7rem', color: '#6c757d' }}>
               <FaUser className="me-1" size={12} />
-              {isArabic ? 'طلاب (إناث)' : 'Female Students'}
+              {isArabic ? 'تلاميذ (إناث)' : 'Female Students'}
             </div>
           </div>
         </Col>
@@ -743,7 +743,7 @@ const TeacherStudents = () => {
                 <FaSearch className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
                 <Form.Control
                   type="text"
-                  placeholder={isArabic ? 'بحث عن طالب...' : 'Search students...'}
+                  placeholder={isArabic ? 'بحث عن تلميذ...' : 'Search students...'}
                   value={searchTerm}
                   onChange={handleSearch}
                   className="ps-5"
@@ -800,7 +800,7 @@ const TeacherStudents = () => {
             </Col>
             <Col xs={12} md={1}>
               <span className="text-muted d-flex align-items-center justify-content-center" style={{ ...arabicFontStyle, fontSize: '0.85rem' }}>
-                {formatNumber(filteredStudents.length)} {isArabic ? 'طالب' : 'students'}
+                {formatNumber(filteredStudents.length)} {isArabic ? 'تلميذ' : 'students'}
               </span>
             </Col>
           </Row>
@@ -971,7 +971,7 @@ const TeacherStudents = () => {
         <Modal.Header closeButton className="border-0" style={{ background: darkMode ? '#1a1a2e' : 'white' }}>
           <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
             <FaUserGraduate className="me-2 text-primary" />
-            {isArabic ? 'تفاصيل الطالب' : 'Student Details'}
+            {isArabic ? 'تفاصيل التلميذ' : 'Student Details'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ background: darkMode ? '#0d1117' : 'white' }}>
@@ -1178,7 +1178,7 @@ const TeacherStudents = () => {
                       style={arabicFontStyle}
                     >
                       {isArabic
-                        ? 'لا توجد تقييمات مسجلة لهذا الطالب بعد'
+                        ? 'لا توجد تقييمات مسجلة لهذا التلميذ بعد'
                         : 'No assessments recorded for this student yet'}
                     </div>
                   ) : (

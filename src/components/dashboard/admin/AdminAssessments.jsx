@@ -355,7 +355,7 @@ const AdminAssessments = () => {
       'rejected': isArabic ? 'مرفوض' : 'Rejected',
       'published': isArabic ? 'منشور' : 'Published',
       'pending_marking': isArabic ? 'بانتظار التصحيح' : 'Pending Marking',
-      'sent_to_students': isArabic ? 'مرسل للطلاب' : 'Sent to Students',
+      'sent_to_students': isArabic ? 'مرسل للتلاميذ' : 'Sent to Students',
       'closed': isArabic ? 'مغلق' : 'Closed',
       'draft': isArabic ? 'مسودة' : 'Draft',
       'submitted': isArabic ? 'تم التقديم' : 'Submitted',
@@ -684,7 +684,7 @@ const AdminAssessments = () => {
               )}
             </div>
             <div className="stat-label-mini" style={{ fontSize: '0.7rem', color: '#6c757d' }}>
-              {isArabic ? 'تقديمات الطلاب' : 'Student Submissions'}
+              {isArabic ? 'تقديمات التلاميذ' : 'Student Submissions'}
             </div>
           </div>
         </Col>
@@ -699,7 +699,7 @@ const AdminAssessments = () => {
                 <FaSearch className="position-absolute top-50 start-0 translate-middle-y ms-3 text-muted" />
                 <Form.Control
                   type="text"
-                  placeholder={isArabic ? 'بحث عن تقييم، معلم، طالب...' : 'Search assessments, teachers, students...'}
+                  placeholder={isArabic ? 'بحث عن تقييم، معلم، تلميذ...' : 'Search assessments, teachers, students...'}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="ps-5"
@@ -729,7 +729,7 @@ const AdminAssessments = () => {
                 <option value="draft">{isArabic ? 'مسودة' : 'Draft'}</option>
                 <option value="published">{isArabic ? 'منشور' : 'Published'}</option>
                 <option value="pending_approval">{isArabic ? 'بانتظار الموافقة' : 'Pending Approval'}</option>
-                <option value="sent_to_students">{isArabic ? 'مرسل للطلاب' : 'Sent to Students'}</option>
+                <option value="sent_to_students">{isArabic ? 'مرسل للتلاميذ' : 'Sent to Students'}</option>
                 <option value="closed">{isArabic ? 'مغلق' : 'Closed'}</option>
               </Form.Select>
             </Col>
@@ -833,7 +833,7 @@ const AdminAssessments = () => {
               }}
             >
               <FaUpload className="me-2" /> 
-              {isArabic ? 'تقديمات الطلاب' : 'Student Submissions'}
+              {isArabic ? 'تقديمات التلاميذ' : 'Student Submissions'}
               {studentSubmissions.length > 0 && (
                 <Badge className="ms-2" style={{ background: '#2ecc71', color: 'white', borderRadius: '50px' }}>
                   {formatNumber(studentSubmissions.length)}
@@ -1074,11 +1074,11 @@ const AdminAssessments = () => {
               <div className="text-center py-5">
                 <FaUpload size={48} className="text-muted opacity-25 mb-3" />
                 <h5 style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                  {isArabic ? 'لا توجد تقديمات من الطلاب' : 'No student submissions'}
+                  {isArabic ? 'لا توجد تقديمات من التلاميذ' : 'No student submissions'}
                 </h5>
                 <p className="text-muted" style={arabicFontStyle}>
                   {isArabic 
-                    ? 'لم يقدم أي طالب تقييمات للمعلمين بعد' 
+                    ? 'لم يقدم أي تلميذ تقييمات للمعلمين بعد' 
                     : 'No students have submitted assessments to teachers yet'}
                 </p>
               </div>
@@ -1087,7 +1087,7 @@ const AdminAssessments = () => {
                 <Table hover className="assessment-table" style={arabicFontStyle}>
                   <thead style={{ background: darkMode ? '#0d1117' : '#f8f9fa' }}>
                     <tr>
-                      <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'الطالب' : 'Student'}</th>
+                      <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'التلميذ' : 'Student'}</th>
                       <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'المعلم' : 'Teacher'}</th>
                       <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'التقييم' : 'Assessment'}</th>
                       <th style={{ color: darkMode ? '#e9ecef' : '#212529' }} className="d-none d-md-table-cell">{isArabic ? 'النوع' : 'Type'}</th>
@@ -1230,7 +1230,7 @@ const AdminAssessments = () => {
             {selectedItemType === 'pending' 
               ? (isArabic ? 'تفاصيل التقييم (بانتظار المراجعة)' : 'Assessment Details (Pending Review)')
               : selectedItemType === 'submission'
-              ? (isArabic ? 'تقديم الطالب' : 'Student Submission')
+              ? (isArabic ? 'تقديم التلميذ' : 'Student Submission')
               : (isArabic ? 'تفاصيل التقييم' : 'Assessment Details')}
           </Modal.Title>
         </Modal.Header>
@@ -1324,7 +1324,7 @@ const AdminAssessments = () => {
                       <div className="d-flex align-items-center gap-2">
                         <FaUserGraduate className="text-success" />
                         <span className="fw-semibold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                          {isArabic ? 'الطالب: ' : 'Student: '}
+                          {isArabic ? 'التلميذ: ' : 'Student: '}
                         </span>
                         <span style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
                           {selectedItem.studentName || 'Student'}
@@ -1409,7 +1409,7 @@ const AdminAssessments = () => {
               {selectedItemType === 'submission' && (selectedItem.fileName || selectedItem.attachmentName || selectedItem.content || selectedItem.attachment) && (
                 <div className="submission-attachment-section mb-3">
                   <h6 className="fw-bold" style={{ color: darkMode ? '#e9ecef' : '#212529' }}>
-                    {isArabic ? 'محتوى تقديم الطالب:' : 'Student Submission Content:'}
+                    {isArabic ? 'محتوى تقديم التلميذ:' : 'Student Submission Content:'}
                   </h6>
                   <div className="p-3 rounded-3" style={{
                     background: darkMode ? '#2d2d44' : '#f8f9fa',
@@ -1514,7 +1514,7 @@ const AdminAssessments = () => {
                              '#383d41'
                     }}>
                       {selectedItem.status === 'approved' ? (isArabic ? '✅ تم الموافقة على هذا التقييم' : '✅ This assessment has been approved') :
-                       selectedItem.status === 'sent_to_students' ? (isArabic ? '✅ تم إرسال هذا التقييم للطلاب' : '✅ This assessment has been sent to students') :
+                       selectedItem.status === 'sent_to_students' ? (isArabic ? '✅ تم إرسال هذا التقييم للتلاميذ' : '✅ This assessment has been sent to students') :
                        selectedItem.status === 'rejected' ? (isArabic ? '❌ تم رفض هذا التقييم' : '❌ This assessment has been rejected') :
                        selectedItem.status === 'pending' || selectedItem.status === 'pending_approval' ? (isArabic ? '⏳ بانتظار المراجعة' : '⏳ Pending review') :
                        (isArabic ? '📋 الحالة: ' : 'Status: ') + getStatusLabel(selectedItem.status)}
@@ -1549,7 +1549,7 @@ const AdminAssessments = () => {
                       <Badge bg="info" style={{ fontSize: '0.7rem' }}>
                         <FaInfoCircle className="me-1" />
                         {isArabic 
-                          ? 'هذا التقديم مرسل مباشرة من الطالب إلى المعلم' 
+                          ? 'هذا التقديم مرسل مباشرة من التلميذ إلى المعلم' 
                           : 'This submission is sent directly from student to teacher'}
                       </Badge>
                     </div>
@@ -1671,7 +1671,7 @@ const AdminAssessments = () => {
                 <div className="mt-1 d-flex align-items-center gap-2">
                   <FaUserGraduate className="text-success" size={12} />
                   <span className="text-muted small">
-                    {isArabic ? 'الطالب: ' : 'Student: '}
+                    {isArabic ? 'التلميذ: ' : 'Student: '}
                     {itemToDelete.studentName}
                   </span>
                 </div>

@@ -182,9 +182,9 @@ const StudentsManagement = () => {
     try {
       if (!teacherId) return false;
       notificationService.create({
-        title: isArabic ? 'طالب جديد تم تعيينه' : 'New Student Assigned',
+        title: isArabic ? 'تلميذ جديد تم تعيينه' : 'New Student Assigned',
         message: isArabic
-          ? `تم تعيين الطالب ${studentName} إلى فصلك: ${className}`
+          ? `تم تعيين التلميذ ${studentName} إلى فصلك: ${className}`
           : `Student ${studentName} has been assigned to your class: ${className}`,
         type: 'student',
         recipientId: teacherId,
@@ -428,7 +428,7 @@ const StudentsManagement = () => {
         }
 
         notify(
-          isArabic ? "تم إضافة الطالب بنجاح" : "Student added successfully",
+          isArabic ? "تم إضافة التلميذ بنجاح" : "Student added successfully",
           "success"
         );
 
@@ -437,14 +437,14 @@ const StudentsManagement = () => {
         loadStudents();
       } else {
         notify(
-          isArabic ? "فشل في حفظ الطالب" : "Failed to save student",
+          isArabic ? "فشل في حفظ التلميذ" : "Failed to save student",
           "error"
         );
       }
     } catch (error) {
       console.error("Error saving student:", error);
       notify(
-        isArabic ? "حدث خطأ أثناء حفظ الطالب" : "Error saving student",
+        isArabic ? "حدث خطأ أثناء حفظ التلميذ" : "Error saving student",
         "error"
       );
     } finally {
@@ -549,7 +549,7 @@ const StudentsManagement = () => {
       
       if (saved) {
         notify(
-          isArabic ? "تم تحديث الطالب بنجاح" : "Student updated successfully",
+          isArabic ? "تم تحديث التلميذ بنجاح" : "Student updated successfully",
           "success"
         );
 
@@ -561,14 +561,14 @@ const StudentsManagement = () => {
         loadStudents();
       } else {
         notify(
-          isArabic ? "فشل في تحديث الطالب" : "Failed to update student",
+          isArabic ? "فشل في تحديث التلميذ" : "Failed to update student",
           "error"
         );
       }
     } catch (error) {
       console.error("Error updating student:", error);
       notify(
-        isArabic ? "حدث خطأ أثناء تحديث الطالب" : "Error updating student",
+        isArabic ? "حدث خطأ أثناء تحديث التلميذ" : "Error updating student",
         "error"
       );
     } finally {
@@ -586,7 +586,7 @@ const StudentsManagement = () => {
       }
 
       notify(
-        isArabic ? "تم حذف الطالب بنجاح" : "Student deleted successfully",
+        isArabic ? "تم حذف التلميذ بنجاح" : "Student deleted successfully",
         "success"
       );
 
@@ -595,7 +595,7 @@ const StudentsManagement = () => {
     } catch (error) {
       console.error("Error deleting student:", error);
       notify(
-        isArabic ? "حدث خطأ أثناء حذف الطالب" : "Error deleting student",
+        isArabic ? "حدث خطأ أثناء حذف التلميذ" : "Error deleting student",
         "error"
       );
     } finally {
@@ -610,7 +610,7 @@ const StudentsManagement = () => {
       await syncSend('put', `/users/${studentId}`, { status: newStatus });
       notify(
         isArabic
-          ? `تم ${newStatus === "active" ? "تفعيل" : "تعطيل"} الطالب بنجاح`
+          ? `تم ${newStatus === "active" ? "تفعيل" : "تعطيل"} التلميذ بنجاح`
           : `Student ${newStatus === "active" ? "activated" : "deactivated"} successfully`,
         "success"
       );
@@ -665,14 +665,14 @@ const StudentsManagement = () => {
             fontSize: isArabic ? "clamp(1rem, 2vw, 1.5rem)" : "clamp(0.95rem, 1.8vw, 1.4rem)"
           }}>
             <FaUserGraduate className="me-2" />
-            {isArabic ? "إدارة الطلاب" : "Students Management"}
+            {isArabic ? "إدارة التلاميذ" : "Students Management"}
           </h4>
           <p className="text-muted mb-0 d-none d-sm-block" style={{
             ...arabicFontStyle,
             fontSize: isArabic ? "clamp(0.8rem, 1vw, 0.95rem)" : "clamp(0.75rem, 0.9vw, 0.9rem)"
           }}>
             {isArabic
-              ? `إدارة جميع الطلاب في النظام (${formatNumber(totalStudents)})`
+              ? `إدارة جميع التلاميذ في النظام (${formatNumber(totalStudents)})`
               : `Manage all students in the system (${formatNumber(totalStudents)})`}
           </p>
         </div>
@@ -704,7 +704,7 @@ const StudentsManagement = () => {
             }}
           >
             <FaUserPlus className="me-1" />
-            {isArabic ? "إضافة طالب" : "Add Student"}
+            {isArabic ? "إضافة تلميذ" : "Add Student"}
           </Button>
         </div>
       </div>
@@ -746,7 +746,7 @@ const StudentsManagement = () => {
                 fontSize: "clamp(0.5rem, 0.7vw, 0.7rem)",
                 opacity: 0.8,
               }}>
-                {isArabic ? "إجمالي الطلاب" : "Total Students"}
+                {isArabic ? "إجمالي التلاميذ" : "Total Students"}
               </p>
             </Card.Body>
           </Card>
@@ -786,7 +786,7 @@ const StudentsManagement = () => {
                 fontSize: "clamp(0.5rem, 0.7vw, 0.7rem)",
                 opacity: 0.8,
               }}>
-                {isArabic ? "طلاب نشطاء" : "Active Students"}
+                {isArabic ? "تلاميذ نشطاء" : "Active Students"}
               </p>
             </Card.Body>
           </Card>
@@ -826,7 +826,7 @@ const StudentsManagement = () => {
                 fontSize: "clamp(0.5rem, 0.7vw, 0.7rem)",
                 opacity: 0.8,
               }}>
-                {isArabic ? "طلاب غير نشطاء" : "Inactive Students"}
+                {isArabic ? "تلاميذ غير نشطاء" : "Inactive Students"}
               </p>
             </Card.Body>
           </Card>
@@ -960,7 +960,7 @@ const StudentsManagement = () => {
                 ...arabicFontStyle,
                 fontSize: "clamp(0.6rem, 0.8vw, 0.8rem)",
               }}>
-                {formatNumber(filteredStudents.length)} {isArabic ? "طالب" : "students"}
+                {formatNumber(filteredStudents.length)} {isArabic ? "تلميذ" : "students"}
               </span>
             </Col>
           </Row>
@@ -979,7 +979,7 @@ const StudentsManagement = () => {
                 <span className="visually-hidden">Loading...</span>
               </div>
               <p className="mt-3 text-muted" style={arabicFontStyle}>
-                {isArabic ? "جاري تحميل الطلاب..." : "Loading students..."}
+                {isArabic ? "جاري تحميل التلاميذ..." : "Loading students..."}
               </p>
             </div>
           ) : error ? (
@@ -994,10 +994,10 @@ const StudentsManagement = () => {
             <div className="text-center py-5">
               <FaUserGraduate size={48} className="text-muted opacity-25 mb-3" />
               <p style={arabicFontStyle}>
-                {isArabic ? "لا توجد طلاب" : "No students found"}
+                {isArabic ? "لا توجد تلاميذ" : "No students found"}
               </p>
               <Button variant="primary" onClick={() => setShowAddModal(true)} style={{ ...arabicFontStyle, borderRadius: "12px" }}>
-                <FaUserPlus className="me-2" /> {isArabic ? "إضافة طالب" : "Add Student"}
+                <FaUserPlus className="me-2" /> {isArabic ? "إضافة تلميذ" : "Add Student"}
               </Button>
             </div>
           ) : (
@@ -1006,7 +1006,7 @@ const StudentsManagement = () => {
                 <thead style={{ background: darkMode ? "#0d1117" : "#f8f9fa" }}>
                   <tr>
                     <th style={{ color: darkMode ? "#e9ecef" : "#212529", width: "50px" }}>#</th>
-                    <th style={{ color: darkMode ? "#e9ecef" : "#212529" }}>{isArabic ? "الطالب" : "Student"}</th>
+                    <th style={{ color: darkMode ? "#e9ecef" : "#212529" }}>{isArabic ? "التلميذ" : "Student"}</th>
                     <th style={{ color: darkMode ? "#e9ecef" : "#212529" }} className="d-none d-md-table-cell">{isArabic ? "الفصل" : "Class"}</th>
                     <th style={{ color: darkMode ? "#e9ecef" : "#212529" }} className="d-none d-sm-table-cell">{isArabic ? "المستوى" : "Level"}</th>
                     <th style={{ color: darkMode ? "#e9ecef" : "#212529" }}>{isArabic ? "الحالة" : "Status"}</th>
@@ -1133,7 +1133,7 @@ const StudentsManagement = () => {
             <div className="d-flex flex-column flex-sm-row justify-content-between align-items-center p-3 border-top gap-2" style={{ borderColor: darkMode ? "#2d2d44" : "#e9ecef" }}>
               <div className="text-muted small" style={{ ...arabicFontStyle, color: darkMode ? "#adb5bd" : "#6c757d" }}>
                 {isArabic
-                  ? `عرض ${formatNumber(filteredStudents.slice((currentPage - 1) * 10, currentPage * 10).length)} من ${formatNumber(filteredStudents.length)} طالب`
+                  ? `عرض ${formatNumber(filteredStudents.slice((currentPage - 1) * 10, currentPage * 10).length)} من ${formatNumber(filteredStudents.length)} تلميذ`
                   : `Showing ${formatNumber(filteredStudents.slice((currentPage - 1) * 10, currentPage * 10).length)} of ${formatNumber(filteredStudents.length)} students`}
               </div>
               <Pagination className="mb-0 responsive-pagination" size={isMobile ? "sm" : "md"}>
@@ -1178,7 +1178,7 @@ const StudentsManagement = () => {
         <Modal.Header closeButton className="border-0" style={{ background: darkMode ? "#1a1a2e" : "white" }}>
           <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529" }}>
             <FaUserPlus className="me-2 text-primary" />
-            {isArabic ? "إضافة طالب جديد" : "Add New Student"}
+            {isArabic ? "إضافة تلميذ جديد" : "Add New Student"}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ background: darkMode ? "#0d1117" : "white" }}>
@@ -1593,7 +1593,7 @@ const StudentsManagement = () => {
             ) : (
               <>
                 <FaSave className="me-2" />
-                {isArabic ? "إضافة طالب" : "Add Student"}
+                {isArabic ? "إضافة تلميذ" : "Add Student"}
               </>
             )}
           </Button>
@@ -1605,7 +1605,7 @@ const StudentsManagement = () => {
         <Modal.Header closeButton className="border-0" style={{ background: darkMode ? "#1a1a2e" : "white" }}>
           <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529" }}>
             <FaUserGraduate className="me-2 text-primary" />
-            {isArabic ? "تفاصيل الطالب" : "Student Details"}
+            {isArabic ? "تفاصيل التلميذ" : "Student Details"}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ background: darkMode ? "#0d1117" : "white" }}>
@@ -1805,7 +1805,7 @@ const StudentsManagement = () => {
         <Modal.Header closeButton className="border-0" style={{ background: darkMode ? "#1a1a2e" : "white" }}>
           <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529" }}>
             <FaEdit className="me-2 text-warning" />
-            {isArabic ? "تعديل بيانات الطالب" : "Edit Student"}
+            {isArabic ? "تعديل بيانات التلميذ" : "Edit Student"}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ background: darkMode ? "#0d1117" : "white" }}>
@@ -2189,7 +2189,7 @@ const StudentsManagement = () => {
         <Modal.Body style={{ background: darkMode ? "#0d1117" : "white" }}>
           <p style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529" }}>
             {isArabic
-              ? `هل أنت متأكد من حذف الطالب "${selectedStudent?.name || selectedStudent?.firstName || 'Unknown'}"؟ هذا الإجراء لا يمكن التراجع عنه.`
+              ? `هل أنت متأكد من حذف التلميذ "${selectedStudent?.name || selectedStudent?.firstName || 'Unknown'}"؟ هذا الإجراء لا يمكن التراجع عنه.`
               : `Are you sure you want to delete student "${selectedStudent?.name || selectedStudent?.firstName || 'Unknown'}"? This action cannot be undone.`}
           </p>
         </Modal.Body>

@@ -251,7 +251,7 @@ const StudentResults = () => {
       }
 
       if (!student) {
-        setError(isArabic ? 'لم يتم العثور على بيانات الطالب' : 'Student data not found');
+        setError(isArabic ? 'لم يتم العثور على بيانات التلميذ' : 'Student data not found');
         setLoading(false);
         return;
       }
@@ -555,7 +555,7 @@ const StudentResults = () => {
           <!DOCTYPE html>
           <html>
             <head>
-              <title>${isArabic ? 'نتائج الطالب' : 'Student Results'}</title>
+              <title>${isArabic ? 'نتائج التلميذ' : 'Student Results'}</title>
               <style>
                 body { padding: 40px; font-family: Arial, sans-serif; }
                 .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #1a5f7a; padding-bottom: 20px; }
@@ -574,7 +574,7 @@ const StudentResults = () => {
             </head>
             <body>
               <div class="header">
-                <h2>${isArabic ? 'نتائج الطالب' : 'Student Results'}</h2>
+                <h2>${isArabic ? 'نتائج التلميذ' : 'Student Results'}</h2>
                 <p>${studentData?.name || 'Student'} | ${new Date().toLocaleDateString()}</p>
               </div>
               

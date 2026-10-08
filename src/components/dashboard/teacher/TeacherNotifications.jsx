@@ -452,7 +452,7 @@ const TeacherNotifications = () => {
               {formatNumber(notifications.filter(n => n.type === 'student' || n.type === 'class').length)}
             </div>
             <div className="stat-label-mini" style={{ fontSize: '0.7rem', color: '#6c757d' }}>
-              {isArabic ? 'طلاب وفصول' : 'Students & Classes'}
+              {isArabic ? 'تلاميذ وفصول' : 'Students & Classes'}
             </div>
           </div>
         </Col>
@@ -535,7 +535,7 @@ const TeacherNotifications = () => {
             {notifications.length === 0 && teacher && (
               <p className="text-muted small" style={arabicFontStyle}>
                 {isArabic 
-                  ? 'سيتم عرض الإشعارات هنا عند إضافة طلاب أو فصول جديدة' 
+                  ? 'سيتم عرض الإشعارات هنا عند إضافة تلاميذ أو فصول جديدة' 
                   : 'Notifications will appear here when new students or classes are added'}
               </p>
             )}

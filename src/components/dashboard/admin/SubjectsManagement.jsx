@@ -820,7 +820,7 @@ const SubjectsManagement = () => {
           {selectedSubject?.isActive !== false && (
             <Alert variant="warning" style={{ ...arabicFontStyle, fontSize: isMobile ? '0.8rem' : 'inherit' }}>
               {isArabic
-                ? 'تحذير: هذه المادة نشطة وقد تكون مرتبطة بفصول أو طلاب.'
+                ? 'تحذير: هذه المادة نشطة وقد تكون مرتبطة بفصول أو تلاميذ.'
                 : 'Warning: This subject is active and may be linked to classes or students.'}
             </Alert>
           )}

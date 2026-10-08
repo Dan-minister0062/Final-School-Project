@@ -756,7 +756,7 @@ const TeacherAssessments = () => {
 
       if (classStudents.length === 0) {
         notify(
-          isArabic ? 'لا يوجد طلاب في هذا الفصل لإرسال التقييم' : 'No students in this class to send assessment',
+          isArabic ? 'لا يوجد تلاميذ في هذا الفصل لإرسال التقييم' : 'No students in this class to send assessment',
           'warning'
         );
         return;
@@ -784,9 +784,9 @@ const TeacherAssessments = () => {
       }
 
       notificationService.addNotification({
-        title: isArabic ? '📤 تم إرسال تقييم للطلاب' : '📤 Assessment sent to students',
+        title: isArabic ? '📤 تم إرسال تقييم للتلاميذ' : '📤 Assessment sent to students',
         message: isArabic
-          ? `تم إرسال التقييم "${displayTitle}" إلى ${classStudents.length} طالب بواسطة ${teacherName}`
+          ? `تم إرسال التقييم "${displayTitle}" إلى ${classStudents.length} تلميذ بواسطة ${teacherName}`
           : `Assessment "${displayTitle}" was sent to ${classStudents.length} students by ${teacherName}`,
         type: 'submission',
         link: '/dashboard/admin/assessments',
@@ -803,7 +803,7 @@ const TeacherAssessments = () => {
       }));
 
       notify(
-        isArabic ? `✅ تم إرسال التقييم إلى ${classStudents.length} طالب بنجاح` : `✅ Assessment sent to ${classStudents.length} students successfully`,
+        isArabic ? `✅ تم إرسال التقييم إلى ${classStudents.length} تلميذ بنجاح` : `✅ Assessment sent to ${classStudents.length} students successfully`,
         'success'
       );
 
@@ -811,7 +811,7 @@ const TeacherAssessments = () => {
     } catch (err) {
       console.error('Error sending to students:', err);
       notify(
-        isArabic ? '❌ حدث خطأ أثناء إرسال التقييم للطلاب' : '❌ Error sending assessment to students',
+        isArabic ? '❌ حدث خطأ أثناء إرسال التقييم للتلاميذ' : '❌ Error sending assessment to students',
         'error'
       );
     }
@@ -960,7 +960,7 @@ const TeacherAssessments = () => {
       }
 
       notify(
-        isArabic ? `✅ تم حفظ درجة الطالب: ${score}/${selectedSubmissionItem.totalMarks || 20}` : `✅ Student grade saved: ${score}/${selectedSubmissionItem.totalMarks || 20}`,
+        isArabic ? `✅ تم حفظ درجة التلميذ: ${score}/${selectedSubmissionItem.totalMarks || 20}` : `✅ Student grade saved: ${score}/${selectedSubmissionItem.totalMarks || 20}`,
         'success'
       );
       
@@ -1373,7 +1373,7 @@ const TeacherAssessments = () => {
       'published': isArabic ? 'منشور' : 'Published',
       'pending_approval': isArabic ? 'بانتظار موافقة الإدارة' : 'Pending Admin Approval',
       'pending_marking': isArabic ? 'بانتظار التصحيح' : 'Pending Marking',
-      'sent_to_students': isArabic ? 'مرسل للطلاب' : 'Sent to Students',
+      'sent_to_students': isArabic ? 'مرسل للتلاميذ' : 'Sent to Students',
       'closed': isArabic ? 'مغلق' : 'Closed',
       'rejected': isArabic ? 'مرفوض' : 'Rejected',
       'approved': isArabic ? 'موافق عليه من الإدارة' : 'Approved by Admin'
@@ -1519,7 +1519,7 @@ const TeacherAssessments = () => {
             </div>
             <div className="stat-label-mini" style={{ fontSize: '0.7rem', color: '#6c757d' }}>
               <FaPaperPlane className="me-1" />
-              {isArabic ? 'مرسل للطلاب' : 'Sent to Students'}
+              {isArabic ? 'مرسل للتلاميذ' : 'Sent to Students'}
             </div>
           </div>
         </Col>
@@ -1553,7 +1553,7 @@ const TeacherAssessments = () => {
             </div>
             <div className="stat-label-mini" style={{ fontSize: '0.7rem', color: '#6c757d' }}>
               <FaUpload className="me-1" />
-              {isArabic ? 'تقديمات الطلاب' : 'Student Submissions'}
+              {isArabic ? 'تقديمات التلاميذ' : 'Student Submissions'}
             </div>
           </div>
         </Col>
@@ -1604,7 +1604,7 @@ const TeacherAssessments = () => {
               position: 'relative'
             }}
           >
-            <FaInbox /> {isArabic ? 'تقديمات الطلاب' : 'Student Submissions'}
+            <FaInbox /> {isArabic ? 'تقديمات التلاميذ' : 'Student Submissions'}
             {pendingSubmissionsCount > 0 && (
               <Badge bg="danger" className="rounded-pill" style={{ fontSize: '0.65rem', animation: 'pulse-warning 1.5s infinite' }}>
                 {formatNumber(pendingSubmissionsCount)}
@@ -1660,7 +1660,7 @@ const TeacherAssessments = () => {
                     <option value="pending_approval">{isArabic ? 'بانتظار الموافقة' : 'Pending Approval'}</option>
                     <option value="approved">{isArabic ? 'موافق عليه' : 'Approved'}</option>
                     <option value="pending_marking">{isArabic ? 'بانتظار التصحيح' : 'Pending Marking'}</option>
-                    <option value="sent_to_students">{isArabic ? 'مرسل للطلاب' : 'Sent to Students'}</option>
+                    <option value="sent_to_students">{isArabic ? 'مرسل للتلاميذ' : 'Sent to Students'}</option>
                     <option value="closed">{isArabic ? 'مغلق' : 'Closed'}</option>
                     <option value="rejected">{isArabic ? 'مرفوض' : 'Rejected'}</option>
                   </Form.Select>
@@ -1696,7 +1696,7 @@ const TeacherAssessments = () => {
               <Col xs={12} md={6}>
                 <span className="text-muted d-flex align-items-center" style={{ ...arabicFontStyle, fontSize: '0.85rem' }}>
                   <FaInbox className="me-2" />
-                  {formatNumber(filteredSubmissions.length)} {isArabic ? 'تقديم طالب' : 'student submissions'}
+                  {formatNumber(filteredSubmissions.length)} {isArabic ? 'تقديم تلميذ' : 'student submissions'}
                   {filteredSubmissions.filter(s => !s.isGraded).length > 0 && (
                     <Badge bg="warning" className="ms-2" style={{ fontSize: '0.7rem' }}>
                       {formatNumber(filteredSubmissions.filter(s => !s.isGraded).length)} {isArabic ? 'بانتظار التصحيح' : 'pending'}
@@ -1824,7 +1824,7 @@ const TeacherAssessments = () => {
                           {assessment.status === 'sent_to_students' && (
                             <Badge bg="primary" className="ms-1">
                               <FaPaperPlane size={10} className="me-1" />
-                              {isArabic ? 'مرسل للطلاب' : 'Sent to Students'}
+                              {isArabic ? 'مرسل للتلاميذ' : 'Sent to Students'}
                             </Badge>
                           )}
                         </td>
@@ -1878,11 +1878,11 @@ const TeacherAssessments = () => {
                                 size="sm"
                                 className="action-btn send-to-students-btn"
                                 onClick={() => handleSendToStudents(assessment)}
-                                title={isArabic ? '✅ إرسال للطلاب' : '✅ Send to Students'}
+                                title={isArabic ? '✅ إرسال للتلاميذ' : '✅ Send to Students'}
                               >
                                 <FaPaperPlane size={14} className="me-1" />
                                 <span style={{ fontSize: '0.6rem' }}>
-                                  {isArabic ? 'إرسال للطلاب' : 'Send to Students'}
+                                  {isArabic ? 'إرسال للتلاميذ' : 'Send to Students'}
                                 </span>
                               </Button>
                             )}
@@ -1956,11 +1956,11 @@ const TeacherAssessments = () => {
               <Card.Body>
                 <FaInbox size={48} className="text-muted opacity-25 mb-3" />
                 <h5 style={arabicFontStyle}>
-                  {isArabic ? 'لا توجد تقديمات طلاب' : 'No student submissions'}
+                  {isArabic ? 'لا توجد تقديمات تلاميذ' : 'No student submissions'}
                 </h5>
                 <p className="text-muted" style={arabicFontStyle}>
                   {isArabic 
-                    ? 'سيظهر هنا تقديمات الطلاب التي تم إرسالها إليك مباشرة للمراجعة والتصحيح'
+                    ? 'سيظهر هنا تقديمات التلاميذ التي تم إرسالها إليك مباشرة للمراجعة والتصحيح'
                     : 'Student submissions sent directly to you will appear here for review and grading'}
                 </p>
               </Card.Body>
@@ -1971,7 +1971,7 @@ const TeacherAssessments = () => {
                 <thead style={{ background: darkMode ? '#0d1117' : '#f8f9fa' }}>
                   <tr>
                     <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>#</th>
-                    <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'الطالب' : 'Student'}</th>
+                    <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'التلميذ' : 'Student'}</th>
                     <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'التقييم' : 'Assessment'}</th>
                     <th style={{ color: darkMode ? '#e9ecef' : '#212529' }} className="d-none d-md-table-cell">{isArabic ? 'المادة' : 'Subject'}</th>
                     <th style={{ color: darkMode ? '#e9ecef' : '#212529' }} className="d-none d-sm-table-cell">{isArabic ? 'تاريخ التقديم' : 'Submitted'}</th>
@@ -2517,7 +2517,7 @@ const TeacherAssessments = () => {
               <Form.Group className="mb-3">
                 <Form.Label style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
                   <FaUsers className="me-2" />
-                  {isArabic ? 'تحديد الطلاب المستهدفين' : 'Select Target Students'}
+                  {isArabic ? 'تحديد التلاميذ المستهدفين' : 'Select Target Students'}
                 </Form.Label>
                 <div className="student-selection p-3 rounded-3" style={{
                   background: darkMode ? '#1a1a2e' : '#f8f9fa',
@@ -2548,13 +2548,13 @@ const TeacherAssessments = () => {
                   ))}
                   {getClassStudents(formData.classId).length === 0 && (
                     <p className="text-muted text-center mt-2" style={arabicFontStyle}>
-                      {isArabic ? 'لا يوجد طلاب في هذا الفصل' : 'No students in this class'}
+                      {isArabic ? 'لا يوجد تلاميذ في هذا الفصل' : 'No students in this class'}
                     </p>
                   )}
                 </div>
                 <Form.Text className="text-muted" style={arabicFontStyle}>
                   {isArabic 
-                    ? `تم اختيار ${formData.assignedStudents?.length || 0} طالب من ${getClassStudents(formData.classId).length}`
+                    ? `تم اختيار ${formData.assignedStudents?.length || 0} تلميذ من ${getClassStudents(formData.classId).length}`
                     : `${formData.assignedStudents?.length || 0} students selected out of ${getClassStudents(formData.classId).length}`}
                 </Form.Text>
               </Form.Group>
@@ -2586,7 +2586,7 @@ const TeacherAssessments = () => {
         <Modal.Header closeButton className="border-0" style={{ background: darkMode ? '#1a1a2e' : 'white' }}>
           <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
             <FaEye className="me-2 text-primary" />
-            {isArabic ? 'تقديمات الطلاب والنتائج' : 'Student Submissions & Results'}
+            {isArabic ? 'تقديمات التلاميذ والنتائج' : 'Student Submissions & Results'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ background: darkMode ? '#0d1117' : 'white' }}>
@@ -2648,7 +2648,7 @@ const TeacherAssessments = () => {
                   <thead style={{ background: darkMode ? '#0d1117' : '#f8f9fa' }}>
                     <tr>
                       <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>#</th>
-                      <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'الطالب' : 'Student'}</th>
+                      <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'التلميذ' : 'Student'}</th>
                       <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'الحالة' : 'Status'}</th>
                       <th style={{ color: darkMode ? '#e9ecef' : '#212529' }}>{isArabic ? 'الدرجة' : 'Score'}</th>
                       <th style={{ color: darkMode ? '#e9ecef' : '#212529' }} className="d-none d-md-table-cell">{isArabic ? 'التقييم' : 'Grade'}</th>
@@ -2805,7 +2805,7 @@ const TeacherAssessments = () => {
         <Modal.Header closeButton className="border-0" style={{ background: darkMode ? '#1a1a2e' : 'white' }}>
           <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
             <FaFileAlt className="me-2 text-primary" />
-            {isArabic ? 'تقديم الطالب' : 'Student Submission'}
+            {isArabic ? 'تقديم التلميذ' : 'Student Submission'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ background: darkMode ? '#0d1117' : 'white' }}>
@@ -3027,7 +3027,7 @@ const TeacherAssessments = () => {
                 <div className="text-center py-5">
                   <FaExclamationTriangle size={48} className="text-warning mb-3" />
                   <p style={arabicFontStyle}>
-                    {isArabic ? 'لا يوجد تقديم لهذا الطالب' : 'No submission found for this student'}
+                    {isArabic ? 'لا يوجد تقديم لهذا التلميذ' : 'No submission found for this student'}
                   </p>
                 </div>
               )}
@@ -3046,7 +3046,7 @@ const TeacherAssessments = () => {
         <Modal.Header closeButton className="border-0" style={{ background: darkMode ? '#1a1a2e' : 'white' }}>
           <Modal.Title style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529' }}>
             <FaCheckCircle className="me-2 text-success" />
-            {isArabic ? 'تصحيح تقديم الطالب' : 'Grade Student Submission'}
+            {isArabic ? 'تصحيح تقديم التلميذ' : 'Grade Student Submission'}
           </Modal.Title>
         </Modal.Header>
         <Modal.Body style={{ background: darkMode ? '#0d1117' : 'white' }}>
@@ -3105,7 +3105,7 @@ const TeacherAssessments = () => {
                 <div className="mt-2">
                   <Badge bg="secondary" style={{ fontSize: '0.7rem' }}>
                     <FaPaperPlane className="me-1" size={10} />
-                    {isArabic ? 'مرسل مباشرة من الطالب' : 'Direct Submission from Student'}
+                    {isArabic ? 'مرسل مباشرة من التلميذ' : 'Direct Submission from Student'}
                   </Badge>
                 </div>
               </div>
@@ -3174,7 +3174,7 @@ const TeacherAssessments = () => {
                   value={submissionRemarks}
                   onChange={(e) => setSubmissionRemarks(e.target.value)}
                   placeholder={isArabic 
-                    ? 'اكتب ملاحظاتك للطالب هنا... (مثال: أخطاء شائعة، نقاط القوة، نصائح للتحسين)'
+                    ? 'اكتب ملاحظاتك للتلميذ هنا... (مثال: أخطاء شائعة، نقاط القوة، نصائح للتحسين)'
                     : 'Write your feedback for the student here... (e.g., common mistakes, strengths, improvement tips)'}
                   style={{
                     ...arabicFontStyle,
@@ -3186,7 +3186,7 @@ const TeacherAssessments = () => {
                 />
                 <Form.Text className="text-muted" style={arabicFontStyle}>
                   {isArabic 
-                    ? '💡 ستظهر هذه الملاحظات للطالب مع الدرجة النهائية'
+                    ? '💡 ستظهر هذه الملاحظات للتلميذ مع الدرجة النهائية'
                     : '💡 These remarks will be shown to the student along with the final grade'}
                 </Form.Text>
               </div>
@@ -3199,7 +3199,7 @@ const TeacherAssessments = () => {
                 <p className="text-muted small mb-0" style={arabicFontStyle}>
                   <FaInfoCircle className="me-1" />
                   {isArabic 
-                    ? `📌 ${selectedSubmissionItem.type === 'exam' || selectedSubmissionItem.type === 'test' ? 'سيتم تسجيل هذه الدرجة في سجل نتائج الطالب كامتحان' : 'سيتم إعلام الطالب بالدرجة والملاحظات'}`
+                    ? `📌 ${selectedSubmissionItem.type === 'exam' || selectedSubmissionItem.type === 'test' ? 'سيتم تسجيل هذه الدرجة في سجل نتائج التلميذ كامتحان' : 'سيتم إعلام التلميذ بالدرجة والملاحظات'}`
                     : `📌 ${selectedSubmissionItem.type === 'exam' || selectedSubmissionItem.type === 'test' ? 'This grade will be recorded in the student\'s results as an exam' : 'The student will be notified of the grade and remarks'}`}
                 </p>
               </div>
@@ -3246,7 +3246,7 @@ const TeacherAssessments = () => {
                       {fileViewData.studentName || 'Student'}
                     </div>
                     <div className="text-muted small">
-                      {isArabic ? 'الطالب: ' : 'Student: '}{fileViewData.studentName || 'Unknown'} • 
+                      {isArabic ? 'التلميذ: ' : 'Student: '}{fileViewData.studentName || 'Unknown'} • 
                       {isArabic ? ' الملف: ' : ' File: '}{fileViewData.fileName || 'No file'}
                       {fileViewData.fileType && (
                         <> • {isArabic ? 'النوع: ' : 'Type: '}{getFileTypeLabel(fileViewData.fileType)}</>
@@ -3538,7 +3538,7 @@ const TeacherAssessments = () => {
                 <div className="mt-1 d-flex align-items-center gap-2">
                   <FaUserGraduate className="text-success" size={12} />
                   <span className="text-muted small">
-                    {isArabic ? 'الطالب: ' : 'Student: '}
+                    {isArabic ? 'التلميذ: ' : 'Student: '}
                     {submissionItemToDelete.studentName}
                   </span>
                 </div>

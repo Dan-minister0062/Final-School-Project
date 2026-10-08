@@ -95,7 +95,7 @@ class NotificationService {
       const { detail } = event;
       this.addNotification(
         '📊 نتيجة جديدة',
-        `تم نشر نتيجة ${detail.subject} للطالب ${detail.studentName}`,
+        `تم نشر نتيجة ${detail.subject} للتلميذ ${detail.studentName}`,
         'grade',
         '/dashboard/student/my-results',
         { student_name: detail.studentName, subject: detail.subject },

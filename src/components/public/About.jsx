@@ -541,7 +541,7 @@ const About = () => {
                     }}
                   >
                     {isArabic
-                      ? "تسعى مدرسة الفتح الخاصة إلى أن تكون منارة تضيء سماء المعرفة في ربوع مدينة القنيطرة، ولذا فهي حريصة على تكريس مبدأ التعاون والشراكة مابين الأطر التربوية وأولياء الأمور لما فيه مصلحة أطفالنا علماً وأدباً."
+                      ? "تسعى مدرسة الفتح الخاصة إلى أن تكون منارة تضيء سماء المعرفة في ربوع مدينة القنيطرة، ولذا فهي حريصة على تكريس مبدأ التعاون والشراكة مابين الأطر التربوية وأولياء الأمور لما فيه مصلحة تلاميذنا علماً وأدباً."
                       : "Madrassat Al Fath Private School aspires to be a beacon illuminating the sky of knowledge in the city of Kenitra. Therefore, it is keen to establish a principle of cooperation and partnership between educational staff and parents for the benefit of our children in knowledge and manners."}
                   </p>
 

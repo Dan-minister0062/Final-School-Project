@@ -395,7 +395,7 @@ const TeacherDashboard = () => {
     {
       icon: <FaUserGraduate />,
       number: stats.totalStudents || 0,
-      label: isArabic ? 'الطلاب' : 'Students',
+      label: isArabic ? 'التلاميذ' : 'Students',
       gradientClass: 'active-card',
       iconClass: 'active-icon',
       onClick: () => window.location.href = '/dashboard/teacher/my-students'

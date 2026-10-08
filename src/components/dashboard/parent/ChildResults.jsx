@@ -749,7 +749,7 @@ const ChildResults = () => {
             </head>
             <body>
               <div class="header">
-                <h2>${isArabic ? "نتائج الطالب" : "Student Results"}</h2>
+                <h2>${isArabic ? "نتائج التلميذ" : "Student Results"}</h2>
                 <p>${studentName} | ${className} | ${academicYear}</p>
               </div>
               
@@ -845,7 +845,7 @@ const ChildResults = () => {
         </h4>
         <p className="text-muted" style={arabicFontStyle}>
           {isArabic
-            ? "لا توجد نتائج لأطفالك حتى الآن"
+            ? "لا توجد نتائج لتلاميذك حتى الآن"
             : "No results found for your children yet"}
         </p>
         <Button
@@ -893,7 +893,7 @@ const ChildResults = () => {
           </h4>
           <p className="text-muted mb-0" style={arabicFontStyle}>
             {isArabic
-              ? "تابع الأداء الأكاديمي لأطفالك"
+              ? "تابع الأداء الأكاديمي لتلاميذك"
               : "Track your children's academic performance"}
           </p>
         </div>

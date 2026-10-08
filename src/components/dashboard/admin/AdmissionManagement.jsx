@@ -762,7 +762,7 @@ const AdmissionManagement = () => {
                 style={{ ...arabicFontStyle, background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529', borderRadius: '12px', fontSize: isMobile ? 'clamp(0.55rem, 0.7vw, 0.75rem)' : 'clamp(0.6rem, 0.8vw, 0.8rem)' }}
               >
                 <option value="createdAt">{isArabic ? 'تاريخ التسجيل' : 'Date'}</option>
-                <option value="studentName">{isArabic ? 'اسم الطالب' : 'Student Name'}</option>
+                <option value="studentName">{isArabic ? 'اسم التلميذ' : 'Student Name'}</option>
                 <option value="status">{isArabic ? 'الحالة' : 'Status'}</option>
               </Form.Select>
             </Col>
@@ -807,7 +807,7 @@ const AdmissionManagement = () => {
                 <thead style={{ background: darkMode ? '#0d1117' : '#f8f9fa' }}>
                   <tr>
                     <th style={{ color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? 'clamp(0.55rem, 0.7vw, 0.7rem)' : 'clamp(0.6rem, 0.8vw, 0.85rem)' }}>
-                      {isArabic ? 'الطالب' : 'Student'}
+                      {isArabic ? 'التلميذ' : 'Student'}
                     </th>
                     <th style={{ color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? 'clamp(0.55rem, 0.7vw, 0.7rem)' : 'clamp(0.6rem, 0.8vw, 0.85rem)' }} className="d-none d-sm-table-cell">
                       {isArabic ? 'ولي الأمر' : 'Parent'}
@@ -898,7 +898,7 @@ const AdmissionManagement = () => {
           {selectedAdmission && (
             <div style={arabicFontStyle}>
               <h6 className="fw-bold text-primary" style={{ fontSize: isMobile ? 'clamp(0.8rem, 1vw, 1rem)' : 'clamp(0.9rem, 1.2vw, 1.1rem)' }}>
-                <FaUserGraduate className="me-2" /> {isArabic ? 'معلومات الطالب' : 'Student Information'}
+                <FaUserGraduate className="me-2" /> {isArabic ? 'معلومات التلميذ' : 'Student Information'}
               </h6>
               <Row className="mb-2">
                 <Col xs={5} md={4}><strong className="text-muted" style={{ fontSize: isMobile ? '0.7rem' : 'inherit' }}>{isArabic ? 'الاسم الكامل' : 'Full Name'}</strong></Col>
@@ -1008,7 +1008,7 @@ const AdmissionManagement = () => {
               <Col md={6} xs={12}>
                 <Form.Group className="mb-3">
                   <Form.Label style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? 'clamp(0.7rem, 0.9vw, 0.9rem)' : 'clamp(0.8rem, 1vw, 1rem)' }}>
-                    {isArabic ? 'اسم الطالب' : 'Student Name'} *
+                    {isArabic ? 'اسم التلميذ' : 'Student Name'} *
                   </Form.Label>
                   <Form.Control {...register('studentName')} isInvalid={!!errors.studentName} style={{ ...arabicFontStyle, background: darkMode ? '#2d2d44' : 'white', color: darkMode ? '#e9ecef' : '#212529', borderRadius: '12px', fontSize: isMobile ? 'clamp(0.75rem, 0.9vw, 1rem)' : 'clamp(0.85rem, 1vw, 1.1rem)' }} />
                   <Form.Control.Feedback type="invalid">{errors.studentName?.message}</Form.Control.Feedback>
@@ -1178,7 +1178,7 @@ const AdmissionManagement = () => {
         <Modal.Body style={{ background: darkMode ? '#1a1a2e' : '#ffffff' }}>
           <p style={{ ...arabicFontStyle, color: darkMode ? '#e9ecef' : '#212529', fontSize: isMobile ? '0.85rem' : 'inherit' }}>
             {isArabic
-              ? `هل أنت متأكد من حذف طلب التسجيل للطالب "${selectedAdmission?.studentName}"؟`
+              ? `هل أنت متأكد من حذف طلب التسجيل للتلميذ "${selectedAdmission?.studentName}"؟`
               : `Are you sure you want to delete the admission for student "${selectedAdmission?.studentName}"?`}
           </p>
           <small className="text-muted" style={{ ...arabicFontStyle, fontSize: isMobile ? '0.7rem' : 'inherit' }}>
