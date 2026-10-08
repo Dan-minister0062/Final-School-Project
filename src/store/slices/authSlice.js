@@ -12,7 +12,7 @@ const establishIdentity = (user) => {
   }
 };
 
-const resolveAuth = (data) => ({
+export const resolveAuth = (data) => ({
   user: data?.user || null,
   role: data?.role || data?.user?.role || null,
   token: data?.token || null,

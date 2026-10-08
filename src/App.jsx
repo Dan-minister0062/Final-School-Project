@@ -17,6 +17,8 @@ import { store } from "./store";
 import {
   fetchMe,
   clearSession,
+  setSession,
+  resolveAuth,
 } from "./store/slices/authSlice";
 
 // ===== IMPORTS FOR ADMIN PAGES =====
@@ -29,7 +31,7 @@ import { useNotification } from "./hooks/useNotification";
 import { useAuth } from "./hooks/useAuth";
 import { getInitials } from "./utils/helpers";
 import { getTranslation } from "./utils/translations";
-import api from "./services/api";
+import api, { verifySessionAlive } from "./services/api";
 
 // ===== LAYOUTS =====
 import MainLayout from "./components/layout/MainLayout";
@@ -638,19 +640,62 @@ const DashboardRedirect = () => {
 // ===== APP ROUTES =====
 function AppRoutes() {
   const dispatch = useDispatch();
+  const expiryVerifyRef = useRef(false);
+  const lastExpiryHandledRef = useRef(0);
 
   useEffect(() => {
     // Restore the server-side session (SANCTUM cookie) on boot.
     dispatch(fetchMe());
 
-    // Reacts to auth:sanctum 401 responses by clearing in-memory state.
-    const handleSessionExpired = () => dispatch(clearSession());
+    // A 401 from any API request fires "session:expired". Before clearing the
+    // in-memory auth (which bounces the user to /login) we re-confirm against
+    // the server one extra time: a transient 401 on an overloaded/flaky server
+    // must not log a still-valid session out.
+    const handleSessionExpired = async () => {
+      const now = Date.now();
+      // Consecutive 401s (e.g. a burst of parallel background requests) should
+      // not stack verifications. Skip while one runs and right after it ends.
+      if (expiryVerifyRef.current || now - lastExpiryHandledRef.current < 2500) return;
+
+      expiryVerifyRef.current = true;
+      try {
+        let verdict;
+        try {
+          verdict = await verifySessionAlive();
+        } catch {
+          // The confirmation could not complete (flaky network/5xx). The
+          // interceptor already saw a real 401, so retry once with a fresh
+          // XSRF-TOKEN cookie before deciding.
+          try {
+            verdict = await verifySessionAlive();
+          } catch {
+            verdict = { alive: false };
+          }
+        }
+        if (verdict?.alive) {
+          // Server still knows the session — re-sync identity without the
+          // fetchMe pending transition (status 'checking' would unmount and
+          // remount the whole dashboard for a visible reload).
+          dispatch(setSession(resolveAuth(verdict.data)));
+        } else {
+          dispatch(clearSession());
+        }
+      } finally {
+        expiryVerifyRef.current = false;
+        lastExpiryHandledRef.current = Date.now();
+      }
+    };
+
+    // "session:ended" is only dispatched by an explicit logout action, which is
+    // a trusted user request: clear the in-memory state immediately.
+    const handleSessionEnded = () => dispatch(clearSession());
+
     window.addEventListener("session:expired", handleSessionExpired);
-    window.addEventListener("session:ended", handleSessionExpired);
+    window.addEventListener("session:ended", handleSessionEnded);
 
     return () => {
       window.removeEventListener("session:expired", handleSessionExpired);
-      window.removeEventListener("session:ended", handleSessionExpired);
+      window.removeEventListener("session:ended", handleSessionEnded);
     };
   }, [dispatch]);
 

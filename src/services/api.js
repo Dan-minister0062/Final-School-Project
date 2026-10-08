@@ -43,6 +43,35 @@ export const fetchCsrfCookie = async () => {
   await axios.get(CSRF_URL, { withCredentials: true });
 };
 
+// Independently probes whether the server-side Sanctum session is still valid.
+// Unlike the shared `api` instance this deliberately uses a bare axios client,
+// so a negative result here can never re-trigger the session:expired event
+// (and send the user to /login) from inside the verification itself.
+//
+// Returns { alive: true, data } (raw /auth/me payload) when the session is
+// confirmed, { alive: false } on a definitive 401/403. Throws on
+// network/5xx/timeout after a single retry (with a fresh XSRF-TOKEN cookie)
+// so the caller can decide the fallback.
+export const verifySessionAlive = async () => {
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      await axios.get(CSRF_URL, { withCredentials: true });
+      const res = await axios.get(`${API_URL}/auth/me`, {
+        withCredentials: true,
+        headers: { Accept: "application/json" },
+        timeout: 25000,
+      });
+      if (res.data?.user) return { alive: true, data: res.data };
+      return { alive: false };
+    } catch (error) {
+      const status = error?.response?.status;
+      if (status === 401 || status === 403) return { alive: false };
+      if (attempt === 2) throw error;
+    }
+  }
+  throw new Error("Session verification failed.");
+};
+
 // Response interceptor: a 401 means the server session expired or was
 // revoked. The app reacts by clearing the in-memory auth state.
 api.interceptors.response.use(
