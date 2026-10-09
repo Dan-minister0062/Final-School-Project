@@ -207,7 +207,7 @@ const NavbarComponent = () => {
             >
               {/*{isArabic ? 'الخاصة' : 'Private'}*/}
             </span>
-            <small>
+            <small style={{ color: '#ffffff' }}>
             {/*   className="d-block"
             //   style={{
             //     fontSize: '1.1rem',
