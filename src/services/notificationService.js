@@ -187,9 +187,6 @@ class NotificationService {
       audience,
     };
 
-    this.notifications = [newNotification, ...this.notifications];
-    this.notifyListeners(newNotification);
-
     // Persist the notification row in MySQL when a real session exists.
     if (this.hasSession()) {
       try {
@@ -212,12 +209,14 @@ class NotificationService {
         if (res.data?.success && res.data?.data?.id) {
           newNotification._serverId = res.data.data.id;
           newNotification.id = res.data.data.id;
-          this.notifyListeners();
         }
       } catch (e) {
         console.warn('[notifications] create failed:', e?.message || e);
       }
     }
+
+    this.notifications = [newNotification, ...this.notifications];
+    this.notifyListeners(newNotification);
 
     // Dispatch custom event for real-time updates
     window.dispatchEvent(new CustomEvent('notificationAdded', {
