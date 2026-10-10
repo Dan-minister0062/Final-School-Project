@@ -102,7 +102,7 @@ const Academics = () => {
       badge: isArabic ? 'أولي' : '',
       badgeColor: 'warning',
       subjects: [
-        { icon: <FaQuran />, name: isArabic ? 'التربية الإسلاميةوالقرآن الكريم' : "Qur'an (Islamic Education)"},
+        { icon: <FaQuran />, name: isArabic ? 'التربية الإسلامية والقرآن الكريم' : "Qur'an (Islamic Education)"},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة العربية' : 'Arabic', },
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الإنجليزية' : 'English',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الفرنسية' : 'French', },
@@ -127,7 +127,7 @@ const Academics = () => {
       badge: isArabic ? 'ابتدائي' : '',
       badgeColor: 'success',
       subjects: [
-        { icon: <FaQuran />, name: isArabic ? 'التربية الإسلاميةوالقرآن الكريم' : "Qur'an (Islamic Education)",},
+        { icon: <FaQuran />, name: isArabic ? 'التربية الإسلامية والقرآن الكريم' : "Qur'an (Islamic Education)",},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة العربية' : 'Arabic',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الإنجليزية' : 'English',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الفرنسية' : 'French',},
@@ -158,7 +158,7 @@ const Academics = () => {
       badge: isArabic ? 'إعدادي' : '',
       badgeColor: 'warning',
       subjects: [
-        { icon: <FaQuran />, name: isArabic ? 'التربية الإسلاميةوالقرآن الكريم' : "Qur'an (Islamic Education)",},
+        { icon: <FaQuran />, name: isArabic ? 'التربية الإسلامية والقرآن الكريم' : "Qur'an (Islamic Education)",},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة العربية' : 'Arabic',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الفرنسية' : 'French',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الإنجليزية' : 'English',},
