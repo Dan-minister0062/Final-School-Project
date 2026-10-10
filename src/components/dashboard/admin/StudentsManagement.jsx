@@ -354,7 +354,7 @@ const StudentsManagement = () => {
     if (!data.lastName) errors.push(isArabic ? "الاسم العائلي مطلوب" : "Last name is required");
     if (!data.dateOfBirth) errors.push(isArabic ? "تاريخ الميلاد مطلوب" : "Date of birth is required");
     if (!data.gender) errors.push(isArabic ? "الجنس مطلوب" : "Gender is required");
-    if (!data.classId) errors.push(isArabic ? "الفصل مطلوب" : "Class is required");
+    if (!data.classId) errors.push(isArabic ? "المستوى مطلوب" : "Class is required");
     if (!data.email) errors.push(isArabic ? "البريد الإلكتروني مطلوب" : "Email is required");
     
     if (!isEdit) {
@@ -1007,7 +1007,7 @@ const StudentsManagement = () => {
                   <tr>
                     <th style={{ color: darkMode ? "#e9ecef" : "#212529", width: "50px" }}>#</th>
                     <th style={{ color: darkMode ? "#e9ecef" : "#212529" }}>{isArabic ? "التلميذ" : "Student"}</th>
-                    <th style={{ color: darkMode ? "#e9ecef" : "#212529" }} className="d-none d-md-table-cell">{isArabic ? "الفصل" : "Class"}</th>
+                    <th style={{ color: darkMode ? "#e9ecef" : "#212529" }} className="d-none d-md-table-cell">{isArabic ? "المستوى" : "Class"}</th>
                     <th style={{ color: darkMode ? "#e9ecef" : "#212529" }} className="d-none d-sm-table-cell">{isArabic ? "المستوى" : "Level"}</th>
                     <th style={{ color: darkMode ? "#e9ecef" : "#212529" }}>{isArabic ? "الحالة" : "Status"}</th>
                     <th style={{ color: darkMode ? "#e9ecef" : "#212529" }} className="text-center">{isArabic ? "إجراءات" : "Actions"}</th>
@@ -1340,7 +1340,7 @@ const StudentsManagement = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529" }}>
-                    <FaSchool className="me-1" /> {isArabic ? "الفصل *" : "Class *"}
+                    <FaSchool className="me-1" /> {isArabic ? "المستوى *" : "Class *"}
                   </Form.Label>
                   <Form.Select
                     value={formData.classId}
@@ -1352,7 +1352,7 @@ const StudentsManagement = () => {
                       borderRadius: "12px",
                     }}
                   >
-                    <option value="">{isArabic ? "اختر الفصل" : "Select Class"}</option>
+                    <option value="">{isArabic ? "اختر المستوى" : "Select Class"}</option>
                     {(() => {
                       const classList = classes.length > 0 ? classes : [];
                       return classList.map((cls) => (
