@@ -1087,6 +1087,9 @@ export const translations = {
     subAdminDeletedShort: "Sub-Admin deleted.",
     noAdminsFound: "No administrators found.",
     permissionsFor: "Permissions",
+    "No content": "No content",
+    "All announcements marked as read": "All announcements marked as read",
+    "Login successful!": "Login successful!",
   },
 
   ar: {
@@ -2162,6 +2165,9 @@ export const translations = {
     subAdminDeletedShort: "تم حذف المساعد.",
     noAdminsFound: "لا يوجد مسؤولون.",
     permissionsFor: "الصلاحيات",
+    "No content": "لا يوجد محتوى",
+    "All announcements marked as read": "تم تحديد جميع الإعلانات كمقروءة",
+    "Login successful!": "تم تسجيل الدخول بنجاح",
   },
 };
 
