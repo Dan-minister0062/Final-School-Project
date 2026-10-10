@@ -199,7 +199,7 @@ const SubAdminsManagement = () => {
           </h2>
           <p className="text-muted mb-0">{t("subAdminsSubtitle")}</p>
         </div>
-        <div className="d-flex gap-2">
+        <div className="d-flex gap-2 subadmins-header-buttons">
           <Button variant="outline-secondary" onClick={load} disabled={loading}>
             <FaSync className={loading ? "me-2 fa-spin" : "me-2"} />
             {t("refreshLabel")}
@@ -228,14 +228,14 @@ const SubAdminsManagement = () => {
 
       <Card className="shadow-sm border-0">
         <Card.Body className="table-responsive">
-          <Table hover responsive className="align-middle mb-0">
+          <Table hover responsive className="align-middle mb-0 subadmins-table">
             <thead>
               <tr>
                 <th>{t("nameLabel")}</th>
-                <th>{t("sectionLabel")}</th>
+                <th className="d-none d-sm-table-cell">{t("sectionLabel")}</th>
                 <th>{t("adminTier")}</th>
-                <th>{t("permissionScope")}</th>
-                <th>{t("statusLabel")}</th>
+                <th className="d-none d-md-table-cell">{t("permissionScope")}</th>
+                <th className="d-none d-sm-table-cell">{t("statusLabel")}</th>
                 <th className="text-end">{t("actionsLabel")}</th>
               </tr>
             </thead>
@@ -258,7 +258,7 @@ const SubAdminsManagement = () => {
                       <div className="fw-semibold">{admin.name}</div>
                       <div className="text-muted small">{admin.email}</div>
                     </td>
-                    <td>
+                    <td className="d-none d-sm-table-cell">
                       {admin.section ? (
                         <Badge bg="info" text="dark">
                           {sectionName(admin.section)}
@@ -270,14 +270,14 @@ const SubAdminsManagement = () => {
                     <td>
                       <Badge bg={badge.bg}>{t(badge.key)}</Badge>
                     </td>
-                    <td>
+                    <td className="d-none d-md-table-cell">
                       {admin.is_super_admin ? (
                         <span className="text-muted">{t("allLabel")}</span>
                       ) : (
                         <span>{count}</span>
                       )}
                     </td>
-                    <td>
+                    <td className="d-none d-sm-table-cell">
                       <Badge bg={admin.status === "active" ? "success" : "secondary"}>
                         {admin.status === "suspended"
                           ? t("suspendedStatus")
@@ -285,6 +285,7 @@ const SubAdminsManagement = () => {
                       </Badge>
                     </td>
                     <td className="text-end">
+                      <div className="subadmins-actions">
                       {admin.is_super_admin ? (
                         <>
                           <Button
@@ -358,6 +359,7 @@ const SubAdminsManagement = () => {
                           </Button>
                         </>
                       )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -525,6 +527,26 @@ const SubAdminsManagement = () => {
           </Button>
         </Modal.Footer>
       </Modal>
+    <style>{`
+        .subadmins-header-buttons { flex-wrap: wrap; }
+        .subadmins-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          justify-content: flex-end;
+          align-items: center;
+        }
+        .subadmins-actions .btn { margin: 0; }
+        @media (max-width: 768px) {
+          .subadmins-header-buttons { width: 100%; }
+          .subadmins-header-buttons .btn { flex: 1 1 auto; }
+        }
+        @media (max-width: 576px) {
+          .subadmins-actions { justify-content: flex-start; }
+          .subadmins-actions .btn { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
+          .subadmins-table { font-size: 0.85rem; }
+        }
+      `}</style>
     </div>
   );
 };
