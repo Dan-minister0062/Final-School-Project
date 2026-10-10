@@ -651,7 +651,7 @@ const Admissions = () => {
                   <Card.Body className="p-4">
                     <div className="d-flex justify-content-between mb-3">
                       <span style={arabicFontStyle}>
-                        {isArabic ? "تلاميذ مسجلين" : "Students Enrolled"}
+                        {isArabic ? " التلاميذ المسجلون" : "Students Enrolled"}
                       </span>
                       <span className="fw-bold" style={{ color: "#1a5f7a" }}>
                         520+
@@ -659,7 +659,7 @@ const Admissions = () => {
                     </div>
                     <div className="d-flex justify-content-between mb-3">
                       <span style={arabicFontStyle}>
-                        {isArabic ? "مستويات تعليمية" : "Education Levels"}
+                        {isArabic ? " المستويات التعليمية" : "Education Levels"}
                       </span>
                       <span className="fw-bold" style={{ color: "#1a5f7a" }}>
                         4
@@ -667,7 +667,7 @@ const Admissions = () => {
                     </div>
                     <div className="d-flex justify-content-between">
                       <span style={arabicFontStyle}>
-                        {isArabic ? "معلمين مؤهلين" : "Qualified Teachers"}
+                        {isArabic ? " أطر مؤهلة" : "Qualified Teachers"}
                       </span>
                       <span className="fw-bold" style={{ color: "#1a5f7a" }}>
                         35+
@@ -1054,7 +1054,7 @@ const Admissions = () => {
                         <Col md={6}>
                           <Form.Group className="mb-3">
                             <Form.Label style={arabicFontStyle}>
-                              {isArabic ? "الصف/المستوى المطلوب" : "Requested Class/Grade"} *
+                              {isArabic ? "المستوى المطلوب" : "Requested Grade"} *
                             </Form.Label>
                             <Form.Select
                               {...register("requestedClass")}
