@@ -446,7 +446,7 @@ const Login = () => {
                       </>
                     ) : (
                       <>
-                        {isArabic ? "تسجيل الدخول" : "Login"}{" "}
+                        {isArabic ? "المنصة الإلكترونية" : "Login"}{" "}
                         <FaArrowRight className="ms-2" size={12} />
                       </>
                     )}
