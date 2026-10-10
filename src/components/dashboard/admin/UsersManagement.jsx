@@ -1453,7 +1453,7 @@ const UsersManagement = () => {
                 }}
               >
                 <FaSchool className="me-2" />{" "}
-                {isArabic ? "المستوى التعليمي" : "Education Level"} *
+                {isArabic ? "السلك التعليمي" : "Education Level"} *
               </Form.Label>
               <Form.Select
                 value={formData.level}
@@ -1469,7 +1469,7 @@ const UsersManagement = () => {
               >
                 <option value="">
                   {isArabic
-                    ? "اختر المستوى التعليمي"
+                    ? "اختر السلك التعليمي"
                     : "Select Education Level"}
                 </option>
                 {levelCategories.map((level) => (
