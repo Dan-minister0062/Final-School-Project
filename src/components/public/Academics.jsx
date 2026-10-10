@@ -417,7 +417,7 @@ const Academics = () => {
 
                   <div className="text-center mb-4 p-3 rounded-4" style={{ background: currentLevel.gradient, color: '#ffffff' }}>
                     <h5 className="fw-bold mb-0" style={arabicFontStyle}>
-                      {isArabic ? 'المواد الدراسية' : 'Subjects Offered'}
+                      {isArabic ? 'المناهج الدراسية' : 'Subjects Offered'}
                     </h5>
                   </div>
 
