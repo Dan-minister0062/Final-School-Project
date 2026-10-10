@@ -102,7 +102,7 @@ const Academics = () => {
       badge: isArabic ? 'أولي' : '',
       badgeColor: 'warning',
       subjects: [
-        { icon: <FaQuran />, name: isArabic ? 'القرآن الكريم (التربية الإسلامية)' : "Qur'an (Islamic Education)"},
+        { icon: <FaQuran />, name: isArabic ? 'التربية الإسلاميةوالقرآن الكريم' : "Qur'an (Islamic Education)"},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة العربية' : 'Arabic', },
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الإنجليزية' : 'English',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الفرنسية' : 'French', },
@@ -127,7 +127,7 @@ const Academics = () => {
       badge: isArabic ? 'ابتدائي' : '',
       badgeColor: 'success',
       subjects: [
-        { icon: <FaQuran />, name: isArabic ? 'القرآن الكريم (التربية الإسلامية)' : "Qur'an (Islamic Education)",},
+        { icon: <FaQuran />, name: isArabic ? 'التربية الإسلاميةوالقرآن الكريم' : "Qur'an (Islamic Education)",},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة العربية' : 'Arabic',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الإنجليزية' : 'English',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الفرنسية' : 'French',},
@@ -136,9 +136,9 @@ const Academics = () => {
         { icon: <FaDumbbell />, name: isArabic ? 'الرياضة' : 'Sports',},
         { icon: <FaLaptop />, name: isArabic ? 'الإعلاميات' : 'ICT',},
         { icon: <FaPalette />, name: isArabic ? 'التربية التشكيلية' : 'Art & Plastic',},
-        { icon: <FaGlobeAsia />, name: isArabic ? 'الإجتماعيات' : 'Geography',},
+        { icon: <FaGlobeAsia />, name: isArabic ? 'الاجتماعيات' : 'Geography',},
       ],
-      schedule: '8:00صباحاً  15:00مساءً',
+      schedule: '7:00صباحاً  15:00مساءً',
       features: [
         isArabic ? 'التميز الأكاديمي' : 'Academic Excellence',
         isArabic ? 'بناء الشخصية' : 'Character Building',
@@ -158,7 +158,7 @@ const Academics = () => {
       badge: isArabic ? 'إعدادي' : '',
       badgeColor: 'warning',
       subjects: [
-        { icon: <FaQuran />, name: isArabic ? 'القرآن الكريم (التربية الإسلامية)' : "Qur'an (Islamic Education)",},
+        { icon: <FaQuran />, name: isArabic ? 'التربية الإسلاميةوالقرآن الكريم' : "Qur'an (Islamic Education)",},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة العربية' : 'Arabic',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الفرنسية' : 'French',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الإنجليزية' : 'English',},
@@ -167,9 +167,9 @@ const Academics = () => {
         { icon: <FaFlask />, name: isArabic ? ' الفيزياء والكيمياء' : 'Physics-Chemistry',},
         { icon: <FaDumbbell />, name: isArabic ? 'الرياضة' : 'Sports',},
         { icon: <FaLaptop />, name: isArabic ? 'الإعلاميات' : 'ICT',},
-        { icon: <FaGlobeAsia />, name: isArabic ? 'الإجتماعيات' : 'Geography',},
+        { icon: <FaGlobeAsia />, name: isArabic ? 'الاجتماعيات' : 'Geography',},
       ],
-      schedule: '8:00صباحاً  15:00مساءً',
+      schedule: '7:00صباحاً  15:00مساءً',
       features: [
         isArabic ? 'التميز الأكاديمي' : 'Academic Excellence',
         isArabic ? 'الإعداد المهني' : 'Career Preparation',
@@ -189,7 +189,7 @@ const Academics = () => {
       badge: isArabic ? 'ثانوي' : '',
       badgeColor: 'secondary',
       subjects: [
-        { icon: <FaQuran />, name: isArabic ? 'القرآن الكريم (التربية الإسلامية)' : "Qur'an (Islamic Education)",},
+        { icon: <FaQuran />, name: isArabic ? 'التربية الإسلامية والقرآن الكريم' : "Qur'an (Islamic Education)",},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة العربية' : 'Arabic',},
         { icon: <FaLanguage />, name: isArabic ? 'اللغة الإنجليزية' : 'English',},
         { icon: <FaCalculator />, name: isArabic ? 'الرياضيات' : 'Mathematics',},
@@ -198,10 +198,10 @@ const Academics = () => {
         { icon: <FaFlask />, name: isArabic ? ' الفيزياء والكيمياء' : 'Physics-Chemistry',},
         { icon: <FaDumbbell />, name: isArabic ? 'الرياضة' : 'Sports',},
         { icon: <FaLaptop />, name: isArabic ? 'الإعلاميات' : 'ICT',},
-        { icon: <FaGlobeAsia />, name: isArabic ? 'الإجتماعيات' : 'Geography',},
+        { icon: <FaGlobeAsia />, name: isArabic ? 'الاجتماعيات' : 'Geography',},
         { icon: <FaBrain />, name: isArabic ? 'الفلسفة' : 'Philosophy',},
       ],
-      schedule: '8:00صباحاً  15:00مساءً',
+      schedule: '7:00صباحاً  15:00مساءً',
       features: [
         isArabic ? 'التميز الأكاديمي' : 'Academic Excellence',
         isArabic ? 'الإعداد الجامعي' : 'School Preparation',
@@ -417,7 +417,7 @@ const Academics = () => {
 
                   <div className="text-center mb-4 p-3 rounded-4" style={{ background: currentLevel.gradient, color: '#ffffff' }}>
                     <h5 className="fw-bold mb-0" style={arabicFontStyle}>
-                      {isArabic ? 'التربية الإسلامية والقرآن الكريم' : 'Islamic Education and the Holy Quran'}
+                      {isArabic ? 'التربية الإسل' : 'Islamic Education and the Holy Quran'}
                     </h5>
                   </div>
 

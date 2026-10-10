@@ -101,7 +101,7 @@ const Contact = () => {
     {
       icon: <FaRegClock size={18} />,
       title: t('officeHours'),
-      info: isArabic ? 'الإثنين - الجمعة: 8:00 ص - 3:00 م' : 'Monday - Friday: 8:00 AM - 3:00 PM',
+      info: isArabic ? 'الإثنين - الجمعة: 7:00 ص -15:00 م' : 'Monday - Friday: 7:00 AM - 15:00 PM',
       sub: isArabic ? 'السبت: 9:00 ص - 1:00 م' : 'Saturday: 9:00 AM - 1:00 PM',
       color: '#d4a373',
       gradient: 'linear-gradient(135deg, #d4a373 0%, #f0d5a8 100%)'
