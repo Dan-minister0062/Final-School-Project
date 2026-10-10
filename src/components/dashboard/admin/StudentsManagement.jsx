@@ -350,8 +350,8 @@ const StudentsManagement = () => {
   // ===== VALIDATE FORM =====
   const validateForm = (data, isEdit = false) => {
     const errors = [];
-    if (!data.firstName) errors.push(isArabic ? "الاسم الأول مطلوب" : "First name is required");
-    if (!data.lastName) errors.push(isArabic ? "الاسم الأخير مطلوب" : "Last name is required");
+    if (!data.firstName) errors.push(isArabic ? "الاسم الشخصي مطلوب" : "First name is required");
+    if (!data.lastName) errors.push(isArabic ? "الاسم العائلي مطلوب" : "Last name is required");
     if (!data.dateOfBirth) errors.push(isArabic ? "تاريخ الميلاد مطلوب" : "Date of birth is required");
     if (!data.gender) errors.push(isArabic ? "الجنس مطلوب" : "Gender is required");
     if (!data.classId) errors.push(isArabic ? "الفصل مطلوب" : "Class is required");
@@ -1256,13 +1256,13 @@ const StudentsManagement = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529" }}>
-                    {isArabic ? "الاسم الأول *" : "First Name *"}
+                    {isArabic ? "الاسم الشخصي *" : "First Name *"}
                   </Form.Label>
                   <Form.Control
                     type="text"
                     value={formData.firstName}
                     onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                    placeholder={isArabic ? "أدخل الاسم الأول" : "Enter first name"}
+                    placeholder={isArabic ? "أدخل الاسم الشخصي" : "Enter first name"}
                     style={{
                       ...arabicFontStyle,
                       background: darkMode ? "#2d2d44" : "white",
@@ -1275,13 +1275,13 @@ const StudentsManagement = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529" }}>
-                    {isArabic ? "الاسم الأخير *" : "Last Name *"}
+                    {isArabic ? "الاسم العائلي *" : "Last Name *"}
                   </Form.Label>
                   <Form.Control
                     type="text"
                     value={formData.lastName}
                     onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                    placeholder={isArabic ? "أدخل الاسم الأخير" : "Enter last name"}
+                    placeholder={isArabic ? "أدخل الاسم العائلي" : "Enter last name"}
                     style={{
                       ...arabicFontStyle,
                       background: darkMode ? "#2d2d44" : "white",
@@ -1378,7 +1378,7 @@ const StudentsManagement = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label style={{ ...arabicFontStyle, color: darkMode ? "#e9ecef" : "#212529" }}>
-                    <FaGraduationCap className="me-1" /> {isArabic ? "المستوى" : "Level"}
+                    <FaGraduationCap className="me-1" /> {isArabic ? "السلك" : "Level"}
                   </Form.Label>
                   <Form.Select
                     value={formData.educationLevel}
@@ -1390,7 +1390,7 @@ const StudentsManagement = () => {
                       borderRadius: "12px",
                     }}
                   >
-                    <option value="">{isArabic ? "اختر المستوى" : "Select Level"}</option>
+                    <option value="">{isArabic ? "اختر السلك" : "Select Level"}</option>
                     {levelCategories.map((level) => (
                       <option key={level.value} value={level.value}>
                         {level.label}

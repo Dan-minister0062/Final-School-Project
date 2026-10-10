@@ -798,9 +798,9 @@ const UsersManagement = () => {
     const errors = [];
 
     if (!formData.firstName)
-      errors.push(isArabic ? "الاسم الأول مطلوب" : "First name is required");
+      errors.push(isArabic ? "الاسم الشخصي مطلوب" : "First name is required");
     if (!formData.lastName)
-      errors.push(isArabic ? "الاسم الأخير مطلوب" : "Last name is required");
+      errors.push(isArabic ? "الاسم العائلي مطلوب" : "Last name is required");
     if (!formData.email)
       errors.push(isArabic ? "البريد الإلكتروني مطلوب" : "Email is required");
     if (!formData.phone)
@@ -821,7 +821,7 @@ const UsersManagement = () => {
       if (!formData.level)
         errors.push(
           isArabic
-            ? "المستوى التعليمي مطلوب للمعلم"
+            ? "السلك التعليمي مطلوب للمعلم"
             : "Education level is required for teacher",
         );
       if (!formData.subjects || formData.subjects.length === 0)
@@ -3746,7 +3746,7 @@ const UsersManagement = () => {
                           fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
                         }}
                       >
-                        {isArabic ? "الاسم الأول" : "First Name"} *
+                        {isArabic ? "الاسم الشخصي" : "First Name"} *
                       </Form.Label>
                       <Form.Control
                         type="text"
@@ -3758,7 +3758,7 @@ const UsersManagement = () => {
                           })
                         }
                         placeholder={
-                          isArabic ? "أدخل الاسم الأول" : "Enter first name"
+                          isArabic ? "أدخل الاسم الشخصي" : "Enter first name"
                         }
                         className="form-control-lg"
                         style={{
@@ -3781,7 +3781,7 @@ const UsersManagement = () => {
                           fontSize: "clamp(0.7rem, 0.9vw, 0.9rem)",
                         }}
                       >
-                        {isArabic ? "الاسم الأخير" : "Last Name"} *
+                        {isArabic ? "الاسم العائلي" : "Last Name"} *
                       </Form.Label>
                       <Form.Control
                         type="text"
@@ -3790,7 +3790,7 @@ const UsersManagement = () => {
                           setFormData({ ...formData, lastName: e.target.value })
                         }
                         placeholder={
-                          isArabic ? "أدخل الاسم الأخير" : "Enter last name"
+                          isArabic ? "أدخل الاسم العائلي" : "Enter last name"
                         }
                         className="form-control-lg"
                         style={{
@@ -5501,7 +5501,7 @@ const UsersManagement = () => {
                     }}
                   >
                     <FaSchool className="me-1" />{" "}
-                    {isArabic ? "المستوى التعليمي" : "Education Level"}
+                    {isArabic ? "السلك التعليمي" : "Education Level"}
                   </Form.Label>
                   <Form.Select
                     value={editFormData.level}
@@ -5593,7 +5593,7 @@ const UsersManagement = () => {
                   </div>
                   <Form.Text className="text-muted" style={arabicFontStyle}>
                     {isArabic
-                      ? "اختر مادة أو أكثر حسب المستوى التعليمي"
+                      ? "اختر مادة أو أكثر حسب السلك التعليمي"
                       : "Select one or more subjects"}
                   </Form.Text>
                 </Form.Group>

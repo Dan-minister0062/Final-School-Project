@@ -659,7 +659,7 @@ const Admissions = () => {
                     </div>
                     <div className="d-flex justify-content-between mb-3">
                       <span style={arabicFontStyle}>
-                        {isArabic ? " المستويات التعليمية" : "Education Levels"}
+                        {isArabic ? "السلك التعليمي" : "Education Levels"}
                       </span>
                       <span className="fw-bold" style={{ color: "#1a5f7a" }}>
                         4
