@@ -8,7 +8,7 @@ export const translations = {
     admissionsNav: "Admissions",
     news: "News",
     contactNav: "Contact",
-    login: "Login",
+    login: "Platform",
     register: "Register",
     logout: "Logout",
     dashboard: "Dashboard",

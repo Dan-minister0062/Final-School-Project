@@ -367,7 +367,7 @@ const NavbarComponent = () => {
                     e.currentTarget.style.borderColor = '#d4a373';
                   }}
                 >
-                  {isArabic ? 'تسجيل دخول' : 'Login'}
+                  {isArabic ? 'المنصة الإلكترونية' : 'Platform'}
                 </Button>
                 
                 {/* Register button removed - parents register through admissions page */}
