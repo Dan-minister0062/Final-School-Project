@@ -97,9 +97,14 @@ const ParentAnnouncements = () => {
 
       const childIds = children.map((c) => String(c.id || c.student_code));
       const filtered = serverAnnouncements.filter((a) => {
-        const target = (a.target_audience || a.targetAudience || "all").toLowerCase();
-        if (target === "all" || target === "parents") return true;
-        if (target === "students" && childIds.length > 0) return true;
+        const target = Array.isArray(a.targetAudience)
+          ? a.targetAudience
+          : Array.isArray(a.target_audience)
+            ? a.target_audience
+            : [a.targetAudience || a.target_audience || "all"];
+        const norm = target.map((t) => String(t).toLowerCase());
+        if (norm.includes("all") || norm.includes("parents") || norm.includes("parent")) return true;
+        if (norm.includes("students") && childIds.length > 0) return true;
         return false;
       });
 

@@ -6,6 +6,7 @@ import { useLanguage } from '../../context/LanguageContext';
 import {getAnnouncementTranslation} from '../../utils/translations';
 import { useNotification } from '../../hooks/useNotification';
 import { syncGet } from '../../services/apiSync';
+import { useAuth } from '../../hooks/useAuth';
 
 // ALWAYS use English numbers - NO Arabic numeral conversion
 const formatNumber = (num) => {
@@ -16,6 +17,7 @@ const formatNumber = (num) => {
 // ===== NEWS & EVENTS =====
 const NewsEvents = () => {
   const { language, isArabic } = useLanguage();
+  const { user } = useAuth();
   const { notify } = useNotification();
 
   const [announcements, setAnnouncements] = useState([]);
@@ -90,8 +92,25 @@ const NewsEvents = () => {
       const res = await syncGet('/announcements/published');
       const items = Array.isArray(res?.data) ? res.data : [];
       
-      // Filter only published announcements
-      const publishedItems = items.filter(a => (a.status === 'published' || a.status === 'active') && a.isActive !== false);
+      // Filter only published announcements the current visitor is allowed to see.
+      // When logged in, match the viewer's role; anonymous visitors see only "all" announcements.
+      const role = (user?.role || '').toLowerCase();
+      const roleAudiences =
+        role === 'student' ? ['students', 'student'] :
+        role === 'parent' ? ['parents', 'parent'] :
+        role === 'teacher' ? ['teachers', 'teacher'] : null;
+      const publishedItems = items.filter((a) => {
+        if ((a.status !== 'published' && a.status !== 'active') || a.isActive === false) return false;
+        const target = Array.isArray(a.targetAudience)
+          ? a.targetAudience
+          : Array.isArray(a.target_audience)
+            ? a.target_audience
+            : [a.targetAudience || a.target_audience || 'all'];
+        const norm = target.map((t) => String(t).toLowerCase());
+        if (norm.includes('all')) return true;
+        if (roleAudiences && roleAudiences.some((r) => norm.includes(r))) return true;
+        return false;
+      });
       
       // Map to display based on current language
       const mappedItems = publishedItems.map(item => ({

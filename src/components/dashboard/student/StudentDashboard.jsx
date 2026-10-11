@@ -102,7 +102,16 @@ const StudentDashboard = () => {
       // Load announcements from the server
       const announceRes = await syncGet('/announcements/published');
       const allAnnouncements = Array.isArray(announceRes?.data) ? announceRes.data : [];
-      const sortedAnnouncements = allAnnouncements.sort((a, b) => {
+      const visibleAnnouncements = allAnnouncements.filter((a) => {
+        const target = Array.isArray(a.targetAudience)
+          ? a.targetAudience
+          : Array.isArray(a.target_audience)
+            ? a.target_audience
+            : [a.targetAudience || a.target_audience || 'all'];
+        const norm = target.map((t) => String(t).toLowerCase());
+        return norm.includes('all') || norm.includes('students') || norm.includes('student');
+      });
+      const sortedAnnouncements = visibleAnnouncements.sort((a, b) => {
         return new Date(b.createdAt || b.created_at) - new Date(a.createdAt || a.created_at);
       });
       setAnnouncements(sortedAnnouncements.slice(0, 3));
