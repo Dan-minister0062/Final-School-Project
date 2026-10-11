@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Announcement;
+use App\Support\MediaStore;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -128,8 +129,8 @@ class AnnouncementController extends Controller
             'priority' => $request->input('priority', 'medium'),
             'status' => $request->input('status', 'published'),
             'author' => $request->input('author', 'Admin'),
-            'image' => $request->input('image'),
-            'video' => $request->input('video'),
+            'image' => MediaStore::toUrl($request->input('image'), 'announcements'),
+            'video' => MediaStore::toUrl($request->input('video'), 'announcements'),
             'media_type' => $request->input('mediaType') ?? 'none',
             'date' => $request->input('date'),
             'time' => $request->input('time'),

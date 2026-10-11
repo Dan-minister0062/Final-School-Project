@@ -6,6 +6,7 @@ use App\Models\Section;
 use App\Models\User;
 use App\Services\AuditLogger;
 use App\Services\SectionScope;
+use App\Support\MediaStore;
 use App\Support\Rbac;
 use App\Support\UserPresenter;
 use Illuminate\Http\JsonResponse;
@@ -292,6 +293,10 @@ class UserController extends Controller
             }
         }
 
+        if (array_key_exists('avatar', $fill)) {
+            $fill['avatar'] = MediaStore::toUrl($fill['avatar'], 'avatars');
+        }
+
         // experience / attendance / average_grade are NOT NULL with a 0 default.
         // A cleared numeric input arrives as null or "" and would abort the
         // whole save with "Column 'experience' cannot be null", so normalise
@@ -508,6 +513,10 @@ class UserController extends Controller
             'department', 'bio', 'gender', 'nationality', 'cin', 'city',
             'avatar',
         ]);
+
+        if (! empty($data['avatar'])) {
+            $data['avatar'] = MediaStore::toUrl($data['avatar'], 'avatars');
+        }
 
         if (! isset($data['status']) || $data['status'] === '') {
             $data['status'] = 'active';
