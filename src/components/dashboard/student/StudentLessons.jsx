@@ -15,6 +15,8 @@ import {
   FaChevronDown,
   FaChevronUp,
   FaClock,
+  FaLink,
+  FaPaperclip,
   FaSync,
 } from "react-icons/fa";
 import { useNotification } from "../../../hooks/useNotification";
@@ -44,6 +46,14 @@ const StudentLessons = () => {
   const t = useCallback((key) => getTranslation(key, language), [language]);
   const localSectionName = (section) =>
     isArabic ? section?.name_ar || section?.name : section?.name_en || section?.name;
+  const formatBytes = (bytes) => {
+    const value = Number(bytes);
+    if (!Number.isFinite(value) || value <= 0) return "";
+    if (value < 1024) return `${value} B`;
+    if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+    if (value < 1024 * 1024 * 1024) return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+    return `${(value / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+  };
 
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -277,6 +287,57 @@ const StudentLessons = () => {
                           {lesson.objectives}
                         </p>
                       </div>
+                    )}
+
+                    <h6 className="fw-semibold">
+                      <FaPaperclip className="me-2 text-primary" />
+                      {t("lessonAttachments")}
+                    </h6>
+                    {Array.isArray(lesson.attachments) &&
+                    lesson.attachments.length === 0 ? (
+                      <p className="text-muted small mb-0">{t("noAttachments")}</p>
+                    ) : (
+                      <ul className="list-unstyled mb-3">
+                        {(lesson.attachments || []).map((attachment, index) => {
+                          const href =
+                            attachment.external_url || attachment.file_url;
+                          const label =
+                            attachment.title ||
+                            attachment.file_name ||
+                            href ||
+                            "";
+                          return (
+                            <li
+                              key={attachment.id ?? `${href}-${index}`}
+                              className="d-flex align-items-center gap-2 border rounded px-3 py-2 mb-2"
+                            >
+                              <span className="text-primary">
+                                {attachment.external_url ? (
+                                  <FaLink />
+                                ) : (
+                                  <FaPaperclip />
+                                )}
+                              </span>
+                              <span className="flex-grow-1 text-truncate small">
+                                {label}
+                              </span>
+                              {attachment.file_size ? (
+                                <span className="text-muted small text-nowrap">
+                                  {formatBytes(attachment.file_size)}
+                                </span>
+                              ) : null}
+                              <a
+                                href={href}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn btn-sm btn-outline-secondary text-nowrap"
+                              >
+                                {t("attachmentOpen")}
+                              </a>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     )}
 
                     <h6 className="fw-semibold">{t("lessonAssignments")}</h6>

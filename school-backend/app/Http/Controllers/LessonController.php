@@ -646,13 +646,16 @@ class LessonController extends Controller
         File::ensureDirectoryExists($directory, 0755, true);
 
         // Defensive: shared hosting would happily execute a .php dropped here.
+        // Files must stay readable so the attachment URLs returned to both
+        // teachers and students keep working, so only executable handlers are
+        // disabled rather than the whole directory.
         File::put($directory.'/.htaccess', implode("\n", [
             '<IfModule mod_authz_core.c>',
-            '    Require all denied',
+            '    Require all granted',
             '</IfModule>',
             '<IfModule !mod_authz_core.c>',
-            '    Order deny,allow',
-            '    Deny from all',
+            '    Order allow,deny',
+            '    Allow from all',
             '</IfModule>',
             'RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8 .pht .phar',
             'AddType text/plain .php .phtml .php3 .php4 .php5 .php7 .php8 .pht .phar',
