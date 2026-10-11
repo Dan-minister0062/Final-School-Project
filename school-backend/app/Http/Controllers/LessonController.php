@@ -983,6 +983,23 @@ class LessonController extends Controller
             abort_unless((int) $lesson->section_id === (int) $user->section_id, 403, 'That lesson is in another section.');
         } elseif ($user->role === 'teacher') {
             abort_unless((int) $lesson->created_by === (int) $user->id, 403, 'You may only track progress for your own lessons.');
+        } elseif ($user->role === 'student') {
+            // A student may only ever write their own row (checked above).
+            // Restrict it to lessons they are actually able to see, so an
+            // unseen lesson id cannot be marked complete.
+            abort_unless($lesson->status === Lesson::STATUS_PUBLISHED, 403, 'This lesson is not open to you.');
+
+            $classCode = $this->studentClassCode($user);
+            $sectionKey = Section::keyForClassLevel($this->classLevel($classCode));
+            $section = $lesson->section;
+
+            $belongs = $lesson->class_id
+                && SchoolClass::whereKey($lesson->class_id)->value('code') === $classCode;
+            if (! $belongs && $sectionKey && $section?->key === $sectionKey) {
+                $belongs = true;
+            }
+
+            abort_unless($belongs, 403, 'This lesson is not assigned to your class.');
         } elseif (! $user->isSuperAdmin()) {
             abort(403);
         }

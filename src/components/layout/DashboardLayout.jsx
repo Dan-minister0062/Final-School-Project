@@ -290,13 +290,44 @@ const DashboardLayout = () => {
     }
   };
 
+  // ===== Resolve a notification's destination for the current role =====
+  const resolveNotificationLink = (notif) => {
+    const role = getUserRole();
+    const raw = notif?.link || '';
+
+    // Announcements are broadcast to every audience with a single generic
+    // link, so the destination has to be resolved per role here. Otherwise a
+    // student click would land on an admin-only route (and bounce out of the
+    // dashboard to the public site).
+    const announcementTargets = {
+      admin: '/dashboard/admin/announcements',
+      teacher: '/dashboard/teacher/notifications',
+      parent: '/dashboard/parent/announcements',
+      student: '/dashboard/student/announcements',
+    };
+    const isAnnouncement =
+      notif?.type === 'announcement' ||
+      raw === '/announcements' ||
+      raw.startsWith('/dashboard/admin/announcements');
+
+    if (isAnnouncement && announcementTargets[role]) {
+      return announcementTargets[role];
+    }
+
+    // Any other link pointing at a different role's dashboard is remapped to
+    // the caller's own dashboard so a click never leaves the dashboard.
+    if (raw.startsWith('/dashboard/') && !raw.startsWith(`/dashboard/${role}`)) {
+      return `/dashboard/${role}`;
+    }
+
+    return raw || `/dashboard/${role}`;
+  };
+
   // ===== Handle notification click =====
   const handleNotificationClick = (notif) => {
     markAsRead(notif.id);
     setShowNotifications(false);
-    if (notif.link) {
-      navigate(notif.link);
-    }
+    navigate(resolveNotificationLink(notif));
   };
 
   // ===== Handle View All Click =====
