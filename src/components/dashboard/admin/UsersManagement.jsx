@@ -498,8 +498,10 @@ const UsersManagement = () => {
     }));
   };
 
-  // ===== INITIAL LOAD (classes + subjects from MySQL) =====
-  useEffect(() => {
+  // ===== LOAD CLASS + SUBJECT CATALOG =====
+  // Retried on demand so the Add Teacher form never stays empty when the
+  // first fetch fails (transient network/cold-cache) or runs pre-auth (401).
+  const loadCatalogData = () => {
     fetchServerClasses().then((rows) => {
       if (rows) setClasses(toCatalogClasses(rows));
     });
@@ -507,7 +509,13 @@ const UsersManagement = () => {
     fetchServerSubjects().then((rows) => {
       if (rows) setSubjects(toCatalogSubjects(rows));
     });
-  }, []);
+  };
+
+  // Load on mount, then refresh whenever the session is (re)established so
+  // a fetch that ran before authentication doesn't leave subjects/classes empty.
+  useEffect(() => {
+    loadCatalogData();
+  }, [user]);
 
   // ===== NORMALIZE SUBJECTS TO CATALOG CODES (labels -> codes) =====
   const toSubjectCodes = (level, list) => {
@@ -2421,7 +2429,10 @@ const UsersManagement = () => {
           <Button
             variant="primary"
             size="sm"
-            onClick={() => setShowAddUserModal(true)}
+            onClick={() => {
+              loadCatalogData();
+              setShowAddUserModal(true);
+            }}
             className="action-btn-responsive"
             style={{
               ...arabicFontStyle,
