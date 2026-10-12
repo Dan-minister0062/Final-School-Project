@@ -31,7 +31,7 @@ import { useNotification } from "./hooks/useNotification";
 import { useAuth } from "./hooks/useAuth";
 import { getInitials } from "./utils/helpers";
 import { getTranslation } from "./utils/translations";
-import api, { verifySessionAlive } from "./services/api";
+import api, { verifySessionAlive, hasSessionHint } from "./services/api";
 
 // ===== LAYOUTS =====
 import MainLayout from "./components/layout/MainLayout";
@@ -645,8 +645,14 @@ function AppRoutes() {
   const lastExpiryHandledRef = useRef(0);
 
   useEffect(() => {
-    // Restore the server-side session (SANCTUM cookie) on boot.
-    dispatch(fetchMe());
+    // Restore the server-side session (SANCTUM cookie) on boot. Only probe
+    // /auth/me when this browser previously had a session: a guest has no
+    // cookie to restore, so the request would only produce a pointless 401.
+    if (hasSessionHint()) {
+      dispatch(fetchMe());
+    } else {
+      dispatch(clearSession());
+    }
 
     // A 401 from any API request fires "session:expired". Before clearing the
     // in-memory auth (which bounces the user to /login) we re-confirm against

@@ -28,14 +28,39 @@ const api = axios.create({
 });
 
 // In-memory identity mirror used by background services so they don't need
-// to read persisted session data. Never written to browser storage.
+// to read persisted session data. The identity object itself is never written
+// to browser storage; only a boolean "this browser had a session" hint is kept
+// so the boot probe can be skipped for guests (which otherwise logs a 401).
 let authIdentity = null;
+
+const SESSION_HINT_KEY = "madrasatul_has_session";
+
+const writeSessionHint = (present) => {
+  try {
+    if (present) localStorage.setItem(SESSION_HINT_KEY, "1");
+    else localStorage.removeItem(SESSION_HINT_KEY);
+  } catch {
+    // Storage can be unavailable (private mode / disabled). The hint is only
+    // an optimisation, so failing to read or write it is harmless.
+  }
+};
 
 export const setAuthIdentity = (identity) => {
   authIdentity = identity || null;
+  writeSessionHint(Boolean(authIdentity));
 };
 
 export const getAuthIdentity = () => authIdentity;
+
+// True when this browser previously established a session. Used to decide
+// whether the boot-time /auth/me probe is worth making at all.
+export const hasSessionHint = () => {
+  try {
+    return localStorage.getItem(SESSION_HINT_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
 
 // Fetch the XSRF-TOKEN cookie before state-changing requests so the Laravel
 // web middleware (ValidateCsrfToken) accepts the SPA's session requests.
