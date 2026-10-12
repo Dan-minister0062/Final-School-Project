@@ -241,6 +241,7 @@ const DashboardLayout = () => {
         ...baseItems,
         { path: '/dashboard/student/my-results', icon: <FaAward />, label: isArabic ? 'نتائجي' : 'My Results' },
         { path: '/dashboard/student/lessons', icon: <FaBookOpen />, label: isArabic ? 'الدروس' : 'Lessons' },
+        { path: '/dashboard/student/assessments', icon: <FaClipboardList />, label: isArabic ? 'التقييمات' : 'Assessments' },
         { path: '/dashboard/student/announcements', icon: <FaBullhorn />, label: isArabic ? 'الإعلانات' : 'Announcements' },
       ];
     }

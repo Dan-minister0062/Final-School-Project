@@ -92,6 +92,7 @@ import StudentDashboard from "./components/dashboard/student/StudentDashboard";
 import StudentResults from "./components/dashboard/student/StudentResults";
 // ✅ FIXED: Changed from '../components/dashboard/student/StudentAnnouncements' to './components/dashboard/student/StudentAnnouncements'
 import StudentAnnouncements from "./components/dashboard/student/StudentAnnouncements";
+import StudentAssessments from "./components/dashboard/student/StudentAssessments";
 
 // ===== ACCEPT INVITE PAGE =====
 import AcceptInvite from "./pages/AcceptInvite";
@@ -948,6 +949,7 @@ function AppRoutes() {
             <Route path="profile" element={<Profile />} />
             {/* ✅ FIXED: StudentAnnouncements route with correct path */}
             <Route path="announcements" element={<StudentAnnouncements />} />
+            <Route path="assessments" element={<StudentAssessments />} />
           </Route>
 
           {/* ===== FALLBACK ===== */}
