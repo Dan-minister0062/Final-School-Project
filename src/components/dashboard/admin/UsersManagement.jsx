@@ -472,15 +472,12 @@ const UsersManagement = () => {
     setTotalPages(Math.ceil(data.length / 10));
   };
 
-  // ===== UPDATE AVAILABLE CLASSES BASED ON LEVEL =====
+  // ===== TEACHER ASSIGNED CLASSES =====
+  // Show every class regardless of level so a teacher can be assigned
+  // classes from more than one education level at once.
   useEffect(() => {
-    if (formData.level) {
-      const filtered = classes.filter((c) => c.level === formData.level);
-      setAvailableClasses(filtered);
-    } else {
-      setAvailableClasses([]);
-    }
-  }, [formData.level, classes]);
+    setAvailableClasses(classes);
+  }, [classes]);
 
   // ===== UPDATE AVAILABLE SUBJECTS BASED ON LEVEL =====
   useEffect(() => {
@@ -498,7 +495,6 @@ const UsersManagement = () => {
       ...prev,
       level,
       subjects: [],
-      assignedClasses: [],
     }));
   };
 
@@ -1734,7 +1730,7 @@ const UsersManagement = () => {
               />
             </Form.Group>
 
-            {formData.level && (
+            {availableClasses.length > 0 && (
               <Form.Group className="mb-3">
                 <Form.Label
                   className="fw-semibold"
@@ -1763,12 +1759,13 @@ const UsersManagement = () => {
                   {availableClasses.map((c) => {
                     // Get class name based on language
                     const className = isArabic ? (c.nameAr || c.name) : c.name;
+                    const classLabel = `${className} (${getLevelLabel(c.level)})`;
                     return (
                       <Form.Check
                         key={c.id}
                         type="checkbox"
                         id={`class-${c.id}`}
-                        label={className}
+                        label={classLabel}
                         checked={formData.assignedClasses.includes(c.id)}
                         onChange={(e) => {
                           if (e.target.checked) {
@@ -1800,8 +1797,8 @@ const UsersManagement = () => {
                 </div>
                 <Form.Text className="text-muted" style={arabicFontStyle}>
                   {isArabic
-                    ? "يمكنك اختيار فصل واحد أو أكثر"
-                    : "You can select one or more classes"}
+                    ? "يمكنك اختيار فصل واحد أو أكثر من أي مستوى"
+                    : "You can select one or more classes from any level"}
                 </Form.Text>
               </Form.Group>
             )}
@@ -5510,7 +5507,6 @@ const UsersManagement = () => {
                         ...editFormData,
                         level: e.target.value,
                         subjects: [],
-                        assignedClasses: [],
                       })
                     }
                     style={{
@@ -5788,53 +5784,52 @@ const UsersManagement = () => {
                       gap: "6px",
                     }}
                   >
-                    {classes
-                      .filter((c) => c.level === editFormData.level)
-                      .map((c) => {
-                        const className = isArabic
-                          ? c.nameAr || c.name
-                          : c.name;
-                        return (
-                          <Form.Check
-                            key={c.id}
-                            type="checkbox"
-                            id={`edit-class-${c.id}`}
-                            label={className}
-                            checked={editFormData.assignedClasses.includes(
-                              c.id,
-                            )}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setEditFormData({
-                                  ...editFormData,
-                                  assignedClasses: [
-                                    ...editFormData.assignedClasses,
-                                    c.id,
-                                  ],
-                                });
-                              } else {
-                                setEditFormData({
-                                  ...editFormData,
-                                  assignedClasses: editFormData.assignedClasses.filter(
-                                    (id) => id !== c.id,
-                                  ),
-                                });
-                              }
-                            }}
-                            className="class-check"
-                            style={{
-                              ...arabicFontStyle,
-                              color: darkMode ? "#e9ecef" : "#212529",
-                              fontSize: "clamp(0.7rem, 0.85vw, 0.9rem)",
-                            }}
-                          />
-                        );
+                    {classes.map((c) => {
+                      const className = isArabic
+                        ? c.nameAr || c.name
+                        : c.name;
+                      const classLabel = `${className} (${getLevelLabel(c.level)})`;
+                      return (
+                        <Form.Check
+                          key={c.id}
+                          type="checkbox"
+                          id={`edit-class-${c.id}`}
+                          label={classLabel}
+                          checked={editFormData.assignedClasses.includes(
+                            c.id,
+                          )}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditFormData({
+                                ...editFormData,
+                                assignedClasses: [
+                                  ...editFormData.assignedClasses,
+                                  c.id,
+                                ],
+                              });
+                            } else {
+                              setEditFormData({
+                                ...editFormData,
+                                assignedClasses: editFormData.assignedClasses.filter(
+                                  (id) => id !== c.id,
+                                ),
+                              });
+                            }
+                          }}
+                          className="class-check"
+                          style={{
+                            ...arabicFontStyle,
+                            color: darkMode ? "#e9ecef" : "#212529",
+                            fontSize: "clamp(0.7rem, 0.85vw, 0.9rem)",
+                          }}
+                        />
+                      );
                       })}
                   </div>
                   <Form.Text className="text-muted" style={arabicFontStyle}>
                     {isArabic
-                      ? "يمكنك اختيار فصل واحد أو أكثر حسب المستوى التعليمي"
-                      : "You can select one or more classes"}
+                      ? "يمكنك اختيار فصل واحد أو أكثر من أي مستوى"
+                      : "You can select one or more classes from any level"}
                   </Form.Text>
                 </Form.Group>
               </>
