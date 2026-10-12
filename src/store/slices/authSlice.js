@@ -2,13 +2,18 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api, { fetchCsrfCookie, setAuthIdentity } from '../../services/api';
 import userDataService from '../../services/userDataService';
+import { assessmentService } from '../../services/assessmentService';
 
 // The data services read the in-memory identity and skip MySQL while it is
 // null, so they must be told to re-sync the moment a real session exists.
+// This also keeps protected endpoints (/assessments, /submissions) from being
+// called before a session exists, which otherwise logs a 401 on every guest
+// page load.
 const establishIdentity = (user) => {
   setAuthIdentity(user);
   if (user) {
     userDataService.syncFromBackend();
+    assessmentService.syncFromServer();
   }
 };
 

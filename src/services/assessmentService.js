@@ -13,7 +13,6 @@ class AssessmentService {
     this.submissions = [];
     this._listeners = [];
     this.loadData();
-    this.syncFromServer();
   }
 
   _getData(key) {
