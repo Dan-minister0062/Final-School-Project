@@ -189,7 +189,6 @@ const authSlice = createSlice({
         state.isAuthenticated = false;
         state.status = 'guest';
         state.error = null;
-        window.dispatchEvent(new CustomEvent('session:ended'));
       })
       .addCase(logoutUser.rejected, (state) => {
         state.loading = false;
@@ -198,7 +197,6 @@ const authSlice = createSlice({
         state.role = null;
         state.isAuthenticated = false;
         state.status = 'guest';
-        window.dispatchEvent(new CustomEvent('session:ended'));
       })
       .addCase(fetchMe.pending, (state) => {
         state.status = 'checking';
